@@ -24,13 +24,13 @@ web = [
 
 [dependencies]
 bevy = {version="0.5.0", default-features=false}
-bevy_webgl2 = {version="0.5.0", optional=true}
+bevy_webgl2 = {version="0.5.1", optional=true}
 
 winit = {version = "0.24.0"}
 rand = "0.7"
 getrandom = {version="0.1", features=["wasm-bindgen"]}
 
-bevy_prototype_lyon = { path = "../bevy_prototype_lyon" }
+bevy_prototype_lyon = "0.3.1"
 
 # [patch.'https://github.com/bevyengine/bevy']
 # bevy = {git = "https://github.com/bevyengine/bevy//", rev="841755aaf23acfd55b375c37390daeb302c5b30b", default-features=false}
