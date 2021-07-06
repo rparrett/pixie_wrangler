@@ -3,7 +3,7 @@ use bevy::{
 };
 use bevy_prototype_lyon::prelude::*;
 
-const GRID_SIZE: f32 = 10.0;
+const GRID_SIZE: f32 = 16.0;
 
 fn main() {
     let mut app = App::build();
@@ -38,10 +38,46 @@ struct MouseState {
     position: Vec2,
 }
 
+fn snap_to_grid_1d(position: f32, grid_size: f32) -> f32 {
+    let new = (position / grid_size).round() * grid_size;
+
+    new
+}
+
 fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {
     let new = (position / grid_size).round() * grid_size;
 
     new
+}
+
+fn snap_to_angle(start: Vec2, end: Vec2, divisions: u32) -> Vec2 {
+    let diff = end - start;
+
+    let angle = diff.y.atan2(diff.x);
+
+    let increment = std::f32::consts::TAU / divisions as f32;
+
+    let snap_angle = (angle / increment).round() * increment;
+
+    if snap_angle.to_degrees() == 90.0 || snap_angle.to_degrees() == -90.0 {
+        return snap_to_grid(start + Vec2::new(0.0, diff.y), GRID_SIZE);
+    }
+
+    if snap_angle.to_degrees() == 0.0
+        || snap_angle.to_degrees() == 180.0
+        || snap_angle.to_degrees() == -180.0
+    {
+        return snap_to_grid(start + Vec2::new(diff.x, 0.0), GRID_SIZE);
+    }
+
+    let snapped_x = snap_to_grid_1d(diff.x, GRID_SIZE);
+    let snapped_y = snap_to_grid_1d(diff.y, GRID_SIZE);
+
+    if (end.x - snapped_x).abs() > (end.y - snapped_y).abs() {
+        return start + Vec2::new(snapped_x, snapped_x * snap_angle.tan());
+    } else {
+        return start + Vec2::new(snapped_y / snap_angle.tan(), snapped_y);
+    }
 }
 
 fn draw_current_shape(
@@ -93,7 +129,10 @@ fn draw_current_line(
     }
 
     if let Some(point) = path.points.last() {
-        let points = vec![point.clone(), snap_to_grid(mouse.position, GRID_SIZE)];
+        let points = vec![
+            point.clone(),
+            snap_to_angle(point.clone(), mouse.position, 8),
+        ];
         let shape = shapes::Polygon {
             points,
             closed: false,
@@ -143,11 +182,11 @@ fn mouse_events_system(
                 path.points.clear();
             }
 
-            let point = snap_to_grid(mouse.position, GRID_SIZE);
-
             // TODO check for collisions
 
             if let Some(last) = path.points.last() {
+                let point = snap_to_angle(*last, mouse.position, 8);
+
                 if *last == point {
                     path.drawing = false;
 
@@ -170,6 +209,7 @@ fn mouse_events_system(
                     path.points.push(point);
                 }
             } else {
+                let point = snap_to_grid(mouse.position, GRID_SIZE);
                 path.points.push(point);
             }
         }
