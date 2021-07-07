@@ -139,6 +139,7 @@ fn draw_current_line(
         return;
     }
 
+    // no line to draw
     let point = path.points.last();
     if point.is_none() {
         return;
@@ -146,6 +147,8 @@ fn draw_current_line(
     let point = point.unwrap();
 
     let snapped = snap_to_angle(point.clone(), mouse.position, 8, GRID_SIZE);
+
+    // no line to draw
     if snapped == *point {
         return;
     }
@@ -157,11 +160,36 @@ fn draw_current_line(
 
     let mut invalid = false;
     let mut invalid_half = false;
+
+    // no self-collisions at all
+    for (a, b) in path.points.iter().tuple_windows() {
+        match segment_collision(*a, *b, *point, snapped) {
+            SegmentCollision::Intersecting
+            | SegmentCollision::Overlapping
+            | SegmentCollision::Touching => {
+                invalid = true;
+            }
+            _ => {}
+        };
+        match point_segment_collision(snapped, *a, *b) {
+            SegmentCollision::Connecting => invalid = true,
+            _ => {}
+        }
+        match segment_collision(*a, *b, *point, snapped_half) {
+            SegmentCollision::Intersecting
+            | SegmentCollision::Overlapping
+            | SegmentCollision::Touching => {
+                invalid_half = true;
+            }
+            _ => {}
+        };
+    }
+
     let mut touching = false;
     let mut touching_half = false;
-    let mut connecting = 0;
+    let mut connecting = false;
 
-    for (a, b) in path.points.iter().tuple_windows() {
+    for (a, b) in q_roads.iter().flat_map(|r| r.path.iter().tuple_windows()) {
         match segment_collision(*a, *b, *point, snapped) {
             SegmentCollision::Intersecting | SegmentCollision::Overlapping => {
                 invalid = true;
@@ -169,11 +197,14 @@ fn draw_current_line(
             SegmentCollision::Touching => {
                 touching = true;
             }
-            SegmentCollision::Connecting => {
-                connecting += 1;
-            }
             _ => {}
         };
+        match point_segment_collision(snapped, *a, *b) {
+            SegmentCollision::Connecting => {
+                connecting = true;
+            }
+            _ => {}
+        }
         match segment_collision(*a, *b, *point, snapped_half) {
             SegmentCollision::Intersecting | SegmentCollision::Overlapping => {
                 invalid_half = true;
@@ -184,36 +215,13 @@ fn draw_current_line(
             _ => {}
         };
     }
-    for r in q_roads.iter() {
-        for (a, b) in r.path.iter().tuple_windows() {
-            match segment_collision(*a, *b, *point, snapped) {
-                SegmentCollision::Intersecting | SegmentCollision::Overlapping => {
-                    invalid = true;
-                }
-                SegmentCollision::Touching => {
-                    touching = true;
-                }
-                SegmentCollision::Connecting => {
-                    connecting += 1;
-                }
-                _ => {}
-            };
-            match segment_collision(*a, *b, *point, snapped_half) {
-                SegmentCollision::Intersecting | SegmentCollision::Overlapping => {
-                    invalid_half = true;
-                }
-                SegmentCollision::Touching => {
-                    touching_half = true;
-                }
-                _ => {}
-            };
-        }
-    }
 
     let color = if invalid && invalid_half {
         Color::RED
-    } else if touching || touching_half || connecting > 1 {
-        Color::BISQUE
+    } else if touching || touching_half {
+        Color::AQUAMARINE
+    } else if connecting {
+        Color::ALICE_BLUE
     } else {
         Color::BLUE
     };
@@ -284,15 +292,40 @@ fn mouse_events_system(
 
                 let mut invalid = false;
                 let mut invalid_half = false;
-                let mut touching = false;
-                let mut touching_half = false;
-                let mut connecting = 0;
 
                 // TODO when considering "touching" "connecting" collisions, it would probably
                 // make more sense to do a separate point collision check just for the point
                 // under the cursor
 
+                // no self-collisions at all
                 for (a, b) in path.points.iter().tuple_windows() {
+                    match segment_collision(*a, *b, *last, snapped) {
+                        SegmentCollision::Intersecting
+                        | SegmentCollision::Overlapping
+                        | SegmentCollision::Touching => {
+                            invalid = true;
+                        }
+                        _ => {}
+                    };
+                    match point_segment_collision(snapped, *a, *b) {
+                        SegmentCollision::Connecting => invalid = true,
+                        _ => {}
+                    }
+                    match segment_collision(*a, *b, *last, snapped_half) {
+                        SegmentCollision::Intersecting
+                        | SegmentCollision::Overlapping
+                        | SegmentCollision::Touching => {
+                            invalid_half = true;
+                        }
+                        _ => {}
+                    };
+                }
+
+                let mut touching = false;
+                let mut touching_half = false;
+                let mut connecting = false;
+
+                for (a, b) in q_roads.iter().flat_map(|r| r.path.iter().tuple_windows()) {
                     match segment_collision(*a, *b, *last, snapped) {
                         SegmentCollision::Intersecting | SegmentCollision::Overlapping => {
                             invalid = true;
@@ -300,8 +333,11 @@ fn mouse_events_system(
                         SegmentCollision::Touching => {
                             touching = true;
                         }
+                        _ => {}
+                    };
+                    match point_segment_collision(snapped, *a, *b) {
                         SegmentCollision::Connecting => {
-                            connecting += 1;
+                            connecting = true;
                         }
                         _ => {}
                     }
@@ -313,32 +349,11 @@ fn mouse_events_system(
                             touching_half = true;
                         }
                         _ => {}
-                    }
+                    };
                 }
-                for r in q_roads.iter() {
-                    for (a, b) in r.path.iter().tuple_windows() {
-                        match segment_collision(*a, *b, *last, snapped) {
-                            SegmentCollision::Intersecting | SegmentCollision::Overlapping => {
-                                invalid = true;
-                            }
-                            SegmentCollision::Touching => {
-                                touching = true;
-                            }
-                            SegmentCollision::Connecting => {
-                                connecting += 1;
-                            }
-                            _ => {}
-                        }
-                        match segment_collision(*a, *b, *last, snapped_half) {
-                            SegmentCollision::Intersecting | SegmentCollision::Overlapping => {
-                                invalid_half = true;
-                            }
-                            SegmentCollision::Touching => {
-                                touching_half = true;
-                            }
-                            _ => {}
-                        }
-                    }
+
+                if q_terminuses.iter().any(|t| t.point == snapped) {
+                    connecting = true;
                 }
 
                 if invalid && invalid_half {
@@ -349,13 +364,13 @@ fn mouse_events_system(
                     && !touching_half
                     && *last != snapped
                     && *last != snapped_half
-                    && connecting < 2
+                    && !connecting
                 {
                     path.points.push(snapped);
                     return;
                 }
 
-                if touching || connecting >= 2 {
+                if touching || connecting {
                     path.points.push(snapped);
                 } else if touching_half {
                     path.points.push(snapped_half);
