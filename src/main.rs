@@ -41,15 +41,17 @@ struct MouseState {
 
 #[derive(Debug)]
 enum SegmentCollision {
-    Collinear,
-    Parallel,
+    Overlapping,
     Connecting,
     Touching,
     Intersecting,
     None,
 }
 
+// for reference, this is helpful
 // https://github.com/pgkelley4/line-segments-intersect/blob/master/js/line-segments-intersect.js
+// but we're differing pretty wildly in how we choose to deal with collinearities, and
+// we threw epsilon out of the window because we're snapping to an integer grid
 fn segment_collision(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> SegmentCollision {
     let da = a2 - a1;
     let db = b2 - b1;
@@ -59,69 +61,51 @@ fn segment_collision(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> SegmentCollision
     let denominator = da.perp_dot(db);
 
     if numerator == 0.0 && denominator == 0.0 {
-        // TODO are these collinear and overlapping?
-        // collinear and merely touching endpoints?
-        info!(
-            "{} {} {} {} / {} {} {} {}",
-            a1.x - b1.x,
-            a1.x - b2.x,
-            a2.x - b1.x,
-            a2.x - b2.x,
-            a1.y - b1.y,
-            a1.y - b2.y,
-            a2.y - b1.y,
-            a2.y - b2.y,
-        );
-        let diffsX = vec![a1.x - b1.x, a1.x - b2.x, a2.x - b1.x, a2.x - b2.x];
-        let diffsY = vec![a1.y - b1.y, a1.y - b2.y, a2.y - b1.y, a2.y - b2.y];
+        // these are collinear
+        // but are they overlapping? merely touching end to end?
+        // or not touching at all?
 
-        let nonZeroesX = diffsX
-            .iter()
-            .cloned()
-            .filter(|d| *d != 0.0)
-            .map(|d| d < 0.0);
-        let nonZeroesY = diffsY
-            .iter()
-            .cloned()
-            .filter(|d| *d != 0.0)
-            .map(|d| d < 0.0);
+        let dx = (a1.x - b1.x, a1.x - b2.x, a2.x - b1.x, a2.x - b2.x);
+        let dy = (a1.y - b1.y, a1.y - b2.y, a2.y - b1.y, a2.y - b2.y);
 
-        let fuk = nonZeroesX.clone();
-        let fuky = nonZeroesX.clone();
-
-        info!("{:?}", fuk.collect::<Vec<_>>());
-        info!("{:?}", fuky.collect::<Vec<_>>());
-
-        let watX = nonZeroesX.clone();
-        let watY = nonZeroesY.clone();
-
-        if (nonZeroesX
-            .tuple_windows()
-            .inspect(|(a, b)| info!("{} {}", a, b))
-            .any(|(a, b)| a != b))
+        if !(((dx.0 == 0.0 || dx.0 < 0.0)
+            && (dx.1 == 0.0 || dx.1 < 0.0)
+            && (dx.2 == 0.0 || dx.2 < 0.0)
+            && (dx.3 == 0.0 || dx.3 < 0.0))
+            || ((dx.0 == 0.0 || dx.0 > 0.0)
+                && (dx.1 == 0.0 || dx.1 > 0.0)
+                && (dx.2 == 0.0 || dx.2 > 0.0)
+                && (dx.3 == 0.0 || dx.3 > 0.0)))
         {
-            return SegmentCollision::Collinear;
-        }
-        if (nonZeroesY.tuple_windows().any(|(a, b)| a != b)) {
-            return SegmentCollision::Collinear;
+            return SegmentCollision::Overlapping;
         }
 
-        let xc = watX.count();
-        let yc = watY.count();
+        if !(((dy.0 == 0.0 || dy.0 < 0.0)
+            && (dy.1 == 0.0 || dy.1 < 0.0)
+            && (dy.2 == 0.0 || dy.2 < 0.0)
+            && (dy.3 == 0.0 || dy.3 < 0.0))
+            || ((dy.0 == 0.0 || dy.0 > 0.0)
+                && (dy.1 == 0.0 || dy.1 > 0.0)
+                && (dy.2 == 0.0 || dy.2 > 0.0)
+                && (dy.3 == 0.0 || dy.3 > 0.0)))
+        {
+            return SegmentCollision::Overlapping;
+        }
 
-        if (xc == 3) {
+        if dx.0 == 0.0 && dy.0 == 0.0
+            || dx.1 == 0.0 && dy.1 == 0.0
+            || dx.2 == 0.0 && dy.2 == 0.0
+            || dx.3 == 0.0 && dy.3 == 0.0
+        {
             return SegmentCollision::Connecting;
         }
 
-        if (yc == 3) {
-            return SegmentCollision::Connecting;
-        }
-
-        return SegmentCollision::Collinear;
+        return SegmentCollision::None;
     }
 
     if denominator == 0.0 {
-        return SegmentCollision::Parallel;
+        // paralell, but we don't need to make that distinction
+        return SegmentCollision::None;
     }
 
     let u = numerator / denominator;
@@ -335,4 +319,82 @@ fn setup(mut commands: Commands) {
     commands
         .spawn_bundle(OrthographicCameraBundle::new_2d())
         .insert(MainCamera);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_segment_collision() {
+        // collinear non-overlapping x axis
+        assert!(matches!(
+            segment_collision(
+                Vec2::new(0.0, 0.0),
+                Vec2::new(1.0, 0.0),
+                Vec2::new(2.0, 0.0),
+                Vec2::new(3.0, 0.0),
+            ),
+            SegmentCollision::None
+        ));
+        // collinear non-overlapping y axis
+        assert!(matches!(
+            segment_collision(
+                Vec2::new(0.0, 0.0),
+                Vec2::new(0.0, 1.0),
+                Vec2::new(0.0, 2.0),
+                Vec2::new(0.0, 3.0),
+            ),
+            SegmentCollision::None
+        ));
+        // x
+        assert!(matches!(
+            segment_collision(
+                Vec2::new(-1.0, 1.0),
+                Vec2::new(1.0, -1.0),
+                Vec2::new(1.0, 1.0),
+                Vec2::new(-1.0, -1.0),
+            ),
+            SegmentCollision::Intersecting
+        ));
+        // 3-limbed x
+        assert!(matches!(
+            segment_collision(
+                Vec2::new(-1.0, 1.0),
+                Vec2::new(1.0, -1.0),
+                Vec2::new(1.0, 1.0),
+                Vec2::new(0.0, 0.0),
+            ),
+            SegmentCollision::Touching
+        ));
+        // V
+        assert!(matches!(
+            segment_collision(
+                Vec2::new(-2.0, 2.0),
+                Vec2::new(1.0, 1.0),
+                Vec2::new(1.0, 1.0),
+                Vec2::new(2.0, 2.0),
+            ),
+            SegmentCollision::Connecting
+        ));
+        // =
+        assert!(matches!(
+            segment_collision(
+                Vec2::new(-2.0, -2.0),
+                Vec2::new(2.0, -2.0),
+                Vec2::new(-2.0, 2.0),
+                Vec2::new(2.0, 2.0),
+            ),
+            SegmentCollision::None
+        ));
+        // -=-
+        assert!(matches!(
+            segment_collision(
+                Vec2::new(10.0, 10.0),
+                Vec2::new(20.0, 10.0),
+                Vec2::new(13.0, 10.0),
+                Vec2::new(17.0, 10.0),
+            ),
+            SegmentCollision::Overlapping
+        ));
+    }
 }
