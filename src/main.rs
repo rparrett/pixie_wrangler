@@ -259,7 +259,22 @@ fn draw_current_line(
             }
         });
 
-        let color = if invalid { Color::RED } else { Color::GREEN };
+        let color = if invalid {
+            Color::RED
+        } else {
+            let touching =
+                path.points.iter().tuple_windows().any(|(a, b)| {
+                    match segment_collision(*a, *b, *point, snapped) {
+                        SegmentCollision::Touching => true,
+                        _ => false,
+                    }
+                });
+            if touching {
+                Color::BISQUE
+            } else {
+                Color::BLUE
+            }
+        };
 
         let points = vec![point.clone(), snapped];
 
