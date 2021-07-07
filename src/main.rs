@@ -224,10 +224,15 @@ fn draw_current_line(
             return;
         }
 
-        info!("");
-        for (i, (a, b)) in path.points.iter().tuple_windows().enumerate() {
-            info!("{}: {:?}", i, segment_collision(*a, *b, *point, snapped));
-        }
+        let invalid = path.points.iter().tuple_windows().any(|(a, b)| {
+            match segment_collision(*a, *b, *point, snapped) {
+                SegmentCollision::Intersecting => true,
+                SegmentCollision::Overlapping => true,
+                _ => false,
+            }
+        });
+
+        let color = if invalid { Color::RED } else { Color::GREEN };
 
         let points = vec![point.clone(), snapped];
 
@@ -238,7 +243,7 @@ fn draw_current_line(
         commands
             .spawn_bundle(GeometryBuilder::build_as(
                 &shape,
-                ShapeColors::outlined(Color::NONE, Color::GREEN),
+                ShapeColors::outlined(Color::NONE, color),
                 DrawMode::Outlined {
                     fill_options: FillOptions::default(),
                     outline_options: StrokeOptions::default().with_line_width(2.0),
@@ -280,12 +285,22 @@ fn mouse_events_system(
                 path.points.clear();
             }
 
-            // TODO check for collisions
-
             if let Some(last) = path.points.last() {
-                let point = snap_to_angle(*last, mouse.position, 8);
+                let snapped = snap_to_angle(*last, mouse.position, 8);
 
-                if *last == point {
+                let invalid = path.points.iter().tuple_windows().any(|(a, b)| {
+                    match segment_collision(*a, *b, *last, snapped) {
+                        SegmentCollision::Intersecting => true,
+                        SegmentCollision::Overlapping => true,
+                        _ => false,
+                    }
+                });
+
+                if invalid {
+                    return;
+                }
+
+                if *last == snapped {
                     path.drawing = false;
 
                     let shape = shapes::Polygon {
@@ -304,11 +319,15 @@ fn mouse_events_system(
                         ))
                         .insert(Road);
                 } else {
-                    path.points.push(point);
+                    path.points.push(snapped);
                 }
             } else {
-                let point = snap_to_grid(mouse.position, GRID_SIZE);
-                path.points.push(point);
+                // TODO point-segment collision check for first point of
+                // new line.
+                // TODO er, pretty sure we didn't need that.
+
+                let snapped = snap_to_grid(mouse.position, GRID_SIZE);
+                path.points.push(snapped);
             }
         }
     }
