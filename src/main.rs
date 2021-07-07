@@ -139,24 +139,53 @@ fn draw_current_line(
         return;
     }
 
-    if let Some(point) = path.points.last() {
-        let snapped = snap_to_angle(point.clone(), mouse.position, 8, GRID_SIZE);
-        if snapped == *point {
-            return;
-        }
+    let point = path.points.last();
+    if point.is_none() {
+        return;
+    }
+    let point = point.unwrap();
 
-        // need to be able to snap to a half grid to properly connect to the middle of
-        // some diagonal lines.
+    let snapped = snap_to_angle(point.clone(), mouse.position, 8, GRID_SIZE);
+    if snapped == *point {
+        return;
+    }
 
-        let snapped_half = snap_to_angle(point.clone(), mouse.position, 8, HALF_GRID_SIZE);
+    // need to be able to snap to a half grid to properly connect to the middle of
+    // some diagonal lines.
 
-        let mut invalid = false;
-        let mut invalid_half = false;
-        let mut touching = false;
-        let mut touching_half = false;
-        let mut connecting = 0;
+    let snapped_half = snap_to_angle(point.clone(), mouse.position, 8, HALF_GRID_SIZE);
 
-        for (a, b) in path.points.iter().tuple_windows() {
+    let mut invalid = false;
+    let mut invalid_half = false;
+    let mut touching = false;
+    let mut touching_half = false;
+    let mut connecting = 0;
+
+    for (a, b) in path.points.iter().tuple_windows() {
+        match segment_collision(*a, *b, *point, snapped) {
+            SegmentCollision::Intersecting | SegmentCollision::Overlapping => {
+                invalid = true;
+            }
+            SegmentCollision::Touching => {
+                touching = true;
+            }
+            SegmentCollision::Connecting => {
+                connecting += 1;
+            }
+            _ => {}
+        };
+        match segment_collision(*a, *b, *point, snapped_half) {
+            SegmentCollision::Intersecting | SegmentCollision::Overlapping => {
+                invalid_half = true;
+            }
+            SegmentCollision::Touching => {
+                touching_half = true;
+            }
+            _ => {}
+        };
+    }
+    for r in q_roads.iter() {
+        for (a, b) in r.path.iter().tuple_windows() {
             match segment_collision(*a, *b, *point, snapped) {
                 SegmentCollision::Intersecting | SegmentCollision::Overlapping => {
                     invalid = true;
@@ -179,66 +208,41 @@ fn draw_current_line(
                 _ => {}
             };
         }
-        for r in q_roads.iter() {
-            for (a, b) in r.path.iter().tuple_windows() {
-                match segment_collision(*a, *b, *point, snapped) {
-                    SegmentCollision::Intersecting | SegmentCollision::Overlapping => {
-                        invalid = true;
-                    }
-                    SegmentCollision::Touching => {
-                        touching = true;
-                    }
-                    SegmentCollision::Connecting => {
-                        connecting += 1;
-                    }
-                    _ => {}
-                };
-                match segment_collision(*a, *b, *point, snapped_half) {
-                    SegmentCollision::Intersecting | SegmentCollision::Overlapping => {
-                        invalid_half = true;
-                    }
-                    SegmentCollision::Touching => {
-                        touching_half = true;
-                    }
-                    _ => {}
-                };
-            }
-        }
-
-        let color = if invalid && invalid_half {
-            Color::RED
-        } else if touching || touching_half || connecting > 1 {
-            Color::BISQUE
-        } else {
-            Color::BLUE
-        };
-
-        let snapped_point = if invalid && invalid_half {
-            snapped
-        } else if touching_half {
-            snapped_half
-        } else {
-            snapped
-        };
-
-        let points = vec![point.clone(), snapped_point];
-
-        let shape = shapes::Polygon {
-            points,
-            closed: false,
-        };
-        commands
-            .spawn_bundle(GeometryBuilder::build_as(
-                &shape,
-                ShapeColors::outlined(Color::NONE, color),
-                DrawMode::Outlined {
-                    fill_options: FillOptions::default(),
-                    outline_options: StrokeOptions::default().with_line_width(2.0),
-                },
-                Transform::default(),
-            ))
-            .insert(CurrentLine);
     }
+
+    let color = if invalid && invalid_half {
+        Color::RED
+    } else if touching || touching_half || connecting > 1 {
+        Color::BISQUE
+    } else {
+        Color::BLUE
+    };
+
+    let snapped_point = if invalid && invalid_half {
+        snapped
+    } else if touching_half {
+        snapped_half
+    } else {
+        snapped
+    };
+
+    let points = vec![point.clone(), snapped_point];
+
+    let shape = shapes::Polygon {
+        points,
+        closed: false,
+    };
+    commands
+        .spawn_bundle(GeometryBuilder::build_as(
+            &shape,
+            ShapeColors::outlined(Color::NONE, color),
+            DrawMode::Outlined {
+                fill_options: FillOptions::default(),
+                outline_options: StrokeOptions::default().with_line_width(2.0),
+            },
+            Transform::default(),
+        ))
+        .insert(CurrentLine);
 }
 
 /// This system prints out all mouse events as they come in
