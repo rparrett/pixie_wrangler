@@ -2,6 +2,7 @@ use bevy::{
     input::mouse::MouseButtonInput, input::ElementState::Released, prelude::*, window::CursorMoved,
 };
 use bevy_prototype_lyon::prelude::*;
+use itertools::Itertools;
 
 const GRID_SIZE: f32 = 16.0;
 
@@ -36,6 +37,55 @@ struct PathDrawingState {
 #[derive(Default, Debug)]
 struct MouseState {
     position: Vec2,
+}
+
+#[derive(Debug)]
+enum SegmentCollision {
+    Collinear,
+    Parallel,
+    Connecting,
+    Touching,
+    Intersecting,
+    None,
+}
+
+fn segment_collision(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> SegmentCollision {
+    let da = a2 - a1;
+    let db = b2 - b1;
+    let dab = b1 - a1;
+
+    let numerator = dab.perp_dot(da);
+    let denominator = da.perp_dot(db);
+
+    if numerator == 0.0 && denominator == 0.0 {
+        // TODO are these collinear and overlapping?
+        // collinear and merely touching endpoints?
+
+        return SegmentCollision::Collinear;
+    }
+
+    if denominator == 0.0 {
+        return SegmentCollision::Parallel;
+    }
+
+    let u = numerator / denominator;
+    let t = dab.perp_dot(db) / denominator;
+
+    if (t == 0.0 && u == 1.0) || (u == 0.0 && t == 1.0) {
+        return SegmentCollision::Connecting;
+    }
+
+    let col = t >= 0.0 && t <= 1.0 && u >= 0.0 && u <= 1.0;
+
+    if col && (t == 0.0 || u == 0.0 || t == 1.0 || u == 1.0) {
+        return SegmentCollision::Touching;
+    }
+
+    if col {
+        return SegmentCollision::Intersecting;
+    }
+
+    return SegmentCollision::None;
 }
 
 fn snap_to_grid_1d(position: f32, grid_size: f32) -> f32 {
@@ -129,10 +179,18 @@ fn draw_current_line(
     }
 
     if let Some(point) = path.points.last() {
-        let points = vec![
-            point.clone(),
-            snap_to_angle(point.clone(), mouse.position, 8),
-        ];
+        let snapped = snap_to_angle(point.clone(), mouse.position, 8);
+        if snapped == *point {
+            return;
+        }
+
+        info!("");
+        for (i, (a, b)) in path.points.iter().tuple_windows().enumerate() {
+            info!("{}: {:?}", i, segment_collision(*a, *b, *point, snapped));
+        }
+
+        let points = vec![point.clone(), snapped];
+
         let shape = shapes::Polygon {
             points,
             closed: false,
