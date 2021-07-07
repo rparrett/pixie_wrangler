@@ -131,7 +131,7 @@ fn segment_collision(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> SegmentCollision
     }
 
     if denominator == 0.0 {
-        // paralell, but we don't need to make that distinction
+        // parallel, but we don't need to make that distinction
         return SegmentCollision::None;
     }
 
