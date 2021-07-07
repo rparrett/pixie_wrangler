@@ -49,6 +49,7 @@ enum SegmentCollision {
     None,
 }
 
+// https://github.com/pgkelley4/line-segments-intersect/blob/master/js/line-segments-intersect.js
 fn segment_collision(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> SegmentCollision {
     let da = a2 - a1;
     let db = b2 - b1;
@@ -60,6 +61,61 @@ fn segment_collision(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> SegmentCollision
     if numerator == 0.0 && denominator == 0.0 {
         // TODO are these collinear and overlapping?
         // collinear and merely touching endpoints?
+        info!(
+            "{} {} {} {} / {} {} {} {}",
+            a1.x - b1.x,
+            a1.x - b2.x,
+            a2.x - b1.x,
+            a2.x - b2.x,
+            a1.y - b1.y,
+            a1.y - b2.y,
+            a2.y - b1.y,
+            a2.y - b2.y,
+        );
+        let diffsX = vec![a1.x - b1.x, a1.x - b2.x, a2.x - b1.x, a2.x - b2.x];
+        let diffsY = vec![a1.y - b1.y, a1.y - b2.y, a2.y - b1.y, a2.y - b2.y];
+
+        let nonZeroesX = diffsX
+            .iter()
+            .cloned()
+            .filter(|d| *d != 0.0)
+            .map(|d| d < 0.0);
+        let nonZeroesY = diffsY
+            .iter()
+            .cloned()
+            .filter(|d| *d != 0.0)
+            .map(|d| d < 0.0);
+
+        let fuk = nonZeroesX.clone();
+        let fuky = nonZeroesX.clone();
+
+        info!("{:?}", fuk.collect::<Vec<_>>());
+        info!("{:?}", fuky.collect::<Vec<_>>());
+
+        let watX = nonZeroesX.clone();
+        let watY = nonZeroesY.clone();
+
+        if (nonZeroesX
+            .tuple_windows()
+            .inspect(|(a, b)| info!("{} {}", a, b))
+            .any(|(a, b)| a != b))
+        {
+            return SegmentCollision::Collinear;
+        }
+        if (nonZeroesY.tuple_windows().any(|(a, b)| a != b)) {
+            return SegmentCollision::Collinear;
+        }
+
+        let xc = watX.count();
+        let yc = watY.count();
+
+        if (xc == 3) {
+            return SegmentCollision::Connecting;
+        }
+
+        if (yc == 3) {
+            return SegmentCollision::Connecting;
+        }
 
         return SegmentCollision::Collinear;
     }
