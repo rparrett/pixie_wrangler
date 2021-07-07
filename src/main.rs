@@ -26,7 +26,12 @@ struct MainCamera;
 
 struct CurrentShape;
 struct CurrentLine;
-struct Road;
+struct Road {
+    path: Vec<Vec2>,
+}
+struct Terminus {
+    point: Vec2,
+}
 
 #[derive(Default, Debug)]
 struct PathDrawingState {
@@ -305,6 +310,8 @@ fn mouse_events_system(
     mut mouse: ResMut<MouseState>,
     wnds: Res<Windows>,
     q_camera: Query<&Transform, With<MainCamera>>,
+    q_terminuses: Query<&Terminus>,
+    q_roads: Query<&Road>,
 ) {
     // assuming there is exactly one main camera entity, so this is OK
     let camera_transform = q_camera.iter().next().unwrap();
@@ -359,7 +366,9 @@ fn mouse_events_system(
                             },
                             Transform::default(),
                         ))
-                        .insert(Road);
+                        .insert(Road {
+                            path: path.points.clone(),
+                        });
                 } else {
                     path.points.push(snapped);
                 }
@@ -369,7 +378,27 @@ fn mouse_events_system(
                 // TODO er, pretty sure we didn't need that.
 
                 let snapped = snap_to_grid(mouse.position, GRID_SIZE);
-                path.points.push(snapped);
+
+                let mut ok = q_terminuses
+                    .iter()
+                    .inspect(|t| info!("{:?}:", t.point))
+                    .any(|t| t.point == snapped);
+
+                if !ok {
+                    ok = q_roads.iter().any(|r| {
+                        r.path.iter().tuple_windows().any(|(a, b)| {
+                            match point_segment_collision(snapped, *a, *b) {
+                                SegmentCollision::Connecting => true,
+                                SegmentCollision::Touching => true,
+                                _ => false,
+                            }
+                        })
+                    })
+                }
+
+                if ok {
+                    path.points.push(snapped);
+                }
             }
         }
     }
@@ -380,6 +409,30 @@ fn setup(mut commands: Commands) {
     commands
         .spawn_bundle(OrthographicCameraBundle::new_2d())
         .insert(MainCamera);
+
+    let points = [
+        snap_to_grid(Vec2::new(-500.0, -300.0), GRID_SIZE),
+        snap_to_grid(Vec2::new(-500.0, 300.0), GRID_SIZE),
+        snap_to_grid(Vec2::new(500.0, -300.0), GRID_SIZE),
+        snap_to_grid(Vec2::new(500.0, 300.0), GRID_SIZE),
+    ];
+
+    for p in points.iter() {
+        commands
+            .spawn_bundle(GeometryBuilder::build_as(
+                &shapes::Circle {
+                    radius: 5.0,
+                    center: p.clone(),
+                },
+                ShapeColors::outlined(Color::NONE, Color::BLUE),
+                DrawMode::Outlined {
+                    fill_options: FillOptions::default(),
+                    outline_options: StrokeOptions::default().with_line_width(2.0),
+                },
+                Transform::default(),
+            ))
+            .insert(Terminus { point: p.clone() });
+    }
 }
 
 #[cfg(test)]
