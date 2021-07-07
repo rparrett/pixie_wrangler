@@ -330,14 +330,15 @@ fn mouse_events_system(
                         SegmentCollision::Intersecting | SegmentCollision::Overlapping => {
                             invalid = true;
                         }
-                        SegmentCollision::Touching => {
-                            touching = true;
-                        }
+
                         _ => {}
                     };
                     match point_segment_collision(snapped, *a, *b) {
                         SegmentCollision::Connecting => {
                             connecting = true;
+                        }
+                        SegmentCollision::Touching => {
+                            touching = true;
                         }
                         _ => {}
                     }
@@ -345,11 +346,14 @@ fn mouse_events_system(
                         SegmentCollision::Intersecting | SegmentCollision::Overlapping => {
                             invalid_half = true;
                         }
+                        _ => {}
+                    };
+                    match point_segment_collision(snapped_half, *a, *b) {
                         SegmentCollision::Touching => {
                             touching_half = true;
                         }
                         _ => {}
-                    };
+                    }
                 }
 
                 if q_terminuses.iter().any(|t| t.point == snapped) {
