@@ -1,4 +1,8 @@
-# Template of multi-target (WASM / Native) Bevy's application
+# Pixie Wrangler
+
+Help the pixies overcome The Resistance in their journey from Source to Sink.
+
+An exciting blend of traffic simulation games and printed circuit board design.
 
 ## Prerequisites
 
