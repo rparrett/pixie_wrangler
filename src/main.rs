@@ -359,13 +359,16 @@ fn mouse_events_system(
                         _ => {}
                     }
                     match segment_collision(*a, *b, *last, snapped_half) {
-                        SegmentCollision::Intersecting | SegmentCollision::Overlapping => {
+                        SegmentCollision::Intersecting
+                        | SegmentCollision::Overlapping
+                        | SegmentCollision::Touching => {
                             invalid_half = true;
                         }
                         _ => {}
                     };
                     match point_segment_collision(snapped_half, *a, *b) {
-                        SegmentCollision::Touching => {
+                        SegmentCollision::Connecting => {
+                            info!("connecting half?");
                             touching_half = true;
                         }
                         _ => {}
@@ -385,14 +388,15 @@ fn mouse_events_system(
                     && *last != snapped
                     && *last != snapped_half
                     && !connecting
+                    && !invalid
                 {
                     path.points.push(snapped);
                     return;
                 }
 
-                if touching || connecting {
+                if !invalid && (touching || connecting) {
                     path.points.push(snapped);
-                } else if touching_half {
+                } else if !invalid_half && touching_half {
                     path.points.push(snapped_half);
                 }
 
