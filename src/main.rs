@@ -425,19 +425,17 @@ fn mouse_events_system(
                     .any(|t| t.point == snapped);
 
                 if !ok {
-                    for r in q_roads.iter() {
-                        for (a, b) in r.path.iter().tuple_windows() {
-                            match point_segment_collision(snapped, *a, *b) {
-                                SegmentCollision::Connecting => ok = true,
-                                SegmentCollision::Touching => ok = true,
-                                _ => {}
-                            };
-                            match point_segment_collision(snapped_half, *a, *b) {
-                                SegmentCollision::Connecting => ok_half = true,
-                                SegmentCollision::Touching => ok_half = true,
-                                _ => {}
-                            };
-                        }
+                    for (a, b) in q_roads.iter().flat_map(|r| r.path.iter().tuple_windows()) {
+                        match point_segment_collision(snapped, *a, *b) {
+                            SegmentCollision::Connecting => ok = true,
+                            SegmentCollision::Touching => ok = true,
+                            _ => {}
+                        };
+                        match point_segment_collision(snapped_half, *a, *b) {
+                            SegmentCollision::Connecting => ok_half = true,
+                            SegmentCollision::Touching => ok_half = true,
+                            _ => {}
+                        };
                     }
                 }
 
