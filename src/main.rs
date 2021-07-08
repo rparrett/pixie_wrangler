@@ -28,6 +28,7 @@ mod collision;
 
 struct MainCamera;
 
+struct GridPoint;
 struct CurrentShape;
 struct CurrentLine;
 struct Road {
@@ -458,6 +459,22 @@ fn setup(mut commands: Commands) {
         .spawn_bundle(OrthographicCameraBundle::new_2d())
         .insert(MainCamera);
 
+    for x in ((-50 * (GRID_SIZE as i32))..50 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
+        for y in (-30 * (GRID_SIZE as i32)..30 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
+            commands
+                .spawn_bundle(GeometryBuilder::build_as(
+                    &shapes::Circle {
+                        radius: 2.5,
+                        center: Vec2::new(x as f32, y as f32),
+                    },
+                    ShapeColors::new(Color::DARK_GRAY),
+                    DrawMode::Fill(FillOptions::default()),
+                    Transform::default(),
+                ))
+                .insert(GridPoint);
+        }
+    }
+
     let points = [
         snap_to_grid(Vec2::new(-500.0, -300.0), GRID_SIZE),
         snap_to_grid(Vec2::new(-500.0, 300.0), GRID_SIZE),
@@ -469,7 +486,7 @@ fn setup(mut commands: Commands) {
         commands
             .spawn_bundle(GeometryBuilder::build_as(
                 &shapes::Circle {
-                    radius: 5.0,
+                    radius: 5.5,
                     center: p.clone(),
                 },
                 ShapeColors::outlined(Color::NONE, Color::BLUE),
