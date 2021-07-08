@@ -210,11 +210,14 @@ fn draw_current_line(
             SegmentCollision::Intersecting | SegmentCollision::Overlapping => {
                 invalid_half = true;
             }
+            _ => {}
+        };
+        match point_segment_collision(snapped_half, *a, *b) {
             SegmentCollision::Touching => {
                 touching_half = true;
             }
             _ => {}
-        };
+        }
     }
 
     let color = if invalid && invalid_half {
