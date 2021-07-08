@@ -98,34 +98,6 @@ fn possible_lines(from: Vec2, to: Vec2, axis_preference: Option<Axis>) -> Vec<Ve
     vec![vec![from, b, to], vec![from, a, to]]
 }
 
-fn snap_to_angle(start: Vec2, end: Vec2, divisions: u32, offset: f32, grid_size: f32) -> Vec2 {
-    let diff = end - start;
-
-    let angle = diff.y.atan2(diff.x);
-
-    let increment = std::f32::consts::TAU / divisions as f32;
-    let offset = increment * offset;
-
-    let snap_angle = ((angle - offset) / increment).round() * increment + offset;
-
-    if snap_angle.to_degrees().abs() == 90.0 {
-        return snap_to_grid(Vec2::new(start.x, end.y), grid_size);
-    }
-
-    if snap_angle.to_degrees() == 0.0 || snap_angle.to_degrees().abs() == 180.0 {
-        return snap_to_grid(Vec2::new(end.x, start.y), grid_size);
-    }
-
-    let snapped_end = snap_to_grid(end, grid_size);
-    let snapped_diff = snapped_end - start;
-
-    if (end.x - snapped_diff.x).abs() > (end.y - snapped_diff.y).abs() {
-        return start + Vec2::new(snapped_diff.x, snapped_diff.x * snap_angle.tan());
-    } else {
-        return start + Vec2::new(snapped_diff.y / snap_angle.tan(), snapped_diff.y);
-    }
-}
-
 fn draw_mouse(
     mut commands: Commands,
     draw: Res<DrawingState>,
@@ -163,12 +135,6 @@ fn draw_mouse(
 
         // TODO filter presented options by whether or not they
         // collide with another line.
-        // TODO if both options are available, somehow make it
-        // possible for the user to favor one side or the other.
-        // perhaps by preferring the option where the 90 degree
-        // follows the "first next" grid point snapped to after
-        // beginning drawing (and resetting this "first next"
-        // state when moving the cursor over the origin)
 
         for (i, points) in possible.iter().enumerate() {
             let shape = shapes::Polygon {
