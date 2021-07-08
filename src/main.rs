@@ -49,45 +49,37 @@ struct MouseState {
     position: Vec2,
 }
 
-fn snap_to_grid_1d(position: f32, grid_size: f32) -> f32 {
-    let new = (position / grid_size).round() * grid_size;
-
-    new
-}
-
 fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {
     let new = (position / grid_size).round() * grid_size;
 
     new
 }
 
-fn snap_to_angle(start: Vec2, end: Vec2, divisions: u32, grid_size: f32) -> Vec2 {
+fn snap_to_angle(start: Vec2, end: Vec2, divisions: u32, offset: f32, grid_size: f32) -> Vec2 {
     let diff = end - start;
 
     let angle = diff.y.atan2(diff.x);
 
     let increment = std::f32::consts::TAU / divisions as f32;
+    let offset = increment * offset;
 
-    let snap_angle = (angle / increment).round() * increment;
+    let snap_angle = ((angle - offset) / increment).round() * increment + offset;
 
-    if snap_angle.to_degrees() == 90.0 || snap_angle.to_degrees() == -90.0 {
-        return snap_to_grid(start + Vec2::new(0.0, diff.y), grid_size);
+    if snap_angle.to_degrees().abs() == 90.0 {
+        return snap_to_grid(Vec2::new(start.x, end.y), grid_size);
     }
 
-    if snap_angle.to_degrees() == 0.0
-        || snap_angle.to_degrees() == 180.0
-        || snap_angle.to_degrees() == -180.0
-    {
-        return snap_to_grid(start + Vec2::new(diff.x, 0.0), grid_size);
+    if snap_angle.to_degrees() == 0.0 || snap_angle.to_degrees().abs() == 180.0 {
+        return snap_to_grid(Vec2::new(end.x, start.y), grid_size);
     }
 
-    let snapped_x = snap_to_grid_1d(diff.x, grid_size);
-    let snapped_y = snap_to_grid_1d(diff.y, grid_size);
+    let snapped_end = snap_to_grid(end, grid_size);
+    let snapped_diff = snapped_end - start;
 
-    if (end.x - snapped_x).abs() > (end.y - snapped_y).abs() {
-        return start + Vec2::new(snapped_x, snapped_x * snap_angle.tan());
+    if (end.x - snapped_diff.x).abs() > (end.y - snapped_diff.y).abs() {
+        return start + Vec2::new(snapped_diff.x, snapped_diff.x * snap_angle.tan());
     } else {
-        return start + Vec2::new(snapped_y / snap_angle.tan(), snapped_y);
+        return start + Vec2::new(snapped_diff.y / snap_angle.tan(), snapped_diff.y);
     }
 }
 
@@ -147,17 +139,26 @@ fn draw_current_line(
     }
     let point = point.unwrap();
 
-    let snapped = snap_to_angle(point.clone(), mouse.position, 8, GRID_SIZE);
+    // we can't allow non-diagonal lines when starting from a half-grid
+    let (snapped, snapped_half) = if snap_to_grid(*point, GRID_SIZE) == *point {
+        (
+            snap_to_angle(point.clone(), mouse.position, 8, 0.0, GRID_SIZE),
+            snap_to_angle(point.clone(), mouse.position, 8, 0.0, HALF_GRID_SIZE),
+        )
+    } else {
+        (
+            snap_to_angle(point.clone(), mouse.position, 4, 0.5, GRID_SIZE),
+            snap_to_angle(point.clone(), mouse.position, 4, 0.5, HALF_GRID_SIZE),
+        )
+    };
 
     // no line to draw
-    if snapped == *point {
+    if snapped == *point || snapped_half == *point {
         return;
     }
 
     // need to be able to snap to a half grid to properly connect to the middle of
     // some diagonal lines.
-
-    let snapped_half = snap_to_angle(point.clone(), mouse.position, 8, HALF_GRID_SIZE);
 
     let mut invalid = false;
     let mut invalid_half = false;
@@ -214,6 +215,7 @@ fn draw_current_line(
         };
         match point_segment_collision(snapped_half, *a, *b) {
             SegmentCollision::Touching => {
+                info!("wait, why is this true?");
                 touching_half = true;
             }
             _ => {}
@@ -291,8 +293,18 @@ fn mouse_events_system(
                 }
 
                 info!("continuing path");
-                let snapped = snap_to_angle(*last, mouse.position, 8, GRID_SIZE);
-                let snapped_half = snap_to_angle(*last, mouse.position, 8, HALF_GRID_SIZE);
+                // we can't allow non-diagonal lines when starting from a half-grid
+                let (snapped, snapped_half) = if snap_to_grid(*last, GRID_SIZE) == *last {
+                    (
+                        snap_to_angle(*last, mouse.position, 8, 0.0, GRID_SIZE),
+                        snap_to_angle(*last, mouse.position, 8, 0.0, HALF_GRID_SIZE),
+                    )
+                } else {
+                    (
+                        snap_to_angle(*last, mouse.position, 4, 0.5, GRID_SIZE),
+                        snap_to_angle(*last, mouse.position, 4, 0.5, HALF_GRID_SIZE),
+                    )
+                };
 
                 let mut invalid = false;
                 let mut invalid_half = false;
@@ -442,10 +454,10 @@ fn mouse_events_system(
                     path.drawing = true;
                     path.points.clear();
 
-                    if ok {
-                        path.points.push(snapped);
+                    if ok_half {
+                        path.points.push(snapped_half);
                     } else {
-                        path.points.push(snapped_half)
+                        path.points.push(snapped)
                     }
                 }
             }
