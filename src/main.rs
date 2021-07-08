@@ -432,13 +432,12 @@ fn mouse_events_system(
                             _ => {}
                         };
                         match point_segment_collision(snapped_half, *a, *b) {
-                            SegmentCollision::Connecting => ok_half = true,
                             SegmentCollision::Touching => ok_half = true,
                             _ => {}
                         };
                     }
                 }
-
+                info!("ok {:?} ok_half {:?}", ok, ok_half);
                 if ok || ok_half {
                     path.drawing = true;
                     path.points.clear();
