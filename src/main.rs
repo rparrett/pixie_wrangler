@@ -29,10 +29,16 @@ struct Cursor;
 struct DrawingLine;
 struct GridPoint;
 
+#[derive(Clone, Copy)]
+enum Axis {
+    X,
+    Y,
+}
 #[derive(Default)]
 struct DrawingState {
     drawing: bool,
     start: Vec2,
+    axis_preference: Option<Axis>,
 }
 
 struct Terminus {
@@ -52,13 +58,19 @@ fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {
 
 /// Given a start and endpoint, return up to two points that represent the
 /// middle of possible 45-degree-only two segment polylines that connect them.
-/// In the case where a straight line path is possible, returns None.
+/// ```text
 ///   i
 ///  /|
 /// o o
 /// |/
 /// i
-fn possible_lines(from: Vec2, to: Vec2) -> Vec<Vec<Vec2>> {
+/// ```
+/// In the case where a straight line path is possible, returns that single
+/// straight line.
+///
+/// * `axis_preference` - If this is Some(Axis), we will offer up the line that
+///   "moves in the preferred axis first" as the first result.
+fn possible_lines(from: Vec2, to: Vec2, axis_preference: Option<Axis>) -> Vec<Vec<Vec2>> {
     let diff = to - from;
 
     // if a single 45 degree or 90 degree line does the job,
@@ -67,33 +79,23 @@ fn possible_lines(from: Vec2, to: Vec2) -> Vec<Vec<Vec2>> {
         return vec![vec![from, to]];
     }
 
-    if diff.x.abs() < diff.y.abs() {
-        vec![
-            vec![
-                from,
-                Vec2::new(from.x, to.y - diff.x.abs() * diff.y.signum()),
-                to,
-            ],
-            vec![
-                from,
-                Vec2::new(to.x, from.y + diff.x.abs() * diff.y.signum()),
-                to,
-            ],
-        ]
+    let (a, b) = if diff.x.abs() < diff.y.abs() {
+        (
+            Vec2::new(to.x, from.y + diff.x.abs() * diff.y.signum()),
+            Vec2::new(from.x, to.y - diff.x.abs() * diff.y.signum()),
+        )
     } else {
-        vec![
-            vec![
-                from,
-                Vec2::new(to.x - diff.y.abs() * diff.x.signum(), from.y),
-                to,
-            ],
-            vec![
-                from,
-                Vec2::new(from.x + diff.y.abs() * diff.x.signum(), to.y),
-                to,
-            ],
-        ]
+        (
+            Vec2::new(to.x - diff.y.abs() * diff.x.signum(), from.y),
+            Vec2::new(from.x + diff.y.abs() * diff.x.signum(), to.y),
+        )
+    };
+
+    if matches!(axis_preference, Some(Axis::X)) {
+        return vec![vec![from, a, to], vec![from, b, to]];
     }
+
+    vec![vec![from, b, to], vec![from, a, to]]
 }
 
 fn snap_to_angle(start: Vec2, end: Vec2, divisions: u32, offset: f32, grid_size: f32) -> Vec2 {
@@ -156,8 +158,8 @@ fn draw_mouse(
         .insert(Cursor);
 
     if draw.drawing {
-        let possible = possible_lines(draw.start, snapped);
-        let colors = [Color::SEA_GREEN, Color::LIME_GREEN];
+        let possible = possible_lines(draw.start, snapped, draw.axis_preference);
+        let colors = [Color::SEA_GREEN, Color::DARK_GRAY];
 
         // TODO filter presented options by whether or not they
         // collide with another line.
@@ -211,6 +213,23 @@ fn mouse_events_system(
         mouse.position = (camera_transform.compute_matrix() * p.extend(0.0).extend(1.0))
             .truncate()
             .truncate();
+    }
+
+    if draw.drawing {
+        let snapped = snap_to_grid(mouse.position, GRID_SIZE);
+
+        // when we begin drawing, set the "axis preference" corresponding to the
+        // direction the player initially moves the mouse.
+        if !draw.axis_preference.is_some() && snapped != draw.start {
+            let diff = (snapped - draw.start).abs();
+            if diff.x > diff.y {
+                draw.axis_preference = Some(Axis::X);
+            } else {
+                draw.axis_preference = Some(Axis::Y);
+            }
+        } else if draw.axis_preference.is_some() && snapped == draw.start {
+            draw.axis_preference = None;
+        }
     }
 
     for event in mouse_button_input_events.iter() {
