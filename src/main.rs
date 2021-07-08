@@ -159,7 +159,15 @@ fn draw_mouse(
         let possible = possible_lines(draw.start, snapped);
         let colors = [Color::SEA_GREEN, Color::LIME_GREEN];
 
-        // TODO does first option collide? if so, draw second
+        // TODO filter presented options by whether or not they
+        // collide with another line.
+        // TODO if both options are available, somehow make it
+        // possible for the user to favor one side or the other.
+        // perhaps by preferring the option where the 90 degree
+        // follows the "first next" grid point snapped to after
+        // beginning drawing (and resetting this "first next"
+        // state when moving the cursor over the origin)
+
         for (i, points) in possible.iter().enumerate() {
             let shape = shapes::Polygon {
                 points: points.clone(),
