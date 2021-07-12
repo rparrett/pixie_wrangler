@@ -5,7 +5,7 @@ use bevy::{
 use bevy_prototype_lyon::prelude::*;
 use itertools::Itertools;
 
-const GRID_SIZE: f32 = 16.0;
+const GRID_SIZE: f32 = 25.0;
 
 fn main() {
     let mut app = App::build();
@@ -327,8 +327,8 @@ fn setup(mut commands: Commands) {
         .spawn_bundle(OrthographicCameraBundle::new_2d())
         .insert(MainCamera);
 
-    for x in ((-50 * (GRID_SIZE as i32))..50 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
-        for y in (-30 * (GRID_SIZE as i32)..30 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
+    for x in ((-25 * (GRID_SIZE as i32))..=25 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
+        for y in (-15 * (GRID_SIZE as i32)..=15 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
             commands
                 .spawn_bundle(GeometryBuilder::build_as(
                     &shapes::Circle {
