@@ -214,10 +214,7 @@ fn mouse_events_system(
             // TODO we need to allow lines to both start and end with
             // SegmentCollision::Touching and split the RoadChunk(s) in that case.
             // TODO we need to handle SegmentCollision::Connecting and combine the
-            // RoadChunk(s) in that case. (Unless it makes a loop?)
-            // We should probably handle this with a separate point_segment_collision
-            // check on the start and end points, because the "middle point" of the
-            // lines should not be allowed to connect/touch.
+            // RoadChunk(s) in that case.
 
             if snapped != draw.start {
                 let possible = possible_lines(draw.start, snapped, draw.axis_preference);
@@ -227,7 +224,36 @@ fn mouse_events_system(
                             Collider::Segment(s) => match segment_collision(s.0, s.1, *a, *b) {
                                 SegmentCollision::Intersecting => true,
                                 SegmentCollision::Overlapping => true,
-                                SegmentCollision::Touching => true,
+                                SegmentCollision::Touching => {
+                                    // "Touching" collisions are allowed only if they are the
+                                    // start or end of the line we are currently drawing.
+                                    //
+                                    // Ideally, segment_collision would return the intersection
+                                    // point(s) and we could just check that.
+
+                                    !matches!(
+                                        point_segment_collision(draw.start, s.0, s.1),
+                                        SegmentCollision::Touching
+                                    ) && !matches!(
+                                        point_segment_collision(draw.end, s.0, s.1),
+                                        SegmentCollision::Touching
+                                    )
+                                }
+                                SegmentCollision::Connecting => {
+                                    // "Connecting" collisions are allowed only if they are the
+                                    // start or end of the line we are currently drawing.
+                                    //
+                                    // Ideally, segment_collision would return the intersection
+                                    // point(s) and we could just check that.
+
+                                    !matches!(
+                                        point_segment_collision(draw.start, s.0, s.1),
+                                        SegmentCollision::Connecting
+                                    ) && !matches!(
+                                        point_segment_collision(draw.end, s.0, s.1),
+                                        SegmentCollision::Connecting
+                                    )
+                                }
                                 _ => false,
                             },
                             _ => false,
