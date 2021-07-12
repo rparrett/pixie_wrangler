@@ -100,7 +100,11 @@ pub fn segment_collision(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> SegmentColli
     let u = numerator / denominator;
     let t = dab.perp_dot(db) / denominator;
 
-    if (t == 0.0 && u == 1.0) || (u == 0.0 && t == 1.0) {
+    if (t == 0.0 && u == 1.0)
+        || (u == 0.0 && t == 1.0)
+        || (u == 0.0 && t == 0.0)
+        || (u == 1.0 && t == 1.0)
+    {
         return SegmentCollision::Connecting;
     }
 
@@ -216,6 +220,15 @@ mod tests {
                 Vec2::new(1.0, 1.0),
                 Vec2::new(1.0, 1.0),
                 Vec2::new(2.0, 2.0),
+            ),
+            SegmentCollision::Connecting
+        ));
+        assert!(matches!(
+            segment_collision(
+                Vec2::new(2.0, 2.0),
+                Vec2::new(1.0, 1.0),
+                Vec2::new(-2.0, 2.0),
+                Vec2::new(1.0, 1.0),
             ),
             SegmentCollision::Connecting
         ));
