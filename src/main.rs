@@ -256,7 +256,11 @@ fn mouse_events_system(
                                 }
                                 _ => false,
                             },
-                            _ => false,
+                            Collider::Point(p) => match point_segment_collision(*p, *a, *b) {
+                                SegmentCollision::Connecting => *p != draw.start && *p != draw.end,
+                                SegmentCollision::None => false,
+                                _ => true,
+                            },
                         })
                     })
                 });
@@ -364,6 +368,7 @@ fn setup(mut commands: Commands) {
                 },
                 Transform::default(),
             ))
-            .insert(Terminus { point: p.clone() });
+            .insert(Terminus { point: p.clone() })
+            .insert(Collider::Point(p.clone()));
     }
 }
