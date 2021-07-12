@@ -219,28 +219,30 @@ fn mouse_events_system(
             // check on the start and end points, because the "middle point" of the
             // lines should not be allowed to connect/touch.
 
-            let possible = possible_lines(draw.start, snapped, draw.axis_preference);
-            let mut filtered = possible.iter().filter(|possibility| {
-                !possibility.iter().tuple_windows().any(|(a, b)| {
-                    q_colliders.iter().any(|c| match c {
-                        Collider::Segment(s) => match segment_collision(s.0, s.1, *a, *b) {
-                            SegmentCollision::Intersecting => true,
-                            SegmentCollision::Overlapping => true,
-                            SegmentCollision::Touching => true,
+            if snapped != draw.start {
+                let possible = possible_lines(draw.start, snapped, draw.axis_preference);
+                let mut filtered = possible.iter().filter(|possibility| {
+                    !possibility.iter().tuple_windows().any(|(a, b)| {
+                        q_colliders.iter().any(|c| match c {
+                            Collider::Segment(s) => match segment_collision(s.0, s.1, *a, *b) {
+                                SegmentCollision::Intersecting => true,
+                                SegmentCollision::Overlapping => true,
+                                SegmentCollision::Touching => true,
+                                _ => false,
+                            },
                             _ => false,
-                        },
-                        _ => false,
+                        })
                     })
-                })
-            });
-            if let Some(points) = filtered.next() {
-                draw.points = points.clone();
-                draw.valid = true;
-            } else if let Some(points) = possible.iter().next() {
-                draw.points = points.clone();
-                draw.valid = false;
-            } else {
-                draw.valid = false;
+                });
+                if let Some(points) = filtered.next() {
+                    draw.points = points.clone();
+                    draw.valid = true;
+                } else if let Some(points) = possible.iter().next() {
+                    draw.points = points.clone();
+                    draw.valid = false;
+                } else {
+                    draw.valid = false;
+                }
             }
         }
     }
@@ -281,6 +283,7 @@ fn mouse_events_system(
                         });
 
                     draw.start = draw.end;
+                    draw.points = vec![];
                 }
             }
         }
