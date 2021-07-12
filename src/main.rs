@@ -28,6 +28,7 @@ struct MainCamera;
 struct Cursor;
 struct DrawingLine;
 struct GridPoint;
+struct RoadChunk;
 
 #[derive(Clone, Copy)]
 enum Axis {
@@ -38,6 +39,9 @@ enum Axis {
 struct DrawingState {
     drawing: bool,
     start: Vec2,
+    end: Vec2,
+    valid: bool,
+    points: Vec<Vec2>,
     axis_preference: Option<Axis>,
 }
 
@@ -48,6 +52,11 @@ struct Terminus {
 #[derive(Default, Debug)]
 struct MouseState {
     position: Vec2,
+}
+
+enum Collider {
+    Point(Vec2),
+    Segment((Vec2, Vec2)),
 }
 
 fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {
@@ -130,29 +139,30 @@ fn draw_mouse(
         .insert(Cursor);
 
     if draw.drawing {
-        let possible = possible_lines(draw.start, snapped, draw.axis_preference);
-        let colors = [Color::SEA_GREEN, Color::DARK_GRAY];
-
         // TODO filter presented options by whether or not they
         // collide with another line.
 
-        for (i, points) in possible.iter().enumerate() {
-            let shape = shapes::Polygon {
-                points: points.clone(),
-                closed: false,
-            };
-            commands
-                .spawn_bundle(GeometryBuilder::build_as(
-                    &shape,
-                    ShapeColors::outlined(Color::NONE, colors[i]),
-                    DrawMode::Outlined {
-                        fill_options: FillOptions::default(),
-                        outline_options: StrokeOptions::default().with_line_width(2.0),
-                    },
-                    Transform::default(),
-                ))
-                .insert(DrawingLine);
-        }
+        let color = if draw.valid {
+            Color::SEA_GREEN
+        } else {
+            Color::RED
+        };
+
+        let shape = shapes::Polygon {
+            points: draw.points.clone(),
+            closed: false,
+        };
+        commands
+            .spawn_bundle(GeometryBuilder::build_as(
+                &shape,
+                ShapeColors::outlined(Color::NONE, color),
+                DrawMode::Outlined {
+                    fill_options: FillOptions::default(),
+                    outline_options: StrokeOptions::default().with_line_width(2.0),
+                },
+                Transform::default(),
+            ))
+            .insert(DrawingLine);
     }
 }
 
@@ -166,6 +176,7 @@ fn mouse_events_system(
     wnds: Res<Windows>,
     q_camera: Query<&Transform, With<MainCamera>>,
     q_terminuses: Query<&Terminus>,
+    q_colliders: Query<&Collider>,
 ) {
     // assuming there is exactly one main camera entity, so this is OK
     let camera_transform = q_camera.iter().next().unwrap();
@@ -184,17 +195,53 @@ fn mouse_events_system(
     if draw.drawing {
         let snapped = snap_to_grid(mouse.position, GRID_SIZE);
 
-        // when we begin drawing, set the "axis preference" corresponding to the
-        // direction the player initially moves the mouse.
-        if !draw.axis_preference.is_some() && snapped != draw.start {
-            let diff = (snapped - draw.start).abs();
-            if diff.x > diff.y {
-                draw.axis_preference = Some(Axis::X);
-            } else {
-                draw.axis_preference = Some(Axis::Y);
+        if snapped != draw.end {
+            draw.end = snapped;
+
+            // when we begin drawing, set the "axis preference" corresponding to the
+            // direction the player initially moves the mouse.
+            if !draw.axis_preference.is_some() && snapped != draw.start {
+                let diff = (snapped - draw.start).abs();
+                if diff.x > diff.y {
+                    draw.axis_preference = Some(Axis::X);
+                } else {
+                    draw.axis_preference = Some(Axis::Y);
+                }
+            } else if draw.axis_preference.is_some() && snapped == draw.start {
+                draw.axis_preference = None;
             }
-        } else if draw.axis_preference.is_some() && snapped == draw.start {
-            draw.axis_preference = None;
+
+            // TODO we need to allow lines to both start and end with
+            // SegmentCollision::Touching and split the RoadChunk(s) in that case.
+            // TODO we need to handle SegmentCollision::Connecting and combine the
+            // RoadChunk(s) in that case. (Unless it makes a loop?)
+            // We should probably handle this with a separate point_segment_collision
+            // check on the start and end points, because the "middle point" of the
+            // lines should not be allowed to connect/touch.
+
+            let possible = possible_lines(draw.start, snapped, draw.axis_preference);
+            let mut filtered = possible.iter().filter(|possibility| {
+                !possibility.iter().tuple_windows().any(|(a, b)| {
+                    q_colliders.iter().any(|c| match c {
+                        Collider::Segment(s) => match segment_collision(s.0, s.1, *a, *b) {
+                            SegmentCollision::Intersecting => true,
+                            SegmentCollision::Overlapping => true,
+                            SegmentCollision::Touching => true,
+                            _ => false,
+                        },
+                        _ => false,
+                    })
+                })
+            });
+            if let Some(points) = filtered.next() {
+                draw.points = points.clone();
+                draw.valid = true;
+            } else if let Some(points) = possible.iter().next() {
+                draw.points = points.clone();
+                draw.valid = false;
+            } else {
+                draw.valid = false;
+            }
         }
     }
 
@@ -204,9 +251,37 @@ fn mouse_events_system(
                 // TODO is it ok to start drawing here?
                 draw.drawing = true;
                 draw.start = snap_to_grid(mouse.position, GRID_SIZE);
+                draw.end = draw.start;
             } else {
                 // TODO is it ok to end drawing here?
-                draw.drawing = false;
+                if draw.end == draw.start {
+                    draw.drawing = false;
+                }
+
+                if !draw.points.is_empty() {
+                    let shape = shapes::Polygon {
+                        points: draw.points.clone(),
+                        closed: false,
+                    };
+                    commands
+                        .spawn_bundle(GeometryBuilder::build_as(
+                            &shape,
+                            ShapeColors::outlined(Color::NONE, Color::PINK),
+                            DrawMode::Outlined {
+                                fill_options: FillOptions::default(),
+                                outline_options: StrokeOptions::default().with_line_width(2.0),
+                            },
+                            Transform::default(),
+                        ))
+                        .insert(RoadChunk)
+                        .with_children(|parent| {
+                            for (a, b) in draw.points.iter().tuple_windows() {
+                                parent.spawn().insert(Collider::Segment((*a, *b)));
+                            }
+                        });
+
+                    draw.start = draw.end;
+                }
             }
         }
     }
