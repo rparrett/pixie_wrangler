@@ -234,6 +234,7 @@ fn mouse_events_system(
                         })
                     })
                 });
+
                 if let Some(points) = filtered.next() {
                     draw.points = points.clone();
                     draw.valid = true;
@@ -241,8 +242,12 @@ fn mouse_events_system(
                     draw.points = points.clone();
                     draw.valid = false;
                 } else {
+                    draw.points = vec![];
                     draw.valid = false;
                 }
+            } else {
+                draw.points = vec![];
+                draw.valid = false;
             }
         }
     }
