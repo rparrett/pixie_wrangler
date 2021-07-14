@@ -30,6 +30,7 @@ winit = {version = "0.24.0"}
 rand = "0.7"
 getrandom = {version="0.1", features=["wasm-bindgen"]}
 itertools = "0.10"
+petgraph = "0.6"
 
 bevy_prototype_lyon = "0.3.1"
 #bevy_prototype_lyon = { path = "../bevy_prototype_lyon" }

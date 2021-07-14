@@ -4,6 +4,9 @@ use bevy::{
 };
 use bevy_prototype_lyon::prelude::*;
 use itertools::Itertools;
+use petgraph::algo::{astar, dijkstra, min_spanning_tree};
+use petgraph::dot::{Config, Dot};
+use petgraph::graph::{NodeIndex, UnGraph};
 
 const GRID_SIZE: f32 = 25.0;
 
@@ -17,8 +20,11 @@ fn main() {
     app.add_startup_system(setup.system());
     app.add_system(mouse_events_system.system().label("mouse"));
     app.add_system(draw_mouse.system().after("mouse")); // after mouse
+    app.add_system(button_system.system());
     app.init_resource::<DrawingState>();
     app.init_resource::<MouseState>();
+    app.init_resource::<RoadGraph>();
+    app.init_resource::<ButtonMaterials>();
     app.run();
 }
 
@@ -28,7 +34,12 @@ struct MainCamera;
 struct Cursor;
 struct DrawingLine;
 struct GridPoint;
-struct RoadChunk;
+struct RoadChunk {
+    points: Vec<Vec2>,
+}
+
+struct PointGraphNode(NodeIndex);
+struct ChunkGraphNodes(NodeIndex, NodeIndex);
 
 #[derive(Clone, Copy)]
 enum Axis {
@@ -42,11 +53,17 @@ struct DrawingState {
     end: Vec2,
     valid: bool,
     points: Vec<Vec2>,
+    nodes: (Option<NodeIndex>, Option<NodeIndex>),
     axis_preference: Option<Axis>,
 }
 
 struct Terminus {
     point: Vec2,
+}
+
+#[derive(Default)]
+struct RoadGraph {
+    graph: UnGraph<Entity, i32>,
 }
 
 #[derive(Default, Debug)]
@@ -57,6 +74,59 @@ struct MouseState {
 enum Collider {
     Point(Vec2),
     Segment((Vec2, Vec2)),
+}
+
+struct ButtonMaterials {
+    normal: Handle<ColorMaterial>,
+    hovered: Handle<ColorMaterial>,
+    pressed: Handle<ColorMaterial>,
+}
+
+impl FromWorld for ButtonMaterials {
+    fn from_world(world: &mut World) -> Self {
+        let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
+        ButtonMaterials {
+            normal: materials.add(Color::rgb(0.15, 0.15, 0.15).into()),
+            hovered: materials.add(Color::rgb(0.25, 0.25, 0.25).into()),
+            pressed: materials.add(Color::rgb(0.35, 0.75, 0.35).into()),
+        }
+    }
+}
+fn button_system(
+    button_materials: Res<ButtonMaterials>,
+    mut interaction_query: Query<
+        (&Interaction, &mut Handle<ColorMaterial>, &Children),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut text_query: Query<&mut Text>,
+    mut graph: ResMut<RoadGraph>,
+) {
+    for (interaction, mut material, children) in interaction_query.iter_mut() {
+        let mut text = text_query.get_mut(children[0]).unwrap();
+        match *interaction {
+            Interaction::Clicked => {
+                *material = button_materials.pressed.clone();
+
+                let path = astar(
+                    &graph.graph,
+                    0.into(),
+                    |finish| finish == 3.into(),
+                    |e| *e.weight(),
+                    |_| 0,
+                );
+
+                for node in path {
+                    info!("{:?}", node);
+                }
+            }
+            Interaction::Hovered => {
+                *material = button_materials.hovered.clone();
+            }
+            Interaction::None => {
+                *material = button_materials.normal.clone();
+            }
+        }
+    }
 }
 
 fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {
@@ -173,10 +243,14 @@ fn mouse_events_system(
     mut cursor_moved_events: EventReader<CursorMoved>,
     mut draw: ResMut<DrawingState>,
     mut mouse: ResMut<MouseState>,
+    mut graph: ResMut<RoadGraph>,
     wnds: Res<Windows>,
     q_camera: Query<&Transform, With<MainCamera>>,
     q_terminuses: Query<&Terminus>,
-    q_colliders: Query<&Collider>,
+    q_colliders: Query<(Entity, &Parent, &Collider)>,
+    q_point_nodes: Query<&PointGraphNode>,
+    q_chunk_nodes: Query<&ChunkGraphNodes>,
+    q_road_chunks: Query<&RoadChunk>,
 ) {
     // assuming there is exactly one main camera entity, so this is OK
     let camera_transform = q_camera.iter().next().unwrap();
@@ -220,7 +294,7 @@ fn mouse_events_system(
                 let possible = possible_lines(draw.start, snapped, draw.axis_preference);
                 let mut filtered = possible.iter().filter(|possibility| {
                     !possibility.iter().tuple_windows().any(|(a, b)| {
-                        q_colliders.iter().any(|c| match c {
+                        q_colliders.iter().any(|(_e, _p, c)| match c {
                             Collider::Segment(s) => match segment_collision(s.0, s.1, *a, *b) {
                                 SegmentCollision::Intersecting => true,
                                 SegmentCollision::Overlapping => true,
@@ -275,6 +349,64 @@ fn mouse_events_system(
                     draw.points = vec![];
                     draw.valid = false;
                 }
+
+                draw.nodes = (None, None);
+                for (e, parent, c) in q_colliders.iter() {
+                    match c {
+                        Collider::Point(p) => {
+                            if let Some(start) = draw.points.first() {
+                                if *p == *start {
+                                    if let Ok(node) = q_point_nodes.get(parent.0) {
+                                        info!("start, so pushing a node");
+                                        draw.nodes.0 = Some(node.0)
+                                    }
+                                }
+                            }
+                            if let Some(end) = draw.points.last() {
+                                if *p == *end {
+                                    if let Ok(node) = q_point_nodes.get(parent.0) {
+                                        info!("end matched, so pushing a node");
+                                        draw.nodes.1 = Some(node.0)
+                                    }
+                                }
+                            }
+                        }
+                        Collider::Segment(_s) => {
+                            if let Ok(chunk) = q_road_chunks.get(parent.0) {
+                                if let Ok(nodes) = q_chunk_nodes.get(parent.0) {
+                                    if let Some(start) = draw.points.first() {
+                                        if let Some(chunk_start) = chunk.points.first() {
+                                            if start == chunk_start {
+                                                draw.nodes.0 = Some(nodes.0);
+                                            }
+                                        }
+                                    }
+                                    if let Some(start) = draw.points.first() {
+                                        if let Some(chunk_end) = chunk.points.last() {
+                                            if start == chunk_end {
+                                                draw.nodes.0 = Some(nodes.1);
+                                            }
+                                        }
+                                    }
+                                    if let Some(end) = draw.points.last() {
+                                        if let Some(chunk_start) = chunk.points.first() {
+                                            if end == chunk_start {
+                                                draw.nodes.1 = Some(nodes.0);
+                                            }
+                                        }
+                                    }
+                                    if let Some(end) = draw.points.last() {
+                                        if let Some(chunk_end) = chunk.points.last() {
+                                            if end == chunk_end {
+                                                draw.nodes.1 = Some(nodes.1);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             } else {
                 draw.points = vec![];
                 draw.valid = false;
@@ -300,7 +432,7 @@ fn mouse_events_system(
                         points: draw.points.clone(),
                         closed: false,
                     };
-                    commands
+                    let ent = commands
                         .spawn_bundle(GeometryBuilder::build_as(
                             &shape,
                             ShapeColors::outlined(Color::NONE, Color::PINK),
@@ -310,15 +442,37 @@ fn mouse_events_system(
                             },
                             Transform::default(),
                         ))
-                        .insert(RoadChunk)
+                        .insert(RoadChunk {
+                            points: draw.points.clone(),
+                        })
                         .with_children(|parent| {
                             for (a, b) in draw.points.iter().tuple_windows() {
                                 parent.spawn().insert(Collider::Segment((*a, *b)));
                             }
-                        });
+                        })
+                        .id();
 
+                    let start_node = draw.nodes.0.unwrap_or_else(|| graph.graph.add_node(ent));
+                    let end_node = draw.nodes.1.unwrap_or_else(|| graph.graph.add_node(ent));
+
+                    commands
+                        .entity(ent)
+                        .insert(ChunkGraphNodes(start_node, end_node));
+
+                    info!(
+                        "Adding road chunk with entity: {:?} and node indexes: {:?} {:?}",
+                        ent, start_node, end_node
+                    );
+
+                    graph.graph.add_edge(start_node, end_node, 0);
+
+                    println!(
+                        "{:?}",
+                        Dot::with_config(&graph.graph, &[Config::EdgeNoLabel])
+                    );
                     draw.start = draw.end;
                     draw.points = vec![];
+                    draw.nodes = (None, None);
                 }
             }
         }
@@ -326,10 +480,16 @@ fn mouse_events_system(
 }
 
 /// set up a simple 3D scene
-fn setup(mut commands: Commands) {
+fn setup(
+    mut commands: Commands,
+    mut graph: ResMut<RoadGraph>,
+    asset_server: Res<AssetServer>,
+    button_materials: Res<ButtonMaterials>,
+) {
     commands
         .spawn_bundle(OrthographicCameraBundle::new_2d())
         .insert(MainCamera);
+    commands.spawn_bundle(UiCameraBundle::default());
 
     for x in ((-25 * (GRID_SIZE as i32))..=25 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
         for y in (-15 * (GRID_SIZE as i32)..=15 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
@@ -355,7 +515,7 @@ fn setup(mut commands: Commands) {
     ];
 
     for p in points.iter() {
-        commands
+        let ent = commands
             .spawn_bundle(GeometryBuilder::build_as(
                 &shapes::Circle {
                     radius: 5.5,
@@ -369,6 +529,53 @@ fn setup(mut commands: Commands) {
                 Transform::default(),
             ))
             .insert(Terminus { point: p.clone() })
-            .insert(Collider::Point(p.clone()));
+            .with_children(|parent| {
+                parent.spawn().insert(Collider::Point(p.clone()));
+            })
+            .id();
+
+        let node = graph.graph.add_node(ent);
+
+        commands.entity(ent).insert(PointGraphNode(node));
     }
+
+    println!(
+        "{:?}",
+        Dot::with_config(&graph.graph, &[Config::EdgeNoLabel])
+    );
+
+    commands
+        .spawn_bundle(ButtonBundle {
+            style: Style {
+                size: Size::new(Val::Px(300.0), Val::Px(65.0)),
+                // center button
+                margin: Rect {
+                    left: Val::Auto,
+                    right: Val::Auto,
+                    bottom: Val::Px(10.0),
+                    ..Default::default()
+                },
+                // horizontally center child text
+                justify_content: JustifyContent::Center,
+                // vertically center child text
+                align_items: AlignItems::Center,
+                ..Default::default()
+            },
+            material: button_materials.normal.clone(),
+            ..Default::default()
+        })
+        .with_children(|parent| {
+            parent.spawn_bundle(TextBundle {
+                text: Text::with_section(
+                    "Release The Pixies",
+                    TextStyle {
+                        font: asset_server.load("fonts/CooperHewitt-Medium.ttf"),
+                        font_size: 40.0,
+                        color: Color::rgb(0.9, 0.9, 0.9),
+                    },
+                    Default::default(),
+                ),
+                ..Default::default()
+            });
+        });
 }
