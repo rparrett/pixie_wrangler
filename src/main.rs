@@ -1,6 +1,9 @@
 use crate::collision::{point_segment_collision, segment_collision, SegmentCollision};
+
+use bevy::ecs::schedule::GraphNode;
 use bevy::{
-    input::mouse::MouseButtonInput, input::ElementState::Released, prelude::*, window::CursorMoved,
+    input::mouse::MouseButtonInput, input::ElementState::Released, prelude::*, utils::HashSet,
+    window::CursorMoved,
 };
 use bevy_prototype_lyon::prelude::*;
 use itertools::Itertools;
@@ -21,6 +24,7 @@ fn main() {
     app.add_system(mouse_events_system.system().label("mouse"));
     app.add_system(draw_mouse.system().after("mouse")); // after mouse
     app.add_system(button_system.system());
+    app.add_system(move_pixies.system());
     app.init_resource::<DrawingState>();
     app.init_resource::<MouseState>();
     app.init_resource::<RoadGraph>();
@@ -38,7 +42,9 @@ struct RoadChunk {
     points: Vec<Vec2>,
 }
 
+#[derive(Debug)]
 struct PointGraphNode(NodeIndex);
+#[derive(Debug)]
 struct ChunkGraphNodes(NodeIndex, NodeIndex);
 
 #[derive(Clone, Copy)]
@@ -58,8 +64,16 @@ struct DrawingState {
     axis_preference: Option<Axis>,
 }
 
+#[derive(Default, Debug)]
 struct Terminus {
     point: Vec2,
+    emits: HashSet<u32>,
+    collects: HashSet<u32>,
+}
+struct Pixie {
+    flavor: u32,
+    path: Vec<Vec2>,
+    path_index: usize,
 }
 
 #[derive(Default)]
@@ -101,6 +115,9 @@ fn button_system(
     >,
     mut text_query: Query<&mut Text>,
     mut graph: ResMut<RoadGraph>,
+    q_terminuses: Query<(&Terminus, &PointGraphNode)>,
+    q_road_chunks: Query<(&RoadChunk, &ChunkGraphNodes)>,
+    mut commands: Commands,
 ) {
     for (interaction, mut material, children) in interaction_query.iter_mut() {
         let mut text = text_query.get_mut(children[0]).unwrap();
@@ -108,16 +125,92 @@ fn button_system(
             Interaction::Clicked => {
                 *material = button_materials.pressed.clone();
 
-                let path = astar(
-                    &graph.graph,
-                    0.into(),
-                    |finish| finish == 3.into(),
-                    |e| *e.weight(),
-                    |_| 0,
-                );
+                for (a, a_node) in q_terminuses.iter() {
+                    for (b, b_node) in q_terminuses.iter() {
+                        for flavor in a.emits.intersection(&b.collects) {
+                            info!(
+                                "Pixie (flavor {}) wants to go from {:?} to {:?}",
+                                flavor, a_node, b_node
+                            );
 
-                for node in path {
-                    info!("{:?}", node);
+                            let path = astar(
+                                &graph.graph,
+                                a_node.0,
+                                |finish| finish == b_node.0,
+                                |e| *e.weight(),
+                                |_| 0,
+                            );
+
+                            let mut screen_path = vec![];
+                            let mut last_ent = None;
+
+                            if let Some(path) = path {
+                                for node in path.1 {
+                                    if let Some(ent) = graph.graph.node_weight(node) {
+                                        if last_ent.is_some() && ent == last_ent.unwrap() {
+                                            continue;
+                                        }
+                                        last_ent = Some(ent);
+                                        info!("{:?} ({:?})", node, *ent);
+                                        for (t, _) in q_terminuses.get(*ent) {
+                                            screen_path.push(t.point);
+                                            info!("-> {:?}", t.point);
+                                        }
+                                        for (s, _) in q_road_chunks.get(*ent) {
+                                            if s.points.first().unwrap()
+                                                == screen_path.last().unwrap()
+                                            {
+                                                for p in s.points.iter().skip(1) {
+                                                    screen_path.push(*p);
+                                                    info!("-> {:?}", *p);
+                                                }
+                                            } else if s.points.last().unwrap()
+                                                == screen_path.last().unwrap()
+                                            {
+                                                for p in s.points.iter().rev().skip(1) {
+                                                    screen_path.push(*p);
+                                                    info!("-> {:?} (rev)", *p);
+                                                }
+                                            } else {
+                                                info!("busted? {:?}", s.points);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // blindly assume that all worked, create the pixie
+
+                            if screen_path.len() < 1 {
+                                // we should not be allowed to release the pixies
+                                // if the required paths are not present.
+                                continue;
+                            }
+
+                            let colors = [Color::PURPLE, Color::PINK];
+
+                            let shape = shapes::RegularPolygon {
+                                sides: 6,
+                                feature: shapes::RegularPolygonFeature::Radius(6.0),
+                                ..shapes::RegularPolygon::default()
+                            };
+
+                            commands
+                                .spawn_bundle(GeometryBuilder::build_as(
+                                    &shape,
+                                    ShapeColors::new(colors[(flavor - 1) as usize]),
+                                    DrawMode::Fill(FillOptions::default()),
+                                    Transform::from_translation(
+                                        screen_path.first().unwrap().extend(1.0),
+                                    ),
+                                ))
+                                .insert(Pixie {
+                                    flavor: *flavor,
+                                    path: screen_path,
+                                    path_index: 0,
+                                });
+                        }
+                    }
                 }
             }
             Interaction::Hovered => {
@@ -494,6 +587,35 @@ fn mouse_events_system(
     }
 }
 
+fn move_pixies(time: Res<Time>, mut query: Query<(&mut Pixie, &mut Transform)>) {
+    for (mut pixie, mut transform) in query.iter_mut() {
+        if pixie.path_index >= pixie.path.len() - 1 {
+            continue;
+        }
+
+        let next_waypoint = pixie.path[pixie.path_index + 1];
+
+        let dist = transform.translation.truncate().distance(next_waypoint);
+
+        let delta = time.delta_seconds();
+
+        let speed = 60.0;
+        let step = speed * delta;
+
+        // ten radians per second, clockwise
+        transform.rotate(Quat::from_rotation_z(-10.0 * delta));
+
+        if step < dist {
+            transform.translation.x += step / dist * (next_waypoint.x - transform.translation.x);
+            transform.translation.y += step / dist * (next_waypoint.y - transform.translation.y);
+        } else {
+            transform.translation.x = next_waypoint.x;
+            transform.translation.y = next_waypoint.y;
+            pixie.path_index += 1;
+        }
+    }
+}
+
 /// set up a simple 3D scene
 fn setup(
     mut commands: Commands,
@@ -523,13 +645,29 @@ fn setup(
     }
 
     let points = [
-        snap_to_grid(Vec2::new(-500.0, -300.0), GRID_SIZE),
-        snap_to_grid(Vec2::new(-500.0, 300.0), GRID_SIZE),
-        snap_to_grid(Vec2::new(500.0, -300.0), GRID_SIZE),
-        snap_to_grid(Vec2::new(500.0, 300.0), GRID_SIZE),
+        (
+            snap_to_grid(Vec2::new(-500.0, -300.0), GRID_SIZE),
+            vec![1],
+            vec![],
+        ),
+        (
+            snap_to_grid(Vec2::new(-500.0, 300.0), GRID_SIZE),
+            vec![2],
+            vec![],
+        ),
+        (
+            snap_to_grid(Vec2::new(500.0, -300.0), GRID_SIZE),
+            vec![],
+            vec![2],
+        ),
+        (
+            snap_to_grid(Vec2::new(500.0, 300.0), GRID_SIZE),
+            vec![],
+            vec![1],
+        ),
     ];
 
-    for p in points.iter() {
+    for (p, emits, collects) in points.iter() {
         let ent = commands
             .spawn_bundle(GeometryBuilder::build_as(
                 &shapes::Circle {
@@ -543,7 +681,11 @@ fn setup(
                 },
                 Transform::default(),
             ))
-            .insert(Terminus { point: p.clone() })
+            .insert(Terminus {
+                point: p.clone(),
+                emits: emits.iter().cloned().collect(),
+                collects: collects.iter().cloned().collect(),
+            })
             .with_children(|parent| {
                 parent.spawn().insert(Collider::Point(p.clone()));
             })
