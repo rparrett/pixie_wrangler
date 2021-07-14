@@ -53,7 +53,8 @@ struct DrawingState {
     end: Vec2,
     valid: bool,
     points: Vec<Vec2>,
-    nodes: (Option<NodeIndex>, Option<NodeIndex>),
+    start_nodes: Vec<NodeIndex>,
+    end_nodes: Vec<NodeIndex>,
     axis_preference: Option<Axis>,
 }
 
@@ -350,7 +351,8 @@ fn mouse_events_system(
                     draw.valid = false;
                 }
 
-                draw.nodes = (None, None);
+                draw.start_nodes = vec![];
+                draw.end_nodes = vec![];
                 for (e, parent, c) in q_colliders.iter() {
                     match c {
                         Collider::Point(p) => {
@@ -358,7 +360,7 @@ fn mouse_events_system(
                                 if *p == *start {
                                     if let Ok(node) = q_point_nodes.get(parent.0) {
                                         info!("start, so pushing a node");
-                                        draw.nodes.0 = Some(node.0)
+                                        draw.start_nodes.push(node.0);
                                     }
                                 }
                             }
@@ -366,7 +368,7 @@ fn mouse_events_system(
                                 if *p == *end {
                                     if let Ok(node) = q_point_nodes.get(parent.0) {
                                         info!("end matched, so pushing a node");
-                                        draw.nodes.1 = Some(node.0)
+                                        draw.end_nodes.push(node.0);
                                     }
                                 }
                             }
@@ -377,28 +379,28 @@ fn mouse_events_system(
                                     if let Some(start) = draw.points.first() {
                                         if let Some(chunk_start) = chunk.points.first() {
                                             if start == chunk_start {
-                                                draw.nodes.0 = Some(nodes.0);
+                                                draw.start_nodes.push(nodes.0);
                                             }
                                         }
                                     }
                                     if let Some(start) = draw.points.first() {
                                         if let Some(chunk_end) = chunk.points.last() {
                                             if start == chunk_end {
-                                                draw.nodes.0 = Some(nodes.1);
+                                                draw.start_nodes.push(nodes.1);
                                             }
                                         }
                                     }
                                     if let Some(end) = draw.points.last() {
                                         if let Some(chunk_start) = chunk.points.first() {
                                             if end == chunk_start {
-                                                draw.nodes.1 = Some(nodes.0);
+                                                draw.end_nodes.push(nodes.0);
                                             }
                                         }
                                     }
                                     if let Some(end) = draw.points.last() {
                                         if let Some(chunk_end) = chunk.points.last() {
                                             if end == chunk_end {
-                                                draw.nodes.1 = Some(nodes.1);
+                                                draw.end_nodes.push(nodes.1);
                                             }
                                         }
                                     }
@@ -407,6 +409,10 @@ fn mouse_events_system(
                         }
                     }
                 }
+                draw.start_nodes.sort();
+                draw.start_nodes.dedup();
+                draw.end_nodes.sort();
+                draw.end_nodes.dedup();
             } else {
                 draw.points = vec![];
                 draw.valid = false;
@@ -452,8 +458,8 @@ fn mouse_events_system(
                         })
                         .id();
 
-                    let start_node = draw.nodes.0.unwrap_or_else(|| graph.graph.add_node(ent));
-                    let end_node = draw.nodes.1.unwrap_or_else(|| graph.graph.add_node(ent));
+                    let start_node = graph.graph.add_node(ent);
+                    let end_node = graph.graph.add_node(ent);
 
                     commands
                         .entity(ent)
@@ -465,6 +471,14 @@ fn mouse_events_system(
                     );
 
                     graph.graph.add_edge(start_node, end_node, 0);
+                    for node in draw.start_nodes.iter() {
+                        info!("Also attaching this chunk to {:?}", node);
+                        graph.graph.add_edge(*node, start_node, 0);
+                    }
+                    for node in draw.end_nodes.iter() {
+                        info!("Also attaching this chunk to {:?}", node);
+                        graph.graph.add_edge(end_node, *node, 0);
+                    }
 
                     println!(
                         "{:?}",
@@ -472,7 +486,8 @@ fn mouse_events_system(
                     );
                     draw.start = draw.end;
                     draw.points = vec![];
-                    draw.nodes = (None, None);
+                    draw.start_nodes = vec![];
+                    draw.end_nodes = vec![];
                 }
             }
         }
