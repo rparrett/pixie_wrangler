@@ -86,7 +86,7 @@ struct PixieEmitter {
 
 #[derive(Default)]
 struct RoadGraph {
-    graph: UnGraph<Entity, i32>,
+    graph: UnGraph<Entity, f32>,
 }
 
 #[derive(Default, Debug)]
@@ -145,7 +145,7 @@ fn button_system(
                                 a_node.0,
                                 |finish| finish == b_node.0,
                                 |e| *e.weight(),
-                                |_| 0,
+                                |_| 0.0,
                             );
 
                             let mut screen_path = vec![];
@@ -477,7 +477,9 @@ fn mouse_events_system(
                     let start_node = graph.graph.add_node(ent);
                     let end_node = graph.graph.add_node(ent);
                     // TODO this edge weight should be based on length
-                    graph.graph.add_edge(start_node, end_node, 0);
+                    graph
+                        .graph
+                        .add_edge(start_node, end_node, (*a - *b).length());
                     commands
                         .entity(ent)
                         .insert(SegmentGraphNodes(start_node, end_node));
@@ -539,19 +541,19 @@ fn mouse_events_system(
                         // TODO this edge weight should be based on angle/length
                         for node in draw.start_nodes.iter() {
                             info!("Also attaching this chunk to {:?}", node);
-                            graph.graph.add_edge(*node, segment.1, 0);
+                            graph.graph.add_edge(*node, segment.1, 0.0);
                         }
                     }
                     if i == segments.len() - 1 {
                         // TODO this edge weight should be based on angle/length
                         for node in draw.end_nodes.iter() {
                             info!("Also attaching this chunk to {:?}", node);
-                            graph.graph.add_edge(segment.2, *node, 0);
+                            graph.graph.add_edge(segment.2, *node, 0.0);
                         }
                     }
                     if i < segments.len() - 1 {
                         // TODO this edge weight should be based on angle/length
-                        graph.graph.add_edge(segment.2, segments[i + 1].1, 0);
+                        graph.graph.add_edge(segment.2, segments[i + 1].1, 0.0);
                     }
                 }
 
