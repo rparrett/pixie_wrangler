@@ -39,14 +39,14 @@ struct MainCamera;
 struct Cursor;
 struct DrawingLine;
 struct GridPoint;
-struct RoadChunk {
-    points: Vec<Vec2>,
+struct RoadSegment {
+    points: (Vec2, Vec2),
 }
 
 #[derive(Debug)]
 struct PointGraphNode(NodeIndex);
 #[derive(Debug)]
-struct ChunkGraphNodes(NodeIndex, NodeIndex);
+struct SegmentGraphNodes(NodeIndex, NodeIndex);
 
 #[derive(Clone, Copy)]
 enum Axis {
@@ -124,7 +124,7 @@ fn button_system(
     mut text_query: Query<&mut Text>,
     mut graph: ResMut<RoadGraph>,
     q_terminuses: Query<(&Terminus, &PointGraphNode)>,
-    q_road_chunks: Query<(&RoadChunk, &ChunkGraphNodes)>,
+    q_road_chunks: Query<(&RoadSegment, &SegmentGraphNodes)>,
     mut commands: Commands,
 ) {
     for (interaction, mut material, children) in interaction_query.iter_mut() {
@@ -165,20 +165,12 @@ fn button_system(
                                             info!("-> {:?}", t.point);
                                         }
                                         for (s, _) in q_road_chunks.get(*ent) {
-                                            if s.points.first().unwrap()
-                                                == screen_path.last().unwrap()
-                                            {
-                                                for p in s.points.iter().skip(1) {
-                                                    screen_path.push(*p);
-                                                    info!("-> {:?}", *p);
-                                                }
-                                            } else if s.points.last().unwrap()
-                                                == screen_path.last().unwrap()
-                                            {
-                                                for p in s.points.iter().rev().skip(1) {
-                                                    screen_path.push(*p);
-                                                    info!("-> {:?} (rev)", *p);
-                                                }
+                                            if s.points.0 == *screen_path.last().unwrap() {
+                                                screen_path.push(s.points.1);
+                                                info!("-> {:?}", s.points.1);
+                                            } else if s.points.1 == *screen_path.last().unwrap() {
+                                                screen_path.push(s.points.0);
+                                                info!("-> {:?} (rev)", s.points.0);
                                             } else {
                                                 info!("busted? {:?}", s.points);
                                             }
@@ -339,8 +331,8 @@ fn mouse_events_system(
     q_terminuses: Query<&Terminus>,
     q_colliders: Query<(Entity, &Parent, &Collider)>,
     q_point_nodes: Query<&PointGraphNode>,
-    q_chunk_nodes: Query<&ChunkGraphNodes>,
-    q_road_chunks: Query<&RoadChunk>,
+    q_chunk_nodes: Query<&SegmentGraphNodes>,
+    q_road_chunks: Query<&RoadSegment>,
 ) {
     // assuming there is exactly one main camera entity, so this is OK
     let camera_transform = q_camera.iter().next().unwrap();
@@ -463,34 +455,27 @@ fn mouse_events_system(
                             }
                         }
                         Collider::Segment(_s) => {
+                            // These are basically "connecting" collision checks
                             if let Ok(chunk) = q_road_chunks.get(parent.0) {
                                 if let Ok(nodes) = q_chunk_nodes.get(parent.0) {
                                     if let Some(start) = draw.points.first() {
-                                        if let Some(chunk_start) = chunk.points.first() {
-                                            if start == chunk_start {
-                                                draw.start_nodes.push(nodes.0);
-                                            }
+                                        if *start == chunk.points.0 {
+                                            draw.start_nodes.push(nodes.0);
                                         }
                                     }
                                     if let Some(start) = draw.points.first() {
-                                        if let Some(chunk_end) = chunk.points.last() {
-                                            if start == chunk_end {
-                                                draw.start_nodes.push(nodes.1);
-                                            }
+                                        if *start == chunk.points.1 {
+                                            draw.start_nodes.push(nodes.1);
                                         }
                                     }
                                     if let Some(end) = draw.points.last() {
-                                        if let Some(chunk_start) = chunk.points.first() {
-                                            if end == chunk_start {
-                                                draw.end_nodes.push(nodes.0);
-                                            }
+                                        if *end == chunk.points.0 {
+                                            draw.end_nodes.push(nodes.0);
                                         }
                                     }
                                     if let Some(end) = draw.points.last() {
-                                        if let Some(chunk_end) = chunk.points.last() {
-                                            if end == chunk_end {
-                                                draw.end_nodes.push(nodes.1);
-                                            }
+                                        if *end == chunk.points.1 {
+                                            draw.end_nodes.push(nodes.1);
                                         }
                                     }
                                 }
@@ -523,50 +508,67 @@ fn mouse_events_system(
                 }
 
                 if !draw.points.is_empty() {
-                    let shape = shapes::Polygon {
-                        points: draw.points.clone(),
-                        closed: false,
-                    };
-                    let ent = commands
-                        .spawn_bundle(GeometryBuilder::build_as(
-                            &shape,
-                            ShapeColors::outlined(Color::NONE, Color::PINK),
-                            DrawMode::Outlined {
-                                fill_options: FillOptions::default(),
-                                outline_options: StrokeOptions::default().with_line_width(2.0),
-                            },
-                            Transform::default(),
-                        ))
-                        .insert(RoadChunk {
-                            points: draw.points.clone(),
-                        })
-                        .with_children(|parent| {
-                            for (a, b) in draw.points.iter().tuple_windows() {
-                                parent.spawn().insert(Collider::Segment((*a, *b)));
-                            }
-                        })
-                        .id();
+                    let mut segments = vec![];
 
-                    let start_node = graph.graph.add_node(ent);
-                    let end_node = graph.graph.add_node(ent);
+                    for (a, b) in draw.points.iter().tuple_windows() {
+                        // TODO line
+                        let shape = shapes::Polygon {
+                            points: vec![a.clone(), b.clone()],
+                            closed: false,
+                        };
+                        let ent = commands
+                            .spawn_bundle(GeometryBuilder::build_as(
+                                &shape,
+                                ShapeColors::outlined(Color::NONE, Color::PINK),
+                                DrawMode::Outlined {
+                                    fill_options: FillOptions::default(),
+                                    outline_options: StrokeOptions::default().with_line_width(2.0),
+                                },
+                                Transform::default(),
+                            ))
+                            .insert(RoadSegment {
+                                points: (a.clone(), b.clone()),
+                            })
+                            .with_children(|parent| {
+                                for (a, b) in draw.points.iter().tuple_windows() {
+                                    parent.spawn().insert(Collider::Segment((*a, *b)));
+                                }
+                            })
+                            .id();
 
-                    commands
-                        .entity(ent)
-                        .insert(ChunkGraphNodes(start_node, end_node));
-
-                    info!(
-                        "Adding road chunk with entity: {:?} and node indexes: {:?} {:?}",
-                        ent, start_node, end_node
-                    );
-
-                    graph.graph.add_edge(start_node, end_node, 0);
-                    for node in draw.start_nodes.iter() {
-                        info!("Also attaching this chunk to {:?}", node);
-                        graph.graph.add_edge(*node, start_node, 0);
+                        let start_node = graph.graph.add_node(ent);
+                        let end_node = graph.graph.add_node(ent);
+                        // TODO this edge weight should be based on length
+                        graph.graph.add_edge(start_node, end_node, 0);
+                        commands
+                            .entity(ent)
+                            .insert(SegmentGraphNodes(start_node, end_node));
+                        info!(
+                            "Adding road chunk with entity: {:?} and node indexes: {:?} {:?}",
+                            ent, start_node, end_node
+                        );
+                        segments.push((ent, start_node, end_node))
                     }
-                    for node in draw.end_nodes.iter() {
-                        info!("Also attaching this chunk to {:?}", node);
-                        graph.graph.add_edge(end_node, *node, 0);
+
+                    for (i, segment) in segments.iter().enumerate() {
+                        if i == 0 {
+                            // TODO this edge weight should be based on angle/length
+                            for node in draw.start_nodes.iter() {
+                                info!("Also attaching this chunk to {:?}", node);
+                                graph.graph.add_edge(*node, segment.1, 0);
+                            }
+                        }
+                        if i == segments.len() - 1 {
+                            // TODO this edge weight should be based on angle/length
+                            for node in draw.end_nodes.iter() {
+                                info!("Also attaching this chunk to {:?}", node);
+                                graph.graph.add_edge(segment.2, *node, 0);
+                            }
+                        }
+                        if i < segments.len() - 1 {
+                            // TODO this edge weight should be based on angle/length
+                            graph.graph.add_edge(segment.2, segments[i + 1].1, 0);
+                        }
                     }
 
                     println!(
