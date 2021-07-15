@@ -132,6 +132,9 @@ fn button_system(
             Interaction::Clicked => {
                 *material = button_materials.pressed.clone();
 
+                let mut ok = true;
+                let mut paths = vec![];
+
                 for (a, a_node) in q_terminuses.iter() {
                     for (b, b_node) in q_terminuses.iter() {
                         for flavor in a.emits.intersection(&b.collects) {
@@ -148,56 +151,62 @@ fn button_system(
                                 |_| 0.0,
                             );
 
-                            let mut screen_path = vec![];
-                            let mut last_ent = None;
-
                             if let Some(path) = path {
+                                let mut world_path = vec![];
+                                let mut last_ent = None;
+
                                 for node in path.1 {
                                     if let Some(ent) = graph.graph.node_weight(node) {
                                         if last_ent.is_some() && ent == last_ent.unwrap() {
                                             continue;
                                         }
                                         last_ent = Some(ent);
-                                        info!("{:?} ({:?})", node, *ent);
                                         for (t, _) in q_terminuses.get(*ent) {
-                                            screen_path.push(t.point);
-                                            info!("-> {:?}", t.point);
+                                            world_path.push(t.point);
                                         }
                                         for (s, _) in q_road_chunks.get(*ent) {
-                                            if s.points.0 == *screen_path.last().unwrap() {
-                                                screen_path.push(s.points.1);
-                                                info!("-> {:?}", s.points.1);
-                                            } else if s.points.1 == *screen_path.last().unwrap() {
-                                                screen_path.push(s.points.0);
-                                                info!("-> {:?} (rev)", s.points.0);
+                                            if s.points.0 == *world_path.last().unwrap() {
+                                                world_path.push(s.points.1);
+                                            } else if s.points.1 == *world_path.last().unwrap() {
+                                                world_path.push(s.points.0);
                                             } else {
-                                                info!("busted? {:?}", s.points);
+                                                info!(
+                                                    "pretty sure this shouldn't happen {:?}",
+                                                    s.points
+                                                );
                                             }
                                         }
                                     }
                                 }
+
+                                if world_path.len() < 1 {
+                                    ok = false;
+                                    continue;
+                                }
+
+                                paths.push((flavor, world_path));
+                            } else {
+                                ok = false
                             }
-
-                            // blindly assume that all worked, create the pixie
-
-                            if screen_path.len() < 1 {
-                                // we should not be allowed to release the pixies
-                                // if the required paths are not present.
-                                continue;
-                            }
-
-                            // TODO there should only be one emitter per terminus. This
-                            // may produce multiple flavors of pixies headed towards
-                            // multiple destinations.
-
-                            commands.spawn().insert(PixieEmitter {
-                                flavor: *flavor,
-                                path: screen_path,
-                                remaining: 70,
-                                timer: Timer::from_seconds(0.4, true),
-                            });
                         }
                     }
+                }
+
+                if !ok || paths.len() < 1 {
+                    // TODO tell user we can't do that yet.
+                    // or better yet, do this path calc upon connecting to a terminus
+                    // and grey out the button if the requirements are not met.
+
+                    continue;
+                }
+
+                for (flavor, world_path) in paths {
+                    commands.spawn().insert(PixieEmitter {
+                        flavor: *flavor,
+                        path: world_path,
+                        remaining: 70,
+                        timer: Timer::from_seconds(0.4, true),
+                    });
                 }
             }
             Interaction::Hovered => {
@@ -636,7 +645,6 @@ fn move_pixies(time: Res<Time>, mut query: Query<(&mut Pixie, &mut Transform)>) 
     }
 }
 
-/// set up a simple 3D scene
 fn setup(
     mut commands: Commands,
     mut graph: ResMut<RoadGraph>,
