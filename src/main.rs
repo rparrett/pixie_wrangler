@@ -59,7 +59,7 @@ struct DrawingState {
     start: Vec2,
     end: Vec2,
     valid: bool,
-    points: Vec<Vec2>,
+    segments: Vec<(Vec2, Vec2)>,
     start_nodes: Vec<NodeIndex>,
     end_nodes: Vec<NodeIndex>,
     axis_preference: Option<Axis>,
@@ -122,13 +122,12 @@ fn button_system(
         (Changed<Interaction>, With<Button>),
     >,
     mut text_query: Query<&mut Text>,
-    mut graph: ResMut<RoadGraph>,
+    graph: Res<RoadGraph>,
     q_terminuses: Query<(&Terminus, &PointGraphNode)>,
     q_road_chunks: Query<(&RoadSegment, &SegmentGraphNodes)>,
     mut commands: Commands,
 ) {
     for (interaction, mut material, children) in interaction_query.iter_mut() {
-        let mut text = text_query.get_mut(children[0]).unwrap();
         match *interaction {
             Interaction::Clicked => {
                 *material = button_materials.pressed.clone();
@@ -231,13 +230,13 @@ fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {
 ///
 /// * `axis_preference` - If this is Some(Axis), we will offer up the line that
 ///   "moves in the preferred axis first" as the first result.
-fn possible_lines(from: Vec2, to: Vec2, axis_preference: Option<Axis>) -> Vec<Vec<Vec2>> {
+fn possible_lines(from: Vec2, to: Vec2, axis_preference: Option<Axis>) -> Vec<Vec<(Vec2, Vec2)>> {
     let diff = to - from;
 
     // if a single 45 degree or 90 degree line does the job,
     // return that.
     if diff.x == 0.0 || diff.y == 0.0 || diff.x.abs() == diff.y.abs() {
-        return vec![vec![from, to]];
+        return vec![vec![(from, to)]];
     }
 
     let (a, b) = if diff.x.abs() < diff.y.abs() {
@@ -253,10 +252,10 @@ fn possible_lines(from: Vec2, to: Vec2, axis_preference: Option<Axis>) -> Vec<Ve
     };
 
     if matches!(axis_preference, Some(Axis::X)) {
-        return vec![vec![from, a, to], vec![from, b, to]];
+        return vec![vec![(from, a), (a, to)], vec![(from, b), (b, to)]];
     }
 
-    vec![vec![from, b, to], vec![from, a, to]]
+    vec![vec![(from, b), (b, to)], vec![(from, a), (a, to)]]
 }
 
 fn draw_mouse(
@@ -300,21 +299,19 @@ fn draw_mouse(
             Color::RED
         };
 
-        let shape = shapes::Polygon {
-            points: draw.points.clone(),
-            closed: false,
-        };
-        commands
-            .spawn_bundle(GeometryBuilder::build_as(
-                &shape,
-                ShapeColors::outlined(Color::NONE, color),
-                DrawMode::Outlined {
-                    fill_options: FillOptions::default(),
-                    outline_options: StrokeOptions::default().with_line_width(2.0),
-                },
-                Transform::default(),
-            ))
-            .insert(DrawingLine);
+        for (a, b) in draw.segments.iter() {
+            commands
+                .spawn_bundle(GeometryBuilder::build_as(
+                    &shapes::Line(a.clone(), b.clone()),
+                    ShapeColors::outlined(Color::NONE, color),
+                    DrawMode::Outlined {
+                        fill_options: FillOptions::default(),
+                        outline_options: StrokeOptions::default().with_line_width(2.0),
+                    },
+                    Transform::default(),
+                ))
+                .insert(DrawingLine);
+        }
     }
 }
 
@@ -328,11 +325,10 @@ fn mouse_events_system(
     mut graph: ResMut<RoadGraph>,
     wnds: Res<Windows>,
     q_camera: Query<&Transform, With<MainCamera>>,
-    q_terminuses: Query<&Terminus>,
     q_colliders: Query<(Entity, &Parent, &Collider)>,
     q_point_nodes: Query<&PointGraphNode>,
-    q_chunk_nodes: Query<&SegmentGraphNodes>,
-    q_road_chunks: Query<&RoadSegment>,
+    q_segment_nodes: Query<&SegmentGraphNodes>,
+    q_road_segments: Query<&RoadSegment>,
 ) {
     // assuming there is exactly one main camera entity, so this is OK
     let camera_transform = q_camera.iter().next().unwrap();
@@ -375,7 +371,7 @@ fn mouse_events_system(
             if snapped != draw.start {
                 let possible = possible_lines(draw.start, snapped, draw.axis_preference);
                 let mut filtered = possible.iter().filter(|possibility| {
-                    !possibility.iter().tuple_windows().any(|(a, b)| {
+                    !possibility.iter().any(|(a, b)| {
                         q_colliders.iter().any(|(_e, _p, c)| match c {
                             Collider::Segment(s) => match segment_collision(s.0, s.1, *a, *b) {
                                 SegmentCollision::Intersecting => true,
@@ -421,74 +417,18 @@ fn mouse_events_system(
                     })
                 });
 
-                if let Some(points) = filtered.next() {
-                    draw.points = points.clone();
+                if let Some(segments) = filtered.next() {
+                    draw.segments = segments.clone();
                     draw.valid = true;
-                } else if let Some(points) = possible.iter().next() {
-                    draw.points = points.clone();
+                } else if let Some(segments) = possible.iter().next() {
+                    draw.segments = segments.clone();
                     draw.valid = false;
                 } else {
-                    draw.points = vec![];
+                    draw.segments = vec![];
                     draw.valid = false;
                 }
-
-                draw.start_nodes = vec![];
-                draw.end_nodes = vec![];
-                for (e, parent, c) in q_colliders.iter() {
-                    match c {
-                        Collider::Point(p) => {
-                            if let Some(start) = draw.points.first() {
-                                if *p == *start {
-                                    if let Ok(node) = q_point_nodes.get(parent.0) {
-                                        info!("start, so pushing a node");
-                                        draw.start_nodes.push(node.0);
-                                    }
-                                }
-                            }
-                            if let Some(end) = draw.points.last() {
-                                if *p == *end {
-                                    if let Ok(node) = q_point_nodes.get(parent.0) {
-                                        info!("end matched, so pushing a node");
-                                        draw.end_nodes.push(node.0);
-                                    }
-                                }
-                            }
-                        }
-                        Collider::Segment(_s) => {
-                            // These are basically "connecting" collision checks
-                            if let Ok(chunk) = q_road_chunks.get(parent.0) {
-                                if let Ok(nodes) = q_chunk_nodes.get(parent.0) {
-                                    if let Some(start) = draw.points.first() {
-                                        if *start == chunk.points.0 {
-                                            draw.start_nodes.push(nodes.0);
-                                        }
-                                    }
-                                    if let Some(start) = draw.points.first() {
-                                        if *start == chunk.points.1 {
-                                            draw.start_nodes.push(nodes.1);
-                                        }
-                                    }
-                                    if let Some(end) = draw.points.last() {
-                                        if *end == chunk.points.0 {
-                                            draw.end_nodes.push(nodes.0);
-                                        }
-                                    }
-                                    if let Some(end) = draw.points.last() {
-                                        if *end == chunk.points.1 {
-                                            draw.end_nodes.push(nodes.1);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                draw.start_nodes.sort();
-                draw.start_nodes.dedup();
-                draw.end_nodes.sort();
-                draw.end_nodes.dedup();
             } else {
-                draw.points = vec![];
+                draw.segments = vec![];
                 draw.valid = false;
             }
         }
@@ -507,79 +447,122 @@ fn mouse_events_system(
                     draw.drawing = false;
                 }
 
-                if !draw.points.is_empty() {
-                    let mut segments = vec![];
-
-                    for (a, b) in draw.points.iter().tuple_windows() {
-                        // TODO line
-                        let shape = shapes::Polygon {
-                            points: vec![a.clone(), b.clone()],
-                            closed: false,
-                        };
-                        let ent = commands
-                            .spawn_bundle(GeometryBuilder::build_as(
-                                &shape,
-                                ShapeColors::outlined(Color::NONE, Color::PINK),
-                                DrawMode::Outlined {
-                                    fill_options: FillOptions::default(),
-                                    outline_options: StrokeOptions::default().with_line_width(2.0),
-                                },
-                                Transform::default(),
-                            ))
-                            .insert(RoadSegment {
-                                points: (a.clone(), b.clone()),
-                            })
-                            .with_children(|parent| {
-                                for (a, b) in draw.points.iter().tuple_windows() {
-                                    parent.spawn().insert(Collider::Segment((*a, *b)));
-                                }
-                            })
-                            .id();
-
-                        let start_node = graph.graph.add_node(ent);
-                        let end_node = graph.graph.add_node(ent);
-                        // TODO this edge weight should be based on length
-                        graph.graph.add_edge(start_node, end_node, 0);
-                        commands
-                            .entity(ent)
-                            .insert(SegmentGraphNodes(start_node, end_node));
-                        info!(
-                            "Adding road chunk with entity: {:?} and node indexes: {:?} {:?}",
-                            ent, start_node, end_node
-                        );
-                        segments.push((ent, start_node, end_node))
-                    }
-
-                    for (i, segment) in segments.iter().enumerate() {
-                        if i == 0 {
-                            // TODO this edge weight should be based on angle/length
-                            for node in draw.start_nodes.iter() {
-                                info!("Also attaching this chunk to {:?}", node);
-                                graph.graph.add_edge(*node, segment.1, 0);
-                            }
-                        }
-                        if i == segments.len() - 1 {
-                            // TODO this edge weight should be based on angle/length
-                            for node in draw.end_nodes.iter() {
-                                info!("Also attaching this chunk to {:?}", node);
-                                graph.graph.add_edge(segment.2, *node, 0);
-                            }
-                        }
-                        if i < segments.len() - 1 {
-                            // TODO this edge weight should be based on angle/length
-                            graph.graph.add_edge(segment.2, segments[i + 1].1, 0);
-                        }
-                    }
-
-                    println!(
-                        "{:?}",
-                        Dot::with_config(&graph.graph, &[Config::EdgeNoLabel])
-                    );
-                    draw.start = draw.end;
-                    draw.points = vec![];
-                    draw.start_nodes = vec![];
-                    draw.end_nodes = vec![];
+                if draw.segments.is_empty() {
+                    continue;
                 }
+
+                let mut segments = vec![];
+
+                for (a, b) in draw.segments.iter() {
+                    let ent = commands
+                        .spawn_bundle(GeometryBuilder::build_as(
+                            &shapes::Line(a.clone(), b.clone()),
+                            ShapeColors::outlined(Color::NONE, Color::PINK),
+                            DrawMode::Outlined {
+                                fill_options: FillOptions::default(),
+                                outline_options: StrokeOptions::default().with_line_width(2.0),
+                            },
+                            Transform::default(),
+                        ))
+                        .insert(RoadSegment {
+                            points: (a.clone(), b.clone()),
+                        })
+                        .with_children(|parent| {
+                            for seg in draw.segments.iter() {
+                                parent.spawn().insert(Collider::Segment(*seg));
+                            }
+                        })
+                        .id();
+
+                    let start_node = graph.graph.add_node(ent);
+                    let end_node = graph.graph.add_node(ent);
+                    // TODO this edge weight should be based on length
+                    graph.graph.add_edge(start_node, end_node, 0);
+                    commands
+                        .entity(ent)
+                        .insert(SegmentGraphNodes(start_node, end_node));
+                    info!(
+                        "Adding road chunk with entity: {:?} and node indexes: {:?} {:?}",
+                        ent, start_node, end_node
+                    );
+                    segments.push((ent, start_node, end_node))
+                }
+
+                draw.start_nodes = vec![];
+                draw.end_nodes = vec![];
+                for (e, parent, c) in q_colliders.iter() {
+                    match c {
+                        Collider::Point(p) => {
+                            if *p == draw.start {
+                                if let Ok(node) = q_point_nodes.get(parent.0) {
+                                    info!("start, so pushing a node");
+                                    draw.start_nodes.push(node.0);
+                                }
+                            }
+                            if *p == draw.end {
+                                if let Ok(node) = q_point_nodes.get(parent.0) {
+                                    info!("end matched, so pushing a node");
+                                    draw.end_nodes.push(node.0);
+                                }
+                            }
+                        }
+                        Collider::Segment(_s) => {
+                            // These are basically "connecting" collision checks
+                            if let Ok(chunk) = q_road_segments.get(parent.0) {
+                                if let Ok(nodes) = q_segment_nodes.get(parent.0) {
+                                    if draw.start == chunk.points.0 {
+                                        draw.start_nodes.push(nodes.0);
+                                    }
+                                    if draw.start == chunk.points.1 {
+                                        draw.start_nodes.push(nodes.1);
+                                    }
+                                    if draw.end == chunk.points.0 {
+                                        draw.end_nodes.push(nodes.0);
+                                    }
+                                    if draw.end == chunk.points.1 {
+                                        draw.end_nodes.push(nodes.1);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                // it is not clear at all to me how duplicates end up here, but
+                // they do.
+                draw.start_nodes.sort();
+                draw.start_nodes.dedup();
+                draw.end_nodes.sort();
+                draw.end_nodes.dedup();
+
+                for (i, segment) in segments.iter().enumerate() {
+                    if i == 0 {
+                        // TODO this edge weight should be based on angle/length
+                        for node in draw.start_nodes.iter() {
+                            info!("Also attaching this chunk to {:?}", node);
+                            graph.graph.add_edge(*node, segment.1, 0);
+                        }
+                    }
+                    if i == segments.len() - 1 {
+                        // TODO this edge weight should be based on angle/length
+                        for node in draw.end_nodes.iter() {
+                            info!("Also attaching this chunk to {:?}", node);
+                            graph.graph.add_edge(segment.2, *node, 0);
+                        }
+                    }
+                    if i < segments.len() - 1 {
+                        // TODO this edge weight should be based on angle/length
+                        graph.graph.add_edge(segment.2, segments[i + 1].1, 0);
+                    }
+                }
+
+                println!(
+                    "{:?}",
+                    Dot::with_config(&graph.graph, &[Config::EdgeNoLabel])
+                );
+                draw.start = draw.end;
+                draw.segments = vec![];
+                draw.start_nodes = vec![];
+                draw.end_nodes = vec![];
             }
         }
     }
