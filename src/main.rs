@@ -25,6 +25,7 @@ fn main() {
     app.add_system(draw_mouse.system().after("mouse")); // after mouse
     app.add_system(button_system.system());
     app.add_system(move_pixies.system());
+    app.add_system(emit_pixies.system());
     app.init_resource::<DrawingState>();
     app.init_resource::<MouseState>();
     app.init_resource::<RoadGraph>();
@@ -74,6 +75,13 @@ struct Pixie {
     flavor: u32,
     path: Vec<Vec2>,
     path_index: usize,
+}
+
+struct PixieEmitter {
+    flavor: u32,
+    path: Vec<Vec2>,
+    remaining: u32,
+    timer: Timer,
 }
 
 #[derive(Default)]
@@ -187,28 +195,16 @@ fn button_system(
                                 continue;
                             }
 
-                            let colors = [Color::PURPLE, Color::PINK];
+                            // TODO there should only be one emitter per terminus. This
+                            // may produce multiple flavors of pixies headed towards
+                            // multiple destinations.
 
-                            let shape = shapes::RegularPolygon {
-                                sides: 6,
-                                feature: shapes::RegularPolygonFeature::Radius(6.0),
-                                ..shapes::RegularPolygon::default()
-                            };
-
-                            commands
-                                .spawn_bundle(GeometryBuilder::build_as(
-                                    &shape,
-                                    ShapeColors::new(colors[(flavor - 1) as usize]),
-                                    DrawMode::Fill(FillOptions::default()),
-                                    Transform::from_translation(
-                                        screen_path.first().unwrap().extend(1.0),
-                                    ),
-                                ))
-                                .insert(Pixie {
-                                    flavor: *flavor,
-                                    path: screen_path,
-                                    path_index: 0,
-                                });
+                            commands.spawn().insert(PixieEmitter {
+                                flavor: *flavor,
+                                path: screen_path,
+                                remaining: 70,
+                                timer: Timer::from_seconds(0.4, true),
+                            });
                         }
                     }
                 }
@@ -587,6 +583,43 @@ fn mouse_events_system(
     }
 }
 
+fn emit_pixies(time: Res<Time>, mut q_emitters: Query<&mut PixieEmitter>, mut commands: Commands) {
+    let colors = [Color::PURPLE, Color::PINK];
+
+    for mut emitter in q_emitters.iter_mut() {
+        if emitter.remaining <= 0 {
+            continue;
+        }
+
+        emitter.timer.tick(time.delta());
+
+        if !emitter.timer.finished() {
+            continue;
+        }
+
+        let shape = shapes::RegularPolygon {
+            sides: 6,
+            feature: shapes::RegularPolygonFeature::Radius(6.0),
+            ..shapes::RegularPolygon::default()
+        };
+
+        commands
+            .spawn_bundle(GeometryBuilder::build_as(
+                &shape,
+                ShapeColors::new(colors[(emitter.flavor - 1) as usize]),
+                DrawMode::Fill(FillOptions::default()),
+                Transform::from_translation(emitter.path.first().unwrap().extend(1.0)),
+            ))
+            .insert(Pixie {
+                flavor: emitter.flavor,
+                path: emitter.path.clone(),
+                path_index: 0,
+            });
+
+        emitter.remaining -= 1;
+    }
+}
+
 fn move_pixies(time: Res<Time>, mut query: Query<(&mut Pixie, &mut Transform)>) {
     for (mut pixie, mut transform) in query.iter_mut() {
         if pixie.path_index >= pixie.path.len() - 1 {
@@ -602,8 +635,8 @@ fn move_pixies(time: Res<Time>, mut query: Query<(&mut Pixie, &mut Transform)>) 
         let speed = 60.0;
         let step = speed * delta;
 
-        // ten radians per second, clockwise
-        transform.rotate(Quat::from_rotation_z(-10.0 * delta));
+        // five radians per second, clockwise
+        transform.rotate(Quat::from_rotation_z(-5.0 * delta));
 
         if step < dist {
             transform.translation.x += step / dist * (next_waypoint.x - transform.translation.x);
