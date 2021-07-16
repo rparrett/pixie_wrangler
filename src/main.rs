@@ -22,6 +22,7 @@ fn main() {
     app.add_plugin(bevy_webgl2::WebGL2Plugin);
     app.add_plugin(ShapePlugin);
     app.add_startup_system(setup.system());
+    app.add_system(keyboard_system.system().before("mouse"));
     app.add_system(mouse_events_system.system().label("mouse"));
     app.add_system(draw_mouse.system().after("mouse")); // after mouse
     app.add_system(button_system.system());
@@ -59,7 +60,7 @@ enum Axis {
     X,
     Y,
 }
-#[derive(Default)]
+
 struct DrawingState {
     drawing: bool,
     start: Vec2,
@@ -69,6 +70,22 @@ struct DrawingState {
     start_nodes: Vec<NodeIndex>,
     end_nodes: Vec<NodeIndex>,
     axis_preference: Option<Axis>,
+    layer: u32,
+}
+impl Default for DrawingState {
+    fn default() -> Self {
+        Self {
+            drawing: false,
+            start: Vec2::new(0.0, 0.0),
+            end: Vec2::new(0.0, 0.0),
+            valid: false,
+            segments: vec![],
+            start_nodes: vec![],
+            end_nodes: vec![],
+            axis_preference: None,
+            layer: 1,
+        }
+    }
 }
 
 #[derive(Default, Debug)]
@@ -104,6 +121,7 @@ enum Collider {
     Point(Vec2),
     Segment((Vec2, Vec2)),
 }
+struct ColliderLayer(u32);
 
 struct ButtonMaterials {
     normal: Handle<ColorMaterial>,
@@ -112,6 +130,8 @@ struct ButtonMaterials {
 }
 
 const PIXIE_COLORS: [Color; 3] = [Color::AQUAMARINE, Color::PINK, Color::ORANGE];
+const FINISHED_ROAD_COLORS: [Color; 2] = [Color::BLUE, Color::PURPLE];
+const DRAWING_ROAD_COLORS: [Color; 2] = [Color::SEA_GREEN, Color::VIOLET];
 
 impl FromWorld for ButtonMaterials {
     fn from_world(world: &mut World) -> Self {
@@ -311,7 +331,7 @@ fn draw_mouse(
         // collide with another line.
 
         let color = if draw.valid {
-            Color::SEA_GREEN
+            DRAWING_ROAD_COLORS[draw.layer as usize - 1]
         } else {
             Color::RED
         };
@@ -332,7 +352,16 @@ fn draw_mouse(
     }
 }
 
-/// This system prints out all mouse events as they come in
+fn keyboard_system(keyboard_input: Res<Input<KeyCode>>, mut drawing_state: ResMut<DrawingState>) {
+    if keyboard_input.pressed(KeyCode::Key1) {
+        drawing_state.layer = 1;
+    } else if keyboard_input.pressed(KeyCode::Key2) {
+        drawing_state.layer = 2;
+    }
+
+    // TODO we need to somehow update the "drawing line" color
+}
+
 fn mouse_events_system(
     mut commands: Commands,
     mut mouse_button_input_events: EventReader<MouseButtonInput>,
@@ -342,7 +371,7 @@ fn mouse_events_system(
     mut graph: ResMut<RoadGraph>,
     wnds: Res<Windows>,
     q_camera: Query<&Transform, With<MainCamera>>,
-    q_colliders: Query<(Entity, &Parent, &Collider)>,
+    q_colliders: Query<(Entity, &Parent, &Collider, &ColliderLayer)>,
     q_point_nodes: Query<&PointGraphNode>,
     q_segment_nodes: Query<&SegmentGraphNodes>,
     q_road_segments: Query<&RoadSegment>,
@@ -389,10 +418,10 @@ fn mouse_events_system(
                 let possible = possible_lines(draw.start, snapped, draw.axis_preference);
                 let mut filtered = possible.iter().filter(|possibility| {
                     !possibility.iter().any(|(a, b)| {
-                        q_colliders.iter().any(|(_e, _p, c)| match c {
+                        q_colliders.iter().any(|(_e, _p, c, layer)| match c {
                             Collider::Segment(s) => match segment_collision(s.0, s.1, *a, *b) {
-                                SegmentCollision::Intersecting => true,
-                                SegmentCollision::Overlapping => true,
+                                SegmentCollision::Intersecting => layer.0 == draw.layer,
+                                SegmentCollision::Overlapping => layer.0 == draw.layer,
                                 SegmentCollision::Touching => {
                                     // "Touching" collisions are allowed only if they are the
                                     // start or end of the line we are currently drawing.
@@ -471,14 +500,12 @@ fn mouse_events_system(
                 let mut segments = vec![];
 
                 for (a, b) in draw.segments.iter() {
+                    let color = FINISHED_ROAD_COLORS[draw.layer as usize - 1];
                     let ent = commands
                         .spawn_bundle(GeometryBuilder::build_as(
                             &shapes::Line(a.clone(), b.clone()),
-                            ShapeColors::outlined(Color::NONE, Color::BLUE),
-                            DrawMode::Outlined {
-                                fill_options: FillOptions::default(),
-                                outline_options: StrokeOptions::default().with_line_width(2.0),
-                            },
+                            ShapeColors::new(color),
+                            DrawMode::Stroke(StrokeOptions::default().with_line_width(2.0)),
                             Transform::default(),
                         ))
                         .insert(RoadSegment {
@@ -486,7 +513,10 @@ fn mouse_events_system(
                         })
                         .with_children(|parent| {
                             for seg in draw.segments.iter() {
-                                parent.spawn().insert(Collider::Segment(*seg));
+                                parent
+                                    .spawn()
+                                    .insert(Collider::Segment(*seg))
+                                    .insert(ColliderLayer(draw.layer));
                             }
                         })
                         .id();
@@ -509,7 +539,7 @@ fn mouse_events_system(
 
                 draw.start_nodes = vec![];
                 draw.end_nodes = vec![];
-                for (e, parent, c) in q_colliders.iter() {
+                for (e, parent, c, layer) in q_colliders.iter() {
                     match c {
                         Collider::Point(p) => {
                             if *p == draw.start {
@@ -697,7 +727,10 @@ fn spawn_terminus(
             collects: collects.clone(),
         })
         .with_children(|parent| {
-            parent.spawn().insert(Collider::Point(pos.clone()));
+            parent
+                .spawn()
+                .insert(Collider::Point(pos.clone()))
+                .insert(ColliderLayer(1));
 
             let mut i = 0;
 
