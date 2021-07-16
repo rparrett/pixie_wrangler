@@ -1,14 +1,11 @@
 use crate::collision::{point_segment_collision, segment_collision, SegmentCollision};
 
-use bevy::asset;
-use bevy::ecs::schedule::GraphNode;
 use bevy::{
     input::mouse::MouseButtonInput, input::ElementState::Released, prelude::*, utils::HashSet,
     window::CursorMoved,
 };
 use bevy_prototype_lyon::prelude::*;
-use itertools::Itertools;
-use petgraph::algo::{astar, dijkstra, min_spanning_tree};
+use petgraph::algo::astar;
 use petgraph::dot::{Config, Dot};
 use petgraph::graph::{NodeIndex, UnGraph};
 
@@ -95,7 +92,6 @@ struct Terminus {
     collects: HashSet<u32>,
 }
 struct Pixie {
-    flavor: u32,
     path: Vec<Vec2>,
     path_index: usize,
 }
@@ -146,16 +142,15 @@ impl FromWorld for ButtonMaterials {
 fn button_system(
     button_materials: Res<ButtonMaterials>,
     mut interaction_query: Query<
-        (&Interaction, &mut Handle<ColorMaterial>, &Children),
+        (&Interaction, &mut Handle<ColorMaterial>),
         (Changed<Interaction>, With<Button>),
     >,
-    mut text_query: Query<&mut Text>,
     graph: Res<RoadGraph>,
     q_terminuses: Query<(&Terminus, &PointGraphNode)>,
     q_road_chunks: Query<(&RoadSegment, &SegmentGraphNodes)>,
     mut commands: Commands,
 ) {
-    for (interaction, mut material, children) in interaction_query.iter_mut() {
+    for (interaction, mut material) in interaction_query.iter_mut() {
         match *interaction {
             Interaction::Clicked => {
                 *material = button_materials.pressed.clone();
@@ -541,8 +536,8 @@ fn mouse_events_system(
 
                 draw.start_nodes = vec![];
                 draw.end_nodes = vec![];
-                for (e, parent, c, layer) in q_colliders.iter() {
-                    match c {
+                for (_entity, parent, collider, _layer) in q_colliders.iter() {
+                    match collider {
                         Collider::Point(p) => {
                             if *p == draw.start {
                                 if let Ok(node) = q_point_nodes.get(parent.0) {
@@ -645,7 +640,6 @@ fn emit_pixies(time: Res<Time>, mut q_emitters: Query<&mut PixieEmitter>, mut co
                 Transform::from_translation(emitter.path.first().unwrap().extend(1.0)),
             ))
             .insert(Pixie {
-                flavor: emitter.flavor,
                 path: emitter.path.clone(),
                 path_index: 0,
             });
@@ -794,7 +788,6 @@ fn spawn_terminus(
 fn setup(
     mut commands: Commands,
     mut graph: ResMut<RoadGraph>,
-    score: Res<Score>,
     asset_server: Res<AssetServer>,
     button_materials: Res<ButtonMaterials>,
     mut materials: ResMut<Assets<ColorMaterial>>,
