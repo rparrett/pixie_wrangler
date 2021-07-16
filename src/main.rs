@@ -348,7 +348,7 @@ fn draw_mouse(
                     &shapes::Line(a.clone(), b.clone()),
                     ShapeColors::new(color.as_rgba_linear()),
                     DrawMode::Stroke(StrokeOptions::default().with_line_width(2.0)),
-                    Transform::default(),
+                    Transform::from_xyz(0.0, 0.0, 2.0),
                 ))
                 .insert(DrawingLine);
         }
