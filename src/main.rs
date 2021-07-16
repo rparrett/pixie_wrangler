@@ -13,6 +13,7 @@ const GRID_SIZE: f32 = 48.0;
 
 fn main() {
     let mut app = App::build();
+    app.insert_resource(ClearColor(BACKGROUND_COLOR));
     app.insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins);
     #[cfg(target_arch = "wasm32")]
@@ -126,8 +127,16 @@ struct ButtonMaterials {
 }
 
 const PIXIE_COLORS: [Color; 3] = [Color::AQUAMARINE, Color::PINK, Color::ORANGE];
-const FINISHED_ROAD_COLORS: [Color; 2] = [Color::BLUE, Color::PURPLE];
-const DRAWING_ROAD_COLORS: [Color; 2] = [Color::SEA_GREEN, Color::VIOLET];
+const FINISHED_ROAD_COLORS: [Color; 2] = [
+    Color::rgb(0.251, 0.435, 0.729),
+    Color::rgb(0.247, 0.725, 0.314),
+];
+const DRAWING_ROAD_COLORS: [Color; 2] = [
+    Color::rgb(0.102, 0.18, 0.298),
+    Color::rgb(0.102, 0.298, 0.125),
+];
+const BACKGROUND_COLOR: Color = Color::rgb(0.05, 0.066, 0.09);
+const GRID_COLOR: Color = Color::rgb(0.086, 0.105, 0.133);
 
 impl FromWorld for ButtonMaterials {
     fn from_world(world: &mut World) -> Self {
@@ -311,7 +320,7 @@ fn draw_mouse(
         commands
             .spawn_bundle(GeometryBuilder::build_as(
                 &shape,
-                ShapeColors::new(color),
+                ShapeColors::new(color.as_rgba_linear()),
                 DrawMode::Stroke(StrokeOptions::default().with_line_width(2.0)),
                 Transform::default(),
             ))
@@ -337,11 +346,8 @@ fn draw_mouse(
             commands
                 .spawn_bundle(GeometryBuilder::build_as(
                     &shapes::Line(a.clone(), b.clone()),
-                    ShapeColors::outlined(Color::NONE, color),
-                    DrawMode::Outlined {
-                        fill_options: FillOptions::default(),
-                        outline_options: StrokeOptions::default().with_line_width(2.0),
-                    },
+                    ShapeColors::new(color.as_rgba_linear()),
+                    DrawMode::Stroke(StrokeOptions::default().with_line_width(2.0)),
                     Transform::default(),
                 ))
                 .insert(DrawingLine);
@@ -501,7 +507,7 @@ fn mouse_events_system(
                     let ent = commands
                         .spawn_bundle(GeometryBuilder::build_as(
                             &shapes::Line(a.clone(), b.clone()),
-                            ShapeColors::new(color),
+                            ShapeColors::new(color.as_rgba_linear()),
                             DrawMode::Stroke(StrokeOptions::default().with_line_width(2.0)),
                             Transform::default(),
                         ))
@@ -635,7 +641,7 @@ fn emit_pixies(time: Res<Time>, mut q_emitters: Query<&mut PixieEmitter>, mut co
         commands
             .spawn_bundle(GeometryBuilder::build_as(
                 &shape,
-                ShapeColors::new(PIXIE_COLORS[(emitter.flavor) as usize]),
+                ShapeColors::new(PIXIE_COLORS[(emitter.flavor) as usize].as_rgba_linear()),
                 DrawMode::Fill(FillOptions::default()),
                 Transform::from_translation(emitter.path.first().unwrap().extend(1.0)),
             ))
@@ -710,7 +716,7 @@ fn spawn_terminus(
                 radius: 5.5,
                 center: pos.clone(),
             },
-            ShapeColors::outlined(Color::NONE, Color::BLUE),
+            ShapeColors::outlined(Color::NONE, Color::BLUE.as_rgba_linear()),
             DrawMode::Outlined {
                 fill_options: FillOptions::default(),
                 outline_options: StrokeOptions::default().with_line_width(2.0),
@@ -805,7 +811,7 @@ fn setup(
                         radius: 2.5,
                         center: Vec2::new(x as f32, y as f32),
                     },
-                    ShapeColors::new(Color::DARK_GRAY),
+                    ShapeColors::new(GRID_COLOR.as_rgba_linear()),
                     DrawMode::Fill(FillOptions::default()),
                     Transform::default(),
                 ))
@@ -910,7 +916,7 @@ fn setup(
                         TextStyle {
                             font: asset_server.load("fonts/CooperHewitt-Medium.ttf"),
                             font_size: 40.0,
-                            color: Color::rgb(0.9, 0.9, 0.9),
+                            color: FINISHED_ROAD_COLORS[0],
                         },
                         Default::default(),
                     ),
