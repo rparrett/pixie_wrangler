@@ -787,12 +787,12 @@ fn setup(
 
     let points = [
         (
-            snap_to_grid(Vec2::new(-500.0, -300.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(-500.0, -250.0), GRID_SIZE),
             vec![0],
             vec![],
         ),
         (
-            snap_to_grid(Vec2::new(-500.0, 300.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(-500.0, 250.0), GRID_SIZE),
             vec![1],
             vec![],
         ),
@@ -802,12 +802,12 @@ fn setup(
             vec![],
         ),
         (
-            snap_to_grid(Vec2::new(500.0, -300.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(500.0, -250.0), GRID_SIZE),
             vec![],
             vec![1],
         ),
         (
-            snap_to_grid(Vec2::new(500.0, 300.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(500.0, 250.0), GRID_SIZE),
             vec![],
             vec![0],
         ),
