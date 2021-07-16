@@ -716,7 +716,10 @@ fn spawn_terminus(
                 radius: 5.5,
                 center: pos.clone(),
             },
-            ShapeColors::outlined(Color::NONE, Color::BLUE.as_rgba_linear()),
+            ShapeColors::outlined(
+                BACKGROUND_COLOR.as_rgba_linear(),
+                FINISHED_ROAD_COLORS[0].as_rgba_linear(),
+            ),
             DrawMode::Outlined {
                 fill_options: FillOptions::default(),
                 outline_options: StrokeOptions::default().with_line_width(2.0),
