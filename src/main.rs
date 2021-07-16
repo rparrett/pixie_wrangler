@@ -12,7 +12,7 @@ use petgraph::algo::{astar, dijkstra, min_spanning_tree};
 use petgraph::dot::{Config, Dot};
 use petgraph::graph::{NodeIndex, UnGraph};
 
-const GRID_SIZE: f32 = 25.0;
+const GRID_SIZE: f32 = 48.0;
 
 fn main() {
     let mut app = App::build();
@@ -25,12 +25,14 @@ fn main() {
     app.add_system(mouse_events_system.system().label("mouse"));
     app.add_system(draw_mouse.system().after("mouse")); // after mouse
     app.add_system(button_system.system());
-    app.add_system(move_pixies.system());
+    app.add_system(move_pixies.system().label("pixies"));
     app.add_system(emit_pixies.system());
+    app.add_system(update_score.system().after("pixies"));
     app.init_resource::<DrawingState>();
     app.init_resource::<MouseState>();
     app.init_resource::<RoadGraph>();
     app.init_resource::<ButtonMaterials>();
+    app.init_resource::<Score>();
     app.run();
 }
 
@@ -40,6 +42,9 @@ struct MainCamera;
 struct Cursor;
 struct DrawingLine;
 struct GridPoint;
+struct ScoreText;
+#[derive(Default)]
+struct Score(u32);
 struct RoadSegment {
     points: (Vec2, Vec2),
 }
@@ -617,9 +622,16 @@ fn emit_pixies(time: Res<Time>, mut q_emitters: Query<&mut PixieEmitter>, mut co
     }
 }
 
-fn move_pixies(time: Res<Time>, mut query: Query<(&mut Pixie, &mut Transform)>) {
-    for (mut pixie, mut transform) in query.iter_mut() {
+fn move_pixies(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut score: ResMut<Score>,
+    mut query: Query<(Entity, &mut Pixie, &mut Transform)>,
+) {
+    for (entity, mut pixie, mut transform) in query.iter_mut() {
         if pixie.path_index >= pixie.path.len() - 1 {
+            commands.entity(entity).despawn_recursive();
+            score.0 += 1;
             continue;
         }
 
@@ -644,6 +656,15 @@ fn move_pixies(time: Res<Time>, mut query: Query<(&mut Pixie, &mut Transform)>) 
             pixie.path_index += 1;
         }
     }
+}
+
+fn update_score(score: Res<Score>, mut q_score: Query<&mut Text, With<ScoreText>>) {
+    if !score.is_changed() {
+        return;
+    }
+
+    let mut text = q_score.single_mut().unwrap();
+    text.sections[0].value = format!("Score: {}", score.0);
 }
 
 fn spawn_terminus(
@@ -738,8 +759,10 @@ fn spawn_terminus(
 fn setup(
     mut commands: Commands,
     mut graph: ResMut<RoadGraph>,
+    score: Res<Score>,
     asset_server: Res<AssetServer>,
     button_materials: Res<ButtonMaterials>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     commands
         .spawn_bundle(OrthographicCameraBundle::new_2d())
@@ -812,37 +835,59 @@ fn setup(
     );
 
     commands
-        .spawn_bundle(ButtonBundle {
+        .spawn_bundle(NodeBundle {
             style: Style {
-                size: Size::new(Val::Px(300.0), Val::Px(65.0)),
-                // center button
-                margin: Rect {
-                    left: Val::Auto,
-                    right: Val::Auto,
-                    bottom: Val::Px(10.0),
-                    ..Default::default()
-                },
-                // horizontally center child text
-                justify_content: JustifyContent::Center,
-                // vertically center child text
+                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::SpaceBetween,
                 align_items: AlignItems::Center,
                 ..Default::default()
             },
-            material: button_materials.normal.clone(),
+            material: materials.add(Color::NONE.into()),
             ..Default::default()
         })
         .with_children(|parent| {
-            parent.spawn_bundle(TextBundle {
-                text: Text::with_section(
-                    "Release The Pixies",
-                    TextStyle {
-                        font: asset_server.load("fonts/CooperHewitt-Medium.ttf"),
-                        font_size: 40.0,
-                        color: Color::rgb(0.9, 0.9, 0.9),
+            parent
+                .spawn_bundle(ButtonBundle {
+                    style: Style {
+                        size: Size::new(Val::Px(300.0), Val::Px(65.0)),
+                        // horizontally center child text
+                        justify_content: JustifyContent::Center,
+                        // vertically center child text
+                        align_items: AlignItems::Center,
+                        ..Default::default()
                     },
-                    Default::default(),
-                ),
-                ..Default::default()
-            });
+                    material: button_materials.normal.clone(),
+                    ..Default::default()
+                })
+                .with_children(|parent| {
+                    parent.spawn_bundle(TextBundle {
+                        text: Text::with_section(
+                            "Release The Pixies",
+                            TextStyle {
+                                font: asset_server.load("fonts/CooperHewitt-Medium.ttf"),
+                                font_size: 40.0,
+                                color: Color::rgb(0.9, 0.9, 0.9),
+                            },
+                            Default::default(),
+                        ),
+                        ..Default::default()
+                    });
+                });
+
+            parent
+                .spawn_bundle(TextBundle {
+                    text: Text::with_section(
+                        "0",
+                        TextStyle {
+                            font: asset_server.load("fonts/CooperHewitt-Medium.ttf"),
+                            font_size: 40.0,
+                            color: Color::rgb(0.9, 0.9, 0.9),
+                        },
+                        Default::default(),
+                    ),
+                    ..Default::default()
+                })
+                .insert(ScoreText);
         });
 }
