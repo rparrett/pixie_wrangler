@@ -1,5 +1,6 @@
 use crate::collision::{point_segment_collision, segment_collision, SegmentCollision};
 
+use bevy::asset;
 use bevy::ecs::schedule::GraphNode;
 use bevy::{
     input::mouse::MouseButtonInput, input::ElementState::Released, prelude::*, utils::HashSet,
@@ -104,6 +105,8 @@ struct ButtonMaterials {
     hovered: Handle<ColorMaterial>,
     pressed: Handle<ColorMaterial>,
 }
+
+const PIXIE_COLORS: [Color; 3] = [Color::AQUAMARINE, Color::PINK, Color::ORANGE];
 
 impl FromWorld for ButtonMaterials {
     fn from_world(world: &mut World) -> Self {
@@ -580,8 +583,6 @@ fn mouse_events_system(
 }
 
 fn emit_pixies(time: Res<Time>, mut q_emitters: Query<&mut PixieEmitter>, mut commands: Commands) {
-    let colors = [Color::PURPLE, Color::PINK];
-
     for mut emitter in q_emitters.iter_mut() {
         if emitter.remaining <= 0 {
             continue;
@@ -602,7 +603,7 @@ fn emit_pixies(time: Res<Time>, mut q_emitters: Query<&mut PixieEmitter>, mut co
         commands
             .spawn_bundle(GeometryBuilder::build_as(
                 &shape,
-                ShapeColors::new(colors[(emitter.flavor - 1) as usize]),
+                ShapeColors::new(PIXIE_COLORS[(emitter.flavor) as usize]),
                 DrawMode::Fill(FillOptions::default()),
                 Transform::from_translation(emitter.path.first().unwrap().extend(1.0)),
             ))
@@ -645,6 +646,95 @@ fn move_pixies(time: Res<Time>, mut query: Query<(&mut Pixie, &mut Transform)>) 
     }
 }
 
+fn spawn_terminus(
+    commands: &mut Commands,
+    graph: &mut ResMut<RoadGraph>,
+    asset_server: &Res<AssetServer>,
+    pos: Vec2,
+    emits: HashSet<u32>,
+    collects: HashSet<u32>,
+) {
+    let label_offset = 22.0;
+    let label_spacing = 22.0;
+
+    let ent = commands
+        .spawn_bundle(GeometryBuilder::build_as(
+            &shapes::Circle {
+                radius: 5.5,
+                center: pos.clone(),
+            },
+            ShapeColors::outlined(Color::NONE, Color::BLUE),
+            DrawMode::Outlined {
+                fill_options: FillOptions::default(),
+                outline_options: StrokeOptions::default().with_line_width(2.0),
+            },
+            Transform::default(),
+        ))
+        .insert(Terminus {
+            point: pos.clone(),
+            emits: emits.clone(),
+            collects: collects.clone(),
+        })
+        .with_children(|parent| {
+            parent.spawn().insert(Collider::Point(pos.clone()));
+
+            let mut i = 0;
+
+            for flavor in emits {
+                let label_pos =
+                    pos + Vec2::new(0.0, -1.0 * label_offset + -1.0 * i as f32 * label_spacing);
+
+                parent.spawn_bundle(Text2dBundle {
+                    text: Text::with_section(
+                        "OUT",
+                        TextStyle {
+                            font: asset_server.load("fonts/CooperHewitt-Medium.ttf"),
+                            font_size: 30.0,
+                            color: PIXIE_COLORS[flavor as usize],
+                        },
+                        TextAlignment {
+                            vertical: VerticalAlign::Center,
+                            horizontal: HorizontalAlign::Center,
+                        },
+                    ),
+                    transform: Transform::from_translation(label_pos.extend(0.0)),
+                    ..Default::default()
+                });
+
+                i += 1;
+            }
+
+            for flavor in collects {
+                let label_pos =
+                    pos + Vec2::new(0.0, -1.0 * label_offset + -1.0 * i as f32 * label_spacing);
+
+                parent.spawn_bundle(Text2dBundle {
+                    text: Text::with_section(
+                        "IN",
+                        TextStyle {
+                            font: asset_server.load("fonts/CooperHewitt-Medium.ttf"),
+                            font_size: 30.0,
+                            color: PIXIE_COLORS[flavor as usize],
+                        },
+                        TextAlignment {
+                            vertical: VerticalAlign::Center,
+                            horizontal: HorizontalAlign::Center,
+                        },
+                    ),
+                    transform: Transform::from_translation(label_pos.extend(0.0)),
+                    ..Default::default()
+                });
+
+                i += 1;
+            }
+        })
+        .id();
+
+    let node = graph.graph.add_node(ent);
+
+    commands.entity(ent).insert(PointGraphNode(node));
+}
+
 fn setup(
     mut commands: Commands,
     mut graph: ResMut<RoadGraph>,
@@ -675,53 +765,45 @@ fn setup(
     let points = [
         (
             snap_to_grid(Vec2::new(-500.0, -300.0), GRID_SIZE),
-            vec![1],
+            vec![0],
             vec![],
         ),
         (
             snap_to_grid(Vec2::new(-500.0, 300.0), GRID_SIZE),
+            vec![1],
+            vec![],
+        ),
+        (
+            snap_to_grid(Vec2::new(-500.0, 0.0), GRID_SIZE),
             vec![2],
             vec![],
         ),
         (
             snap_to_grid(Vec2::new(500.0, -300.0), GRID_SIZE),
             vec![],
-            vec![2],
+            vec![1],
         ),
         (
             snap_to_grid(Vec2::new(500.0, 300.0), GRID_SIZE),
             vec![],
-            vec![1],
+            vec![0],
+        ),
+        (
+            snap_to_grid(Vec2::new(500.0, 0.0), GRID_SIZE),
+            vec![],
+            vec![2],
         ),
     ];
 
-    for (p, emits, collects) in points.iter() {
-        let ent = commands
-            .spawn_bundle(GeometryBuilder::build_as(
-                &shapes::Circle {
-                    radius: 5.5,
-                    center: p.clone(),
-                },
-                ShapeColors::outlined(Color::NONE, Color::BLUE),
-                DrawMode::Outlined {
-                    fill_options: FillOptions::default(),
-                    outline_options: StrokeOptions::default().with_line_width(2.0),
-                },
-                Transform::default(),
-            ))
-            .insert(Terminus {
-                point: p.clone(),
-                emits: emits.iter().cloned().collect(),
-                collects: collects.iter().cloned().collect(),
-            })
-            .with_children(|parent| {
-                parent.spawn().insert(Collider::Point(p.clone()));
-            })
-            .id();
-
-        let node = graph.graph.add_node(ent);
-
-        commands.entity(ent).insert(PointGraphNode(node));
+    for (p, emits, collects) in points.iter().cloned() {
+        spawn_terminus(
+            &mut commands,
+            &mut graph,
+            &asset_server,
+            p,
+            emits.iter().cloned().collect::<HashSet<_>>(),
+            collects.iter().cloned().collect::<HashSet<_>>(),
+        );
     }
 
     println!(
