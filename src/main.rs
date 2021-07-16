@@ -474,7 +474,7 @@ fn mouse_events_system(
                     let ent = commands
                         .spawn_bundle(GeometryBuilder::build_as(
                             &shapes::Line(a.clone(), b.clone()),
-                            ShapeColors::outlined(Color::NONE, Color::PINK),
+                            ShapeColors::outlined(Color::NONE, Color::BLUE),
                             DrawMode::Outlined {
                                 fill_options: FillOptions::default(),
                                 outline_options: StrokeOptions::default().with_line_width(2.0),
