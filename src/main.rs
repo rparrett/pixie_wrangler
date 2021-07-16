@@ -302,29 +302,34 @@ fn draw_mouse(
     q_cursor: Query<Entity, With<Cursor>>,
     q_drawing: Query<Entity, With<DrawingLine>>,
 ) {
-    if !mouse.is_changed() {
+    if mouse.is_changed() || draw.is_changed() {
+        let snapped = snap_to_grid(mouse.position, GRID_SIZE);
+
+        for entity in q_cursor.iter() {
+            commands.entity(entity).despawn();
+        }
+        let shape = shapes::Circle {
+            radius: 5.5,
+            center: snapped,
+        };
+        let color = DRAWING_ROAD_COLORS[draw.layer as usize - 1];
+        commands
+            .spawn_bundle(GeometryBuilder::build_as(
+                &shape,
+                ShapeColors::new(color),
+                DrawMode::Stroke(StrokeOptions::default().with_line_width(2.0)),
+                Transform::default(),
+            ))
+            .insert(Cursor);
+    }
+
+    if !draw.is_changed() {
         return;
     }
 
-    for cursor in q_cursor.iter().chain(q_drawing.iter()) {
-        commands.entity(cursor).despawn();
+    for entity in q_drawing.iter() {
+        commands.entity(entity).despawn();
     }
-
-    let snapped = snap_to_grid(mouse.position, GRID_SIZE);
-
-    let shape = shapes::Circle {
-        radius: 5.5,
-        center: snapped,
-    };
-    let color = Color::WHITE;
-    commands
-        .spawn_bundle(GeometryBuilder::build_as(
-            &shape,
-            ShapeColors::new(color),
-            DrawMode::Stroke(StrokeOptions::default().with_line_width(2.0)),
-            Transform::default(),
-        ))
-        .insert(Cursor);
 
     if draw.drawing {
         let color = if draw.valid {
