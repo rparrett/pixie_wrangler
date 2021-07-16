@@ -327,9 +327,6 @@ fn draw_mouse(
         .insert(Cursor);
 
     if draw.drawing {
-        // TODO filter presented options by whether or not they
-        // collide with another line.
-
         let color = if draw.valid {
             DRAWING_ROAD_COLORS[draw.layer as usize - 1]
         } else {
@@ -410,9 +407,9 @@ fn mouse_events_system(
             }
 
             // TODO we need to allow lines to both start and end with
-            // SegmentCollision::Touching and split the RoadChunk(s) in that case.
+            // SegmentCollision::Touching and split the RoadSegment(s) in that case.
             // TODO we need to handle SegmentCollision::Connecting and combine the
-            // RoadChunk(s) in that case.
+            // RoadSegment(s) in that case.
 
             if snapped != draw.start {
                 let possible = possible_lines(draw.start, snapped, draw.axis_preference);
