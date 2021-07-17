@@ -417,21 +417,25 @@ fn mouse_events_system(
         let snapped = snap_to_grid(mouse.position, GRID_SIZE);
 
         if snapped != draw.end || draw.layer != draw.prev_layer {
-            info!("snapped {}", snapped);
             draw.end = snapped;
             draw.prev_layer = draw.layer;
 
             // when we begin drawing, set the "axis preference" corresponding to the
             // direction the player initially moves the mouse.
-            if !draw.axis_preference.is_some() && snapped != draw.start {
-                let diff = (snapped - draw.start).abs();
+
+            let diff = (snapped - draw.start).abs() / GRID_SIZE;
+            if diff.x <= 1.0 && diff.y <= 1.0 && snapped != draw.start {
                 if diff.x > diff.y {
                     draw.axis_preference = Some(Axis::X);
-                } else {
+                } else if diff.y > diff.x {
                     draw.axis_preference = Some(Axis::Y);
+                } else {
+                    // Would be pretty nice to have an XY / diagonal preference, actually.
+                    // There also seems to be some sort of bug in possible_lines dealing
+                    // with axis preferences when traversing only one grid point in a
+                    // particular direction.
+                    draw.axis_preference = Some(Axis::X);
                 }
-            } else if draw.axis_preference.is_some() && snapped == draw.start {
-                draw.axis_preference = None;
             }
 
             // TODO we need to allow lines to both start and end with
