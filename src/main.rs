@@ -508,9 +508,12 @@ fn mouse_events_system(
                 draw.start = snap_to_grid(mouse.position, GRID_SIZE);
                 draw.end = draw.start;
             } else {
-                // TODO is it ok to end drawing here?
                 if draw.end == draw.start {
                     draw.drawing = false;
+                }
+
+                if !draw.valid {
+                    continue;
                 }
 
                 if draw.segments.is_empty() {
