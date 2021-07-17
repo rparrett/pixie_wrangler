@@ -13,8 +13,12 @@ const GRID_SIZE: f32 = 48.0;
 
 fn main() {
     let mut app = App::build();
-    app.insert_resource(ClearColor(BACKGROUND_COLOR));
-    app.insert_resource(Msaa { samples: 4 })
+    app.insert_resource(ClearColor(BACKGROUND_COLOR))
+        .insert_resource(Msaa { samples: 4 })
+        .insert_resource(WindowDescriptor {
+            title: String::from("Pixie Wrangler"),
+            ..Default::default()
+        })
         .add_plugins(DefaultPlugins);
     #[cfg(target_arch = "wasm32")]
     app.add_plugin(bevy_webgl2::WebGL2Plugin);
