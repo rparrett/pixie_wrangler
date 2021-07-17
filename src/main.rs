@@ -9,8 +9,6 @@ use petgraph::algo::astar;
 use petgraph::dot::{Config, Dot};
 use petgraph::graph::{NodeIndex, UnGraph};
 
-const GRID_SIZE: f32 = 48.0;
-
 fn main() {
     let mut app = App::build();
     app.insert_resource(ClearColor(BACKGROUND_COLOR))
@@ -118,6 +116,7 @@ struct RoadGraph {
 #[derive(Default, Debug)]
 struct MouseState {
     position: Vec2,
+    window_position: Vec2,
 }
 
 enum Collider {
@@ -131,6 +130,8 @@ struct ButtonMaterials {
     hovered: Handle<ColorMaterial>,
     pressed: Handle<ColorMaterial>,
 }
+const GRID_SIZE: f32 = 48.0;
+const BOTTOM_BAR_HEIGHT: f32 = 70.0;
 
 const PIXIE_COLORS: [Color; 4] = [Color::AQUAMARINE, Color::PINK, Color::ORANGE, Color::PURPLE];
 const FINISHED_ROAD_COLORS: [Color; 2] = [
@@ -397,7 +398,15 @@ fn mouse_events_system(
         mouse.position = (camera_transform.compute_matrix() * p.extend(0.0).extend(1.0))
             .truncate()
             .truncate();
+
+        mouse.window_position = event.position;
     }
+
+    if mouse.window_position.y < BOTTOM_BAR_HEIGHT {
+        return;
+    }
+
+    // TODO move the rest into some sort of drawing system?
 
     if draw.drawing {
         let snapped = snap_to_grid(mouse.position, GRID_SIZE);
@@ -907,7 +916,7 @@ fn setup(
                 .spawn_bundle(NodeBundle {
                     style: Style {
                         padding: Rect::all(Val::Px(10.0)),
-                        size: Size::new(Val::Percent(100.0), Val::Px(70.0)),
+                        size: Size::new(Val::Percent(100.0), Val::Px(BOTTOM_BAR_HEIGHT)),
                         flex_direction: FlexDirection::Row,
                         justify_content: JustifyContent::SpaceBetween,
                         align_items: AlignItems::Center,
