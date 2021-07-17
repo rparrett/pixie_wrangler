@@ -59,7 +59,7 @@ struct PointGraphNode(NodeIndex);
 #[derive(Debug)]
 struct SegmentGraphNodes(NodeIndex, NodeIndex);
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum Axis {
     X,
     Y,
@@ -296,8 +296,8 @@ fn possible_lines(from: Vec2, to: Vec2, axis_preference: Option<Axis>) -> Vec<Ve
 
     let (a, b) = if diff.x.abs() < diff.y.abs() {
         (
-            Vec2::new(to.x, from.y + diff.x.abs() * diff.y.signum()),
             Vec2::new(from.x, to.y - diff.x.abs() * diff.y.signum()),
+            Vec2::new(to.x, from.y + diff.x.abs() * diff.y.signum()),
         )
     } else {
         (
@@ -306,11 +306,13 @@ fn possible_lines(from: Vec2, to: Vec2, axis_preference: Option<Axis>) -> Vec<Ve
         )
     };
 
-    if matches!(axis_preference, Some(Axis::X)) {
+    if matches!(axis_preference, Some(Axis::X)) && a.y == from.y
+        || matches!(axis_preference, Some(Axis::Y)) && a.x == from.x
+    {
         return vec![vec![(from, a), (a, to)], vec![(from, b), (b, to)]];
     }
 
-    vec![vec![(from, b), (b, to)], vec![(from, a), (a, to)]]
+    return vec![vec![(from, b), (b, to)], vec![(from, a), (a, to)]];
 }
 
 fn draw_mouse(
@@ -429,12 +431,6 @@ fn mouse_events_system(
                     draw.axis_preference = Some(Axis::X);
                 } else if diff.y > diff.x {
                     draw.axis_preference = Some(Axis::Y);
-                } else {
-                    // Would be pretty nice to have an XY / diagonal preference, actually.
-                    // There also seems to be some sort of bug in possible_lines dealing
-                    // with axis preferences when traversing only one grid point in a
-                    // particular direction.
-                    draw.axis_preference = Some(Axis::X);
                 }
             }
 
