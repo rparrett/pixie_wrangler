@@ -69,6 +69,7 @@ struct DrawingState {
     end_nodes: Vec<NodeIndex>,
     axis_preference: Option<Axis>,
     layer: u32,
+    prev_layer: u32,
 }
 impl Default for DrawingState {
     fn default() -> Self {
@@ -82,6 +83,7 @@ impl Default for DrawingState {
             end_nodes: vec![],
             axis_preference: None,
             layer: 1,
+            prev_layer: 1,
         }
     }
 }
@@ -126,7 +128,7 @@ struct ButtonMaterials {
     pressed: Handle<ColorMaterial>,
 }
 
-const PIXIE_COLORS: [Color; 3] = [Color::AQUAMARINE, Color::PINK, Color::ORANGE];
+const PIXIE_COLORS: [Color; 4] = [Color::AQUAMARINE, Color::PINK, Color::ORANGE, Color::PURPLE];
 const FINISHED_ROAD_COLORS: [Color; 2] = [
     Color::rgb(0.251, 0.435, 0.729),
     Color::rgb(0.247, 0.725, 0.314),
@@ -396,8 +398,10 @@ fn mouse_events_system(
     if draw.drawing {
         let snapped = snap_to_grid(mouse.position, GRID_SIZE);
 
-        if snapped != draw.end {
+        if snapped != draw.end || draw.layer != draw.prev_layer {
+            info!("snapped {}", snapped);
             draw.end = snapped;
+            draw.prev_layer = draw.layer;
 
             // when we begin drawing, set the "axis preference" corresponding to the
             // direction the player initially moves the mouse.
@@ -824,34 +828,44 @@ fn setup(
 
     let points = [
         (
-            snap_to_grid(Vec2::new(-500.0, -250.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(-500.0, -240.0), GRID_SIZE),
             vec![0],
             vec![],
         ),
         (
-            snap_to_grid(Vec2::new(-500.0, 250.0), GRID_SIZE),
-            vec![1],
+            snap_to_grid(Vec2::new(-500.0, -96.0), GRID_SIZE),
+            vec![3],
             vec![],
         ),
         (
-            snap_to_grid(Vec2::new(-500.0, 0.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(-500.0, 96.0), GRID_SIZE),
             vec![2],
             vec![],
         ),
         (
-            snap_to_grid(Vec2::new(500.0, -250.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(-500.0, 240.0), GRID_SIZE),
+            vec![1],
+            vec![],
+        ),
+        (
+            snap_to_grid(Vec2::new(500.0, -240.0), GRID_SIZE),
             vec![],
             vec![1],
         ),
         (
-            snap_to_grid(Vec2::new(500.0, 250.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(500.0, -96.0), GRID_SIZE),
+            vec![],
+            vec![2],
+        ),
+        (
+            snap_to_grid(Vec2::new(500.0, 96.0), GRID_SIZE),
+            vec![],
+            vec![3],
+        ),
+        (
+            snap_to_grid(Vec2::new(500.0, 240.0), GRID_SIZE),
             vec![],
             vec![0],
-        ),
-        (
-            snap_to_grid(Vec2::new(500.0, 0.0), GRID_SIZE),
-            vec![],
-            vec![2],
         ),
     ];
 
