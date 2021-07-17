@@ -700,7 +700,7 @@ fn update_score(score: Res<Score>, mut q_score: Query<&mut Text, With<ScoreText>
     }
 
     let mut text = q_score.single_mut().unwrap();
-    text.sections[0].value = format!("Score: {}", score.0);
+    text.sections[0].value = format!("SCORE {}", score.0);
 }
 
 fn spawn_terminus(
@@ -828,42 +828,42 @@ fn setup(
 
     let points = [
         (
-            snap_to_grid(Vec2::new(-500.0, -240.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(-500.0, -192.0), GRID_SIZE),
             vec![0],
             vec![],
         ),
         (
-            snap_to_grid(Vec2::new(-500.0, -96.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(-500.0, -48.0), GRID_SIZE),
             vec![3],
             vec![],
         ),
         (
-            snap_to_grid(Vec2::new(-500.0, 96.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(-500.0, 144.0), GRID_SIZE),
             vec![2],
             vec![],
         ),
         (
-            snap_to_grid(Vec2::new(-500.0, 240.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(-500.0, 288.0), GRID_SIZE),
             vec![1],
             vec![],
         ),
         (
-            snap_to_grid(Vec2::new(500.0, -240.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(500.0, -192.0), GRID_SIZE),
             vec![],
             vec![1],
         ),
         (
-            snap_to_grid(Vec2::new(500.0, -96.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(500.0, -48.0), GRID_SIZE),
             vec![],
             vec![2],
         ),
         (
-            snap_to_grid(Vec2::new(500.0, 96.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(500.0, 144.0), GRID_SIZE),
             vec![],
             vec![3],
         ),
         (
-            snap_to_grid(Vec2::new(500.0, 240.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(500.0, 288.0), GRID_SIZE),
             vec![],
             vec![0],
         ),
@@ -890,7 +890,7 @@ fn setup(
             style: Style {
                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                 flex_direction: FlexDirection::Column,
-                justify_content: JustifyContent::SpaceBetween,
+                justify_content: JustifyContent::FlexStart,
                 align_items: AlignItems::Center,
                 ..Default::default()
             },
@@ -898,47 +898,102 @@ fn setup(
             ..Default::default()
         })
         .with_children(|parent| {
+            // bottom bar
             parent
-                .spawn_bundle(ButtonBundle {
+                .spawn_bundle(NodeBundle {
                     style: Style {
-                        size: Size::new(Val::Px(300.0), Val::Px(65.0)),
-                        // horizontally center child text
-                        justify_content: JustifyContent::Center,
-                        // vertically center child text
+                        padding: Rect::all(Val::Px(10.0)),
+                        size: Size::new(Val::Percent(100.0), Val::Px(70.0)),
+                        flex_direction: FlexDirection::Row,
+                        justify_content: JustifyContent::SpaceBetween,
                         align_items: AlignItems::Center,
                         ..Default::default()
                     },
-                    material: button_materials.normal.clone(),
+                    material: materials.add(Color::rgb(0.09, 0.11, 0.13).into()),
                     ..Default::default()
                 })
                 .with_children(|parent| {
-                    parent.spawn_bundle(TextBundle {
-                        text: Text::with_section(
-                            "Release The Pixies",
-                            TextStyle {
-                                font: asset_server.load("fonts/CooperHewitt-Medium.ttf"),
-                                font_size: 40.0,
-                                color: Color::rgb(0.9, 0.9, 0.9),
+                    // left-aligned bar items
+                    parent
+                        .spawn_bundle(NodeBundle {
+                            style: Style {
+                                size: Size::new(Val::Auto, Val::Percent(100.0)),
+                                flex_direction: FlexDirection::RowReverse,
+                                justify_content: JustifyContent::FlexStart,
+                                align_items: AlignItems::Center,
+                                ..Default::default()
                             },
-                            Default::default(),
-                        ),
-                        ..Default::default()
-                    });
-                });
+                            material: materials.add(Color::NONE.into()),
+                            ..Default::default()
+                        })
+                        .with_children(|parent| {
+                            parent
+                                .spawn_bundle(TextBundle {
+                                    style: Style {
+                                        margin: Rect {
+                                            right: Val::Px(10.0),
+                                            ..Default::default()
+                                        },
+                                        ..Default::default()
+                                    },
+                                    text: Text::with_section(
+                                        "0",
+                                        TextStyle {
+                                            font: asset_server
+                                                .load("fonts/CooperHewitt-Medium.ttf"),
+                                            font_size: 30.0,
+                                            color: FINISHED_ROAD_COLORS[0],
+                                        },
+                                        Default::default(),
+                                    ),
+                                    ..Default::default()
+                                })
+                                .insert(ScoreText);
+                        });
 
-            parent
-                .spawn_bundle(TextBundle {
-                    text: Text::with_section(
-                        "0",
-                        TextStyle {
-                            font: asset_server.load("fonts/CooperHewitt-Medium.ttf"),
-                            font_size: 40.0,
-                            color: FINISHED_ROAD_COLORS[0],
-                        },
-                        Default::default(),
-                    ),
-                    ..Default::default()
-                })
-                .insert(ScoreText);
+                    // right-aligned bar items
+                    parent
+                        .spawn_bundle(NodeBundle {
+                            style: Style {
+                                size: Size::new(Val::Auto, Val::Percent(100.0)),
+                                flex_direction: FlexDirection::Row,
+                                justify_content: JustifyContent::FlexStart,
+                                align_items: AlignItems::Center,
+                                ..Default::default()
+                            },
+                            material: materials.add(Color::NONE.into()),
+                            ..Default::default()
+                        })
+                        .with_children(|parent| {
+                            parent
+                                .spawn_bundle(ButtonBundle {
+                                    style: Style {
+                                        size: Size::new(Val::Px(250.0), Val::Percent(100.0)),
+                                        // horizontally center child text
+                                        justify_content: JustifyContent::Center,
+                                        // vertically center child text
+                                        align_items: AlignItems::Center,
+                                        ..Default::default()
+                                    },
+                                    material: button_materials.normal.clone(),
+                                    ..Default::default()
+                                })
+                                .with_children(|parent| {
+                                    parent.spawn_bundle(TextBundle {
+                                        text: Text::with_section(
+                                            "RELEASE THE PIXIES",
+                                            TextStyle {
+                                                font: asset_server
+                                                    .load("fonts/CooperHewitt-Medium.ttf"),
+                                                font_size: 30.0,
+                                                color: Color::rgb(0.9, 0.9, 0.9),
+                                            },
+                                            Default::default(),
+                                        ),
+                                        ..Default::default()
+                                    });
+                                });
+                        });
+                });
         });
 }
