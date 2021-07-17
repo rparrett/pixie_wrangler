@@ -368,8 +368,6 @@ fn keyboard_system(keyboard_input: Res<Input<KeyCode>>, mut drawing_state: ResMu
     } else if keyboard_input.pressed(KeyCode::Key2) {
         drawing_state.layer = 2;
     }
-
-    // TODO we need to somehow update the "drawing line" color
 }
 
 fn mouse_events_system(
@@ -546,7 +544,7 @@ fn mouse_events_system(
 
                     let start_node = graph.graph.add_node(ent);
                     let end_node = graph.graph.add_node(ent);
-                    // TODO this edge weight should be based on length
+
                     graph
                         .graph
                         .add_edge(start_node, end_node, (*a - *b).length());
