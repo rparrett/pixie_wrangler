@@ -29,6 +29,9 @@ fn main() {
     app.add_system(move_pixies.system().label("pixies"));
     app.add_system(emit_pixies.system());
     app.add_system(update_score.system().after("pixies"));
+
+    app.add_stage_after(CoreStage::Update, "after_update", SystemStage::parallel());
+    app.add_system_to_stage("after_update", update_cost.system());
     app.init_resource::<DrawingState>();
     app.init_resource::<MouseState>();
     app.init_resource::<RoadGraph>();
@@ -44,6 +47,7 @@ struct Cursor;
 struct DrawingLine;
 struct GridPoint;
 struct ScoreText;
+struct CostText;
 #[derive(Default)]
 struct Score(u32);
 struct RoadSegment {
@@ -144,6 +148,9 @@ const DRAWING_ROAD_COLORS: [Color; 2] = [
 ];
 const BACKGROUND_COLOR: Color = Color::rgb(0.05, 0.066, 0.09);
 const GRID_COLOR: Color = Color::rgb(0.086, 0.105, 0.133);
+const UI_WHITE_COLOR: Color = Color::rgb(0.788, 0.82, 0.851);
+
+const TUNNEL_MULTIPLIER: f32 = 2.0;
 
 impl FromWorld for ButtonMaterials {
     fn from_world(world: &mut World) -> Self {
@@ -812,6 +819,65 @@ fn spawn_terminus(
     commands.entity(ent).insert(PointGraphNode(node));
 }
 
+fn update_cost(
+    graph: Res<RoadGraph>,
+    draw: Res<DrawingState>,
+    q_segments: Query<(&RoadSegment, &Children)>,
+    q_colliders: Query<&ColliderLayer>,
+    mut q_cost: Query<&mut Text, With<CostText>>,
+) {
+    if !graph.is_changed() && !draw.is_changed() {
+        return;
+    }
+
+    let mut cost = 0.0;
+
+    for (segment, children) in q_segments.iter() {
+        let child = match children.first() {
+            Some(child) => child,
+            None => continue,
+        };
+
+        let layer = match q_colliders.get(*child) {
+            Ok(layer) => layer,
+            Err(_) => continue,
+        };
+
+        let multiplier = if layer.0 > 1 { TUNNEL_MULTIPLIER } else { 1.0 };
+
+        cost += (segment.points.0 - segment.points.1).length() * multiplier;
+    }
+
+    cost /= GRID_SIZE;
+    let cost_round = cost.ceil();
+
+    let mut potential_cost = 0.0;
+    if draw.valid {
+        for segment in draw.segments.iter() {
+            let multiplier = if draw.layer > 1 {
+                TUNNEL_MULTIPLIER
+            } else {
+                1.0
+            };
+            potential_cost += (segment.0 - segment.1).length() * multiplier;
+        }
+    }
+
+    potential_cost /= GRID_SIZE;
+    let potential_cost_round = (cost + potential_cost).ceil() - cost_round;
+
+    for mut text in q_cost.iter_mut() {
+        text.sections[0].value = format!("§{}", cost_round);
+        if potential_cost_round > 0.0 {
+            text.sections[1].value = format!("+{}", potential_cost_round);
+            text.sections[1].style.color = FINISHED_ROAD_COLORS[draw.layer as usize - 1]
+        } else {
+            text.sections[1].value = "".to_string();
+            text.sections[1].style.color = FINISHED_ROAD_COLORS[draw.layer as usize - 1]
+        }
+    }
+}
+
 fn setup(
     mut commands: Commands,
     mut graph: ResMut<RoadGraph>,
@@ -932,8 +998,8 @@ fn setup(
                         .spawn_bundle(NodeBundle {
                             style: Style {
                                 size: Size::new(Val::Auto, Val::Percent(100.0)),
-                                flex_direction: FlexDirection::RowReverse,
-                                justify_content: JustifyContent::FlexStart,
+                                flex_direction: FlexDirection::Row,
+                                justify_content: JustifyContent::FlexEnd,
                                 align_items: AlignItems::Center,
                                 ..Default::default()
                             },
@@ -963,6 +1029,41 @@ fn setup(
                                     ..Default::default()
                                 })
                                 .insert(ScoreText);
+                            parent
+                                .spawn_bundle(TextBundle {
+                                    style: Style {
+                                        margin: Rect {
+                                            right: Val::Px(10.0),
+                                            ..Default::default()
+                                        },
+                                        ..Default::default()
+                                    },
+                                    text: Text {
+                                        sections: vec![
+                                            TextSection {
+                                                value: "0".to_string(),
+                                                style: TextStyle {
+                                                    font: asset_server
+                                                        .load("fonts/CooperHewitt-Medium.ttf"),
+                                                    font_size: 30.0,
+                                                    color: UI_WHITE_COLOR,
+                                                },
+                                            },
+                                            TextSection {
+                                                value: "".to_string(),
+                                                style: TextStyle {
+                                                    font: asset_server
+                                                        .load("fonts/CooperHewitt-Medium.ttf"),
+                                                    font_size: 30.0,
+                                                    color: FINISHED_ROAD_COLORS[0],
+                                                },
+                                            },
+                                        ],
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                })
+                                .insert(CostText);
                         });
 
                     // right-aligned bar items
