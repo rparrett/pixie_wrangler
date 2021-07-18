@@ -540,12 +540,10 @@ fn mouse_events_system(
                             points: (a.clone(), b.clone()),
                         })
                         .with_children(|parent| {
-                            for seg in draw.segments.iter() {
-                                parent
-                                    .spawn()
-                                    .insert(Collider::Segment(*seg))
-                                    .insert(ColliderLayer(draw.layer));
-                            }
+                            parent
+                                .spawn()
+                                .insert(Collider::Segment((*a, *b)))
+                                .insert(ColliderLayer(draw.layer));
                         })
                         .id();
 
