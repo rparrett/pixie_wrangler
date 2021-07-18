@@ -23,8 +23,8 @@ fn main() {
     app.add_plugin(ShapePlugin);
     app.add_startup_system(setup.system());
     app.add_system(keyboard_system.system().before("mouse"));
-    app.add_system(mouse_events_system.system().label("mouse"));
-    app.add_system(draw_mouse.system().after("mouse")); // after mouse
+    app.add_system(mouse_system.system().label("mouse"));
+    app.add_system(draw_mouse.system().after("mouse"));
     app.add_system(button_system.system());
     app.add_system(move_pixies.system().label("pixies"));
     app.add_system(emit_pixies.system());
@@ -379,14 +379,14 @@ fn keyboard_system(keyboard_input: Res<Input<KeyCode>>, mut drawing_state: ResMu
     }
 }
 
-fn mouse_events_system(
+fn mouse_system(
     mut commands: Commands,
     mut mouse_button_input_events: EventReader<MouseButtonInput>,
     mut cursor_moved_events: EventReader<CursorMoved>,
     mut draw: ResMut<DrawingState>,
     mut mouse: ResMut<MouseState>,
     mut graph: ResMut<RoadGraph>,
-    wnds: Res<Windows>,
+    windows: Res<Windows>,
     q_camera: Query<&Transform, With<MainCamera>>,
     q_colliders: Query<(Entity, &Parent, &Collider, &ColliderLayer)>,
     q_point_nodes: Query<&PointGraphNode>,
@@ -397,8 +397,8 @@ fn mouse_events_system(
     let camera_transform = q_camera.iter().next().unwrap();
 
     for event in cursor_moved_events.iter() {
-        let wnd = wnds.get(event.id).unwrap();
-        let size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
+        let window = windows.get(event.id).unwrap();
+        let size = Vec2::new(window.width() as f32, window.height() as f32);
 
         let p = event.position - size / 2.0;
 
