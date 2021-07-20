@@ -23,7 +23,14 @@ fn main() {
     app.add_plugin(ShapePlugin);
     app.add_startup_system(setup.system());
     app.add_system(keyboard_system.system().before("mouse"));
-    app.add_system(mouse_system.system().label("mouse"));
+    app.add_system(mouse_movement.system().label("mouse"));
+    app.add_system(
+        drawing_mouse_movement
+            .system()
+            .label("drawing_mouse_movement")
+            .after("mouse"),
+    );
+    app.add_system(drawing_mouse_click.system().after("drawing_mouse_movement"));
     app.add_system(draw_mouse.system().after("mouse"));
     app.add_system(button_system.system());
     app.add_system(move_pixies.system().label("pixies"));
@@ -120,6 +127,7 @@ struct RoadGraph {
 #[derive(Default, Debug)]
 struct MouseState {
     position: Vec2,
+    snapped: Vec2,
     window_position: Vec2,
 }
 
@@ -162,6 +170,7 @@ impl FromWorld for ButtonMaterials {
         }
     }
 }
+
 fn button_system(
     button_materials: Res<ButtonMaterials>,
     mut interaction_query: Query<
@@ -379,130 +388,23 @@ fn keyboard_system(keyboard_input: Res<Input<KeyCode>>, mut drawing_state: ResMu
     }
 }
 
-fn mouse_system(
+fn drawing_mouse_click(
     mut commands: Commands,
-    mut mouse_button_input_events: EventReader<MouseButtonInput>,
-    mut cursor_moved_events: EventReader<CursorMoved>,
+    mouse: Res<MouseState>,
     mut draw: ResMut<DrawingState>,
-    mut mouse: ResMut<MouseState>,
     mut graph: ResMut<RoadGraph>,
-    windows: Res<Windows>,
-    q_camera: Query<&Transform, With<MainCamera>>,
+    mut mouse_button_input_events: EventReader<MouseButtonInput>,
     q_colliders: Query<(Entity, &Parent, &Collider, &ColliderLayer)>,
     q_point_nodes: Query<&PointGraphNode>,
     q_segment_nodes: Query<&SegmentGraphNodes>,
     q_road_segments: Query<&RoadSegment>,
 ) {
-    // assuming there is exactly one main camera entity, so this is OK
-    let camera_transform = q_camera.iter().next().unwrap();
-
-    for event in cursor_moved_events.iter() {
-        let window = windows.get(event.id).unwrap();
-        let size = Vec2::new(window.width() as f32, window.height() as f32);
-
-        let p = event.position - size / 2.0;
-
-        mouse.position = (camera_transform.compute_matrix() * p.extend(0.0).extend(1.0))
-            .truncate()
-            .truncate();
-
-        mouse.window_position = event.position;
+    if !draw.is_changed() && !mouse.is_changed() {
+        return;
     }
 
     if mouse.window_position.y < BOTTOM_BAR_HEIGHT {
         return;
-    }
-
-    // TODO move the rest into some sort of drawing system?
-
-    if draw.drawing {
-        let snapped = snap_to_grid(mouse.position, GRID_SIZE);
-
-        if snapped != draw.end || draw.layer != draw.prev_layer {
-            draw.end = snapped;
-            draw.prev_layer = draw.layer;
-
-            // when we begin drawing, set the "axis preference" corresponding to the
-            // direction the player initially moves the mouse.
-
-            let diff = (snapped - draw.start).abs() / GRID_SIZE;
-            if diff.x <= 1.0 && diff.y <= 1.0 && snapped != draw.start {
-                if diff.x > diff.y {
-                    draw.axis_preference = Some(Axis::X);
-                } else if diff.y > diff.x {
-                    draw.axis_preference = Some(Axis::Y);
-                }
-            }
-
-            // TODO we need to allow lines to both start and end with
-            // SegmentCollision::Touching and split the RoadSegment(s) in that case.
-            // TODO we need to handle SegmentCollision::Connecting and combine the
-            // RoadSegment(s) in that case.
-
-            if snapped != draw.start {
-                let possible = possible_lines(draw.start, snapped, draw.axis_preference);
-                let mut filtered = possible.iter().filter(|possibility| {
-                    !possibility.iter().any(|(a, b)| {
-                        q_colliders.iter().any(|(_e, _p, c, layer)| match c {
-                            Collider::Segment(s) => match segment_collision(s.0, s.1, *a, *b) {
-                                SegmentCollision::Intersecting => layer.0 == draw.layer,
-                                SegmentCollision::Overlapping => layer.0 == draw.layer,
-                                SegmentCollision::Touching => {
-                                    // "Touching" collisions are allowed only if they are the
-                                    // start or end of the line we are currently drawing.
-                                    //
-                                    // Ideally, segment_collision would return the intersection
-                                    // point(s) and we could just check that.
-
-                                    !matches!(
-                                        point_segment_collision(draw.start, s.0, s.1),
-                                        SegmentCollision::Touching
-                                    ) && !matches!(
-                                        point_segment_collision(draw.end, s.0, s.1),
-                                        SegmentCollision::Touching
-                                    )
-                                }
-                                SegmentCollision::Connecting => {
-                                    // "Connecting" collisions are allowed only if they are the
-                                    // start or end of the line we are currently drawing.
-                                    //
-                                    // Ideally, segment_collision would return the intersection
-                                    // point(s) and we could just check that.
-
-                                    !matches!(
-                                        point_segment_collision(draw.start, s.0, s.1),
-                                        SegmentCollision::Connecting
-                                    ) && !matches!(
-                                        point_segment_collision(draw.end, s.0, s.1),
-                                        SegmentCollision::Connecting
-                                    )
-                                }
-                                _ => false,
-                            },
-                            Collider::Point(p) => match point_segment_collision(*p, *a, *b) {
-                                SegmentCollision::Connecting => *p != draw.start && *p != draw.end,
-                                SegmentCollision::None => false,
-                                _ => true,
-                            },
-                        })
-                    })
-                });
-
-                if let Some(segments) = filtered.next() {
-                    draw.segments = segments.clone();
-                    draw.valid = true;
-                } else if let Some(segments) = possible.iter().next() {
-                    draw.segments = segments.clone();
-                    draw.valid = false;
-                } else {
-                    draw.segments = vec![];
-                    draw.valid = false;
-                }
-            } else {
-                draw.segments = vec![];
-                draw.valid = false;
-            }
-        }
     }
 
     for event in mouse_button_input_events.iter() {
@@ -570,13 +472,11 @@ fn mouse_system(
                         Collider::Point(p) => {
                             if *p == draw.start {
                                 if let Ok(node) = q_point_nodes.get(parent.0) {
-                                    info!("start, so pushing a node");
                                     draw.start_nodes.push(node.0);
                                 }
                             }
                             if *p == draw.end {
                                 if let Ok(node) = q_point_nodes.get(parent.0) {
-                                    info!("end matched, so pushing a node");
                                     draw.end_nodes.push(node.0);
                                 }
                             }
@@ -602,25 +502,17 @@ fn mouse_system(
                         }
                     }
                 }
-                // it is not clear at all to me how duplicates end up here, but
-                // they do.
-                draw.start_nodes.sort();
-                draw.start_nodes.dedup();
-                draw.end_nodes.sort();
-                draw.end_nodes.dedup();
 
                 for (i, segment) in segments.iter().enumerate() {
                     if i == 0 {
                         // TODO this edge weight should be based on angle/length
                         for node in draw.start_nodes.iter() {
-                            info!("Also attaching this chunk to {:?}", node);
                             graph.graph.add_edge(*node, segment.1, 0.0);
                         }
                     }
                     if i == segments.len() - 1 {
                         // TODO this edge weight should be based on angle/length
                         for node in draw.end_nodes.iter() {
-                            info!("Also attaching this chunk to {:?}", node);
                             graph.graph.add_edge(segment.2, *node, 0.0);
                         }
                     }
@@ -634,12 +526,136 @@ fn mouse_system(
                     "{:?}",
                     Dot::with_config(&graph.graph, &[Config::EdgeNoLabel])
                 );
+
                 draw.start = draw.end;
                 draw.segments = vec![];
                 draw.start_nodes = vec![];
                 draw.end_nodes = vec![];
             }
         }
+    }
+}
+
+fn mouse_movement(
+    mut cursor_moved_events: EventReader<CursorMoved>,
+    mut mouse: ResMut<MouseState>,
+    windows: Res<Windows>,
+    q_camera: Query<&Transform, With<MainCamera>>,
+) {
+    // assuming there is exactly one main camera entity, so this is OK
+    let camera_transform = q_camera.iter().next().unwrap();
+
+    for event in cursor_moved_events.iter() {
+        let window = windows.get(event.id).unwrap();
+        let size = Vec2::new(window.width() as f32, window.height() as f32);
+
+        let p = event.position - size / 2.0;
+
+        mouse.position = (camera_transform.compute_matrix() * p.extend(0.0).extend(1.0))
+            .truncate()
+            .truncate();
+
+        mouse.snapped = snap_to_grid(mouse.position, GRID_SIZE);
+
+        mouse.window_position = event.position;
+    }
+}
+
+fn drawing_mouse_movement(
+    mut draw: ResMut<DrawingState>,
+    mouse: Res<MouseState>,
+    q_colliders: Query<(Entity, &Parent, &Collider, &ColliderLayer)>,
+) {
+    if !draw.drawing {
+        return;
+    }
+
+    if mouse.snapped == draw.end && draw.layer == draw.prev_layer {
+        return;
+    }
+
+    draw.end = mouse.snapped;
+    draw.prev_layer = draw.layer;
+
+    // when we begin drawing, set the "axis preference" corresponding to the
+    // direction the player initially moves the mouse.
+
+    let diff = (mouse.snapped - draw.start).abs() / GRID_SIZE;
+    if diff.x <= 1.0 && diff.y <= 1.0 && mouse.snapped != draw.start {
+        if diff.x > diff.y {
+            draw.axis_preference = Some(Axis::X);
+        } else if diff.y > diff.x {
+            draw.axis_preference = Some(Axis::Y);
+        }
+    }
+
+    if mouse.snapped == draw.start {
+        draw.segments = vec![];
+        draw.valid = false;
+    }
+
+    // TODO we need to allow lines to both start and end with
+    // SegmentCollision::Touching and split the RoadSegment(s) in that case.
+    // TODO we need to handle SegmentCollision::Connecting and combine the
+    // RoadSegment(s) in that case.
+
+    let possible = possible_lines(draw.start, mouse.snapped, draw.axis_preference);
+    let mut filtered = possible.iter().filter(|possibility| {
+        !possibility.iter().any(|(a, b)| {
+            q_colliders.iter().any(|(_e, _p, c, layer)| match c {
+                Collider::Segment(s) => match segment_collision(s.0, s.1, *a, *b) {
+                    SegmentCollision::Intersecting => layer.0 == draw.layer,
+                    SegmentCollision::Overlapping => layer.0 == draw.layer,
+                    SegmentCollision::Touching => {
+                        // "Touching" collisions are allowed only if they are the
+                        // start or end of the line we are currently drawing.
+                        //
+                        // Ideally, segment_collision would return the intersection
+                        // point(s) and we could just check that.
+
+                        !matches!(
+                            point_segment_collision(draw.start, s.0, s.1),
+                            SegmentCollision::Touching
+                        ) && !matches!(
+                            point_segment_collision(draw.end, s.0, s.1),
+                            SegmentCollision::Touching
+                        )
+                    }
+                    SegmentCollision::Connecting => {
+                        // "Connecting" collisions are allowed only if they are the
+                        // start or end of the line we are currently drawing.
+                        //
+                        // Ideally, segment_collision would return the intersection
+                        // point(s) and we could just check that.
+
+                        !matches!(
+                            point_segment_collision(draw.start, s.0, s.1),
+                            SegmentCollision::Connecting
+                        ) && !matches!(
+                            point_segment_collision(draw.end, s.0, s.1),
+                            SegmentCollision::Connecting
+                        )
+                    }
+                    _ => false,
+                },
+                Collider::Point(p) => match point_segment_collision(*p, *a, *b) {
+                    SegmentCollision::Connecting => *p != draw.start && *p != draw.end,
+                    SegmentCollision::None => false,
+                    _ => true,
+                },
+            })
+        })
+    });
+
+    if let Some(segments) = filtered.next() {
+        draw.segments = segments.clone();
+        draw.valid = true;
+    } else if let Some(segments) = possible.iter().next() {
+        draw.segments = segments.clone();
+        draw.valid = false;
+    } else {
+        draw.segments = vec![];
+        draw.valid = false;
     }
 }
 
