@@ -557,6 +557,8 @@ fn mouse_movement(
 
         mouse.snapped = snap_to_grid(mouse.position, GRID_SIZE);
 
+        info!("{:?}", mouse.snapped);
+
         mouse.window_position = event.position;
     }
 }
@@ -604,8 +606,8 @@ fn drawing_mouse_movement(
         !possibility.iter().any(|(a, b)| {
             q_colliders.iter().any(|(_e, _p, c, layer)| match c {
                 Collider::Segment(s) => match segment_collision(s.0, s.1, *a, *b) {
-                    SegmentCollision::Intersecting => layer.0 == draw.layer,
-                    SegmentCollision::Overlapping => layer.0 == draw.layer,
+                    SegmentCollision::Intersecting => layer.0 == draw.layer || layer.0 == 0,
+                    SegmentCollision::Overlapping => layer.0 == draw.layer || layer.0 == 0,
                     SegmentCollision::Touching => {
                         // "Touching" collisions are allowed only if they are the
                         // start or end of the line we are currently drawing.
@@ -613,13 +615,16 @@ fn drawing_mouse_movement(
                         // Ideally, segment_collision would return the intersection
                         // point(s) and we could just check that.
 
-                        !matches!(
-                            point_segment_collision(draw.start, s.0, s.1),
-                            SegmentCollision::Touching
-                        ) && !matches!(
-                            point_segment_collision(draw.end, s.0, s.1),
-                            SegmentCollision::Touching
-                        )
+                        let bad = layer.0 == 0
+                            || (!matches!(
+                                point_segment_collision(draw.start, s.0, s.1),
+                                SegmentCollision::Touching
+                            ) && !matches!(
+                                point_segment_collision(draw.end, s.0, s.1),
+                                SegmentCollision::Touching
+                            ));
+
+                        bad
                     }
                     SegmentCollision::Connecting => {
                         // "Connecting" collisions are allowed only if they are the
@@ -628,13 +633,15 @@ fn drawing_mouse_movement(
                         // Ideally, segment_collision would return the intersection
                         // point(s) and we could just check that.
 
-                        !matches!(
-                            point_segment_collision(draw.start, s.0, s.1),
-                            SegmentCollision::Connecting
-                        ) && !matches!(
-                            point_segment_collision(draw.end, s.0, s.1),
-                            SegmentCollision::Connecting
-                        )
+                        let bad = layer.0 == 0
+                            || (!matches!(
+                                point_segment_collision(draw.start, s.0, s.1),
+                                SegmentCollision::Connecting
+                            ) && !matches!(
+                                point_segment_collision(draw.end, s.0, s.1),
+                                SegmentCollision::Connecting
+                            ));
+                        bad
                     }
                     _ => false,
                 },
@@ -736,6 +743,53 @@ fn update_score(score: Res<Score>, mut q_score: Query<&mut Text, With<ScoreText>
 
     let mut text = q_score.single_mut().unwrap();
     text.sections[0].value = format!("SCORE {}", score.0);
+}
+
+fn spawn_obstacle(commands: &mut Commands, top_left: Vec2, bottom_right: Vec2) {
+    let diff = bottom_right - top_left;
+    let origin = (top_left + bottom_right) / 2.0;
+
+    commands
+        .spawn_bundle(GeometryBuilder::build_as(
+            &shapes::Rectangle {
+                width: diff.x.abs(),
+                height: diff.y.abs(),
+                ..Default::default()
+            },
+            ShapeColors::new(Color::GRAY),
+            DrawMode::Fill(FillOptions::default()),
+            Transform::from_translation(origin.extend(0.0)),
+        ))
+        .with_children(|parent| {
+            parent
+                .spawn()
+                .insert(Collider::Segment((
+                    Vec2::new(top_left.x, top_left.y),
+                    Vec2::new(bottom_right.x, top_left.y),
+                )))
+                .insert(ColliderLayer(0));
+            parent
+                .spawn()
+                .insert(Collider::Segment((
+                    Vec2::new(bottom_right.x, top_left.y),
+                    Vec2::new(bottom_right.x, bottom_right.y),
+                )))
+                .insert(ColliderLayer(0));
+            parent
+                .spawn()
+                .insert(Collider::Segment((
+                    Vec2::new(bottom_right.x, bottom_right.y),
+                    Vec2::new(top_left.x, bottom_right.y),
+                )))
+                .insert(ColliderLayer(0));
+            parent
+                .spawn()
+                .insert(Collider::Segment((
+                    Vec2::new(top_left.x, bottom_right.y),
+                    Vec2::new(top_left.x, top_left.y),
+                )))
+                .insert(ColliderLayer(0));
+        });
 }
 
 fn spawn_terminus(
@@ -973,6 +1027,27 @@ fn setup(
             collects.iter().cloned().collect::<HashSet<_>>(),
         );
     }
+
+    spawn_obstacle(
+        &mut commands,
+        Vec2::new(-336.0, 240.0),
+        Vec2::new(-288.0, 96.0),
+    );
+    spawn_obstacle(
+        &mut commands,
+        Vec2::new(-288.0, 240.0),
+        Vec2::new(-192.0, 192.0),
+    );
+    spawn_obstacle(
+        &mut commands,
+        Vec2::new(288.0, 0.0),
+        Vec2::new(332.0, -144.0),
+    );
+    spawn_obstacle(
+        &mut commands,
+        Vec2::new(192.0, -96.0),
+        Vec2::new(288.0, -144.0),
+    );
 
     println!(
         "{:?}",
