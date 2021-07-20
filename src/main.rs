@@ -953,9 +953,10 @@ fn setup(
     button_materials: Res<ButtonMaterials>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    commands
-        .spawn_bundle(OrthographicCameraBundle::new_2d())
-        .insert(MainCamera);
+    let mut camera = OrthographicCameraBundle::new_2d();
+    camera.transform.translation.y -= 10.0;
+
+    commands.spawn_bundle(camera).insert(MainCamera);
     commands.spawn_bundle(UiCameraBundle::default());
 
     for x in ((-25 * (GRID_SIZE as i32))..=25 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
