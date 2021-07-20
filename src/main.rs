@@ -7,7 +7,7 @@ use bevy::{
 use bevy_prototype_lyon::prelude::*;
 use petgraph::algo::astar;
 use petgraph::dot::{Config, Dot};
-use petgraph::graph::{NodeIndex, UnGraph};
+use petgraph::stable_graph::{NodeIndex, StableUnGraph};
 
 fn main() {
     let mut app = App::build();
@@ -31,7 +31,7 @@ fn main() {
             .after("mouse"),
     );
     app.add_system(drawing_mouse_click.system().after("drawing_mouse_movement"));
-    app.add_system(draw_mouse.system().after("mouse"));
+    app.add_system(draw_mouse.system().after("drawing_mouse_movement"));
     app.add_system(button_system.system());
     app.add_system(move_pixies.system().label("pixies"));
     app.add_system(emit_pixies.system());
@@ -57,8 +57,10 @@ struct ScoreText;
 struct CostText;
 #[derive(Default)]
 struct Score(u32);
+#[derive(Debug)]
 struct RoadSegment {
     points: (Vec2, Vec2),
+    layer: u32,
 }
 
 #[derive(Debug)]
@@ -78,6 +80,7 @@ struct DrawingState {
     end: Vec2,
     valid: bool,
     segments: Vec<(Vec2, Vec2)>,
+    adds: Vec<AddSegment>,
     start_nodes: Vec<NodeIndex>,
     end_nodes: Vec<NodeIndex>,
     axis_preference: Option<Axis>,
@@ -92,6 +95,7 @@ impl Default for DrawingState {
             end: Vec2::new(0.0, 0.0),
             valid: false,
             segments: vec![],
+            adds: vec![],
             start_nodes: vec![],
             end_nodes: vec![],
             axis_preference: None,
@@ -121,7 +125,7 @@ struct PixieEmitter {
 
 #[derive(Default)]
 struct RoadGraph {
-    graph: UnGraph<Entity, f32>,
+    graph: StableUnGraph<Entity, f32>,
 }
 
 #[derive(Default, Debug)]
@@ -136,6 +140,19 @@ enum Collider {
     Segment((Vec2, Vec2)),
 }
 struct ColliderLayer(u32);
+
+#[derive(Clone, Debug)]
+struct AddSegment {
+    points: (Vec2, Vec2),
+    connections: (Vec<SegmentConnection>, Vec<SegmentConnection>),
+}
+#[derive(Clone, Debug)]
+enum SegmentConnection {
+    Previous,
+    Add(Entity),
+    Extend(Entity),
+    Split(Entity),
+}
 
 struct ButtonMaterials {
     normal: Handle<ColorMaterial>,
@@ -208,31 +225,34 @@ fn button_system(
 
                             if let Some(path) = path {
                                 let mut world_path = vec![];
-                                let mut last_ent = None;
 
-                                for node in path.1 {
-                                    if let Some(ent) = graph.graph.node_weight(node) {
-                                        if last_ent.is_some() && ent == last_ent.unwrap() {
-                                            continue;
-                                        }
-                                        last_ent = Some(ent);
-                                        for (t, _) in q_terminuses.get(*ent) {
-                                            world_path.push(t.point);
-                                        }
-                                        for (s, _) in q_road_chunks.get(*ent) {
-                                            if s.points.0 == *world_path.last().unwrap() {
-                                                world_path.push(s.points.1);
-                                            } else if s.points.1 == *world_path.last().unwrap() {
-                                                world_path.push(s.points.0);
-                                            } else {
-                                                info!(
-                                                    "pretty sure this shouldn't happen {:?}",
-                                                    s.points
-                                                );
-                                            }
+                                let with_ents = path.1.iter().filter_map(|node| {
+                                    match graph.graph.node_weight(*node) {
+                                        Some(ent) => Some((node, ent)),
+                                        _ => None,
+                                    }
+                                });
+
+                                for (node, ent) in with_ents {
+                                    for (t, _) in q_terminuses.get(*ent) {
+                                        world_path.push(t.point);
+                                    }
+                                    for (s, n) in q_road_chunks.get(*ent) {
+                                        if n.0 == *node {
+                                            world_path.push(s.points.0)
+                                        } else if n.1 == *node {
+                                            world_path.push(s.points.1);
+                                        } else {
+                                            info!(
+                                                "pretty sure this shouldn't happen {:?}",
+                                                s.points
+                                            );
                                         }
                                     }
                                 }
+
+                                // would it be faster to avoid this duplication above?
+                                world_path.dedup();
 
                                 if world_path.len() < 1 {
                                     ok = false;
@@ -423,111 +443,120 @@ fn drawing_mouse_click(
                     continue;
                 }
 
-                if draw.segments.is_empty() {
+                if draw.adds.is_empty() {
                     continue;
                 }
 
-                let mut segments = vec![];
+                let mut previous_end: Option<NodeIndex> = None;
 
-                for (a, b) in draw.segments.iter() {
-                    let color = FINISHED_ROAD_COLORS[draw.layer as usize - 1];
-                    let ent = commands
-                        .spawn_bundle(GeometryBuilder::build_as(
-                            &shapes::Line(a.clone(), b.clone()),
-                            ShapeColors::new(color.as_rgba_linear()),
-                            DrawMode::Stroke(StrokeOptions::default().with_line_width(2.0)),
-                            Transform::default(),
-                        ))
-                        .insert(RoadSegment {
-                            points: (a.clone(), b.clone()),
-                        })
-                        .with_children(|parent| {
-                            parent
-                                .spawn()
-                                .insert(Collider::Segment((*a, *b)))
-                                .insert(ColliderLayer(draw.layer));
-                        })
-                        .id();
+                for add in draw.adds.iter() {
+                    info!("Add: {:?}", add);
 
-                    let start_node = graph.graph.add_node(ent);
-                    let end_node = graph.graph.add_node(ent);
+                    let (start_node, end_node) =
+                        spawn_road_segment(&mut commands, &mut graph, add.points, draw.layer);
 
-                    graph
-                        .graph
-                        .add_edge(start_node, end_node, (*a - *b).length());
-                    commands
-                        .entity(ent)
-                        .insert(SegmentGraphNodes(start_node, end_node));
-                    info!(
-                        "Adding road chunk with entity: {:?} and node indexes: {:?} {:?}",
-                        ent, start_node, end_node
-                    );
-                    segments.push((ent, start_node, end_node))
-                }
+                    for (node, is_start, connections, point) in [
+                        (start_node, true, &add.connections.0, add.points.0),
+                        (end_node, false, &add.connections.1, add.points.1),
+                    ]
+                    .iter()
+                    {
+                        for connection in connections.iter() {
+                            match connection {
+                                SegmentConnection::Add(entity) => {
+                                    // seems like I should really just store whether the entity is a
+                                    // segment or point in SegmentConnection::Add
 
-                draw.start_nodes = vec![];
-                draw.end_nodes = vec![];
-                for (_entity, parent, collider, _layer) in q_colliders.iter() {
-                    match collider {
-                        Collider::Point(p) => {
-                            if *p == draw.start {
-                                if let Ok(node) = q_point_nodes.get(parent.0) {
-                                    draw.start_nodes.push(node.0);
-                                }
-                            }
-                            if *p == draw.end {
-                                if let Ok(node) = q_point_nodes.get(parent.0) {
-                                    draw.end_nodes.push(node.0);
-                                }
-                            }
-                        }
-                        Collider::Segment(_s) => {
-                            // These are basically "connecting" collision checks
-                            if let Ok(chunk) = q_road_segments.get(parent.0) {
-                                if let Ok(nodes) = q_segment_nodes.get(parent.0) {
-                                    if draw.start == chunk.points.0 {
-                                        draw.start_nodes.push(nodes.0);
-                                    }
-                                    if draw.start == chunk.points.1 {
-                                        draw.start_nodes.push(nodes.1);
-                                    }
-                                    if draw.end == chunk.points.0 {
-                                        draw.end_nodes.push(nodes.0);
-                                    }
-                                    if draw.end == chunk.points.1 {
-                                        draw.end_nodes.push(nodes.1);
+                                    let s_nodes = q_segment_nodes.get(*entity);
+                                    let segment = q_road_segments.get(*entity);
+                                    let p_nodes = q_point_nodes.get(*entity);
+
+                                    match (s_nodes, segment, p_nodes) {
+                                        (Ok(segment_nodes), Ok(segment), Err(_)) => {
+                                            if segment.points.0 == *point {
+                                                graph.graph.add_edge(*node, segment_nodes.0, 0.0);
+                                            }
+                                            if segment.points.1 == *point {
+                                                graph.graph.add_edge(*node, segment_nodes.1, 0.0);
+                                            }
+                                        }
+                                        (Err(_), Err(_), Ok(p_nodes)) => {
+                                            graph.graph.add_edge(*node, p_nodes.0, 0.0);
+                                        }
+                                        _ => {
+                                            info!("encountered a thing that should not happen");
+                                        }
                                     }
                                 }
-                            }
-                        }
-                    }
-                }
+                                SegmentConnection::Previous => {
+                                    if *is_start {
+                                        if let Some(previous_end) = previous_end {
+                                            graph.graph.add_edge(*node, previous_end, 0.0);
+                                        }
+                                    }
+                                }
+                                SegmentConnection::Split(entity) => {
+                                    let s_nodes = q_segment_nodes.get(*entity).unwrap();
+                                    let segment = q_road_segments.get(*entity).unwrap();
 
-                for (i, segment) in segments.iter().enumerate() {
-                    if i == 0 {
-                        // TODO this edge weight should be based on angle/length
-                        for node in draw.start_nodes.iter() {
-                            graph.graph.add_edge(*node, segment.1, 0.0);
+                                    // get neighboring NodeIndex from split line's start node
+                                    let start_neighbors =
+                                        graph.graph.neighbors(s_nodes.0).collect::<Vec<_>>();
+
+                                    // get neighboring NodeIndex from split line's end node
+                                    let end_neighbors =
+                                        graph.graph.neighbors(s_nodes.1).collect::<Vec<_>>();
+
+                                    // despawn split line
+                                    commands.entity(*entity).despawn_recursive();
+
+                                    // create a new segment on (entity start, this_point)
+                                    let (start_node, end_node) = spawn_road_segment(
+                                        &mut commands,
+                                        &mut graph,
+                                        (segment.points.0, *point),
+                                        segment.layer,
+                                    );
+
+                                    // reconnect new segment to split line's old start node neighbors
+                                    for neighbor in start_neighbors {
+                                        graph.graph.add_edge(neighbor, start_node, 0.0);
+                                    }
+                                    graph.graph.add_edge(end_node, *node, 0.0);
+
+                                    // create a new segment on (entity end, this_point)
+                                    let (start_node, end_node) = spawn_road_segment(
+                                        &mut commands,
+                                        &mut graph,
+                                        (*point, segment.points.1),
+                                        segment.layer,
+                                    );
+
+                                    // reconnect new segment to split line's old end node neighbors
+                                    for neighbor in end_neighbors {
+                                        graph.graph.add_edge(end_node, neighbor, 0.0);
+                                    }
+                                    graph.graph.add_edge(*node, start_node, 0.0);
+
+                                    // remove all graph edges and nodes associated with the split line
+                                    graph.graph.remove_node(s_nodes.0);
+                                    graph.graph.remove_node(s_nodes.1);
+                                }
+                                _ => {}
+                            };
                         }
                     }
-                    if i == segments.len() - 1 {
-                        // TODO this edge weight should be based on angle/length
-                        for node in draw.end_nodes.iter() {
-                            graph.graph.add_edge(segment.2, *node, 0.0);
-                        }
-                    }
-                    if i < segments.len() - 1 {
-                        // TODO this edge weight should be based on angle/length
-                        graph.graph.add_edge(segment.2, segments[i + 1].1, 0.0);
-                    }
+
+                    previous_end = Some(end_node);
                 }
 
                 println!(
                     "{:?}",
-                    Dot::with_config(&graph.graph, &[Config::EdgeNoLabel])
+                    Dot::with_config(&graph.graph, &[Config::EdgeNoLabel, Config::NodeIndexLabel])
                 );
 
                 draw.start = draw.end;
+                draw.adds = vec![];
                 draw.segments = vec![];
                 draw.start_nodes = vec![];
                 draw.end_nodes = vec![];
@@ -557,8 +586,6 @@ fn mouse_movement(
 
         mouse.snapped = snap_to_grid(mouse.position, GRID_SIZE);
 
-        info!("{:?}", mouse.snapped);
-
         mouse.window_position = event.position;
     }
 }
@@ -575,6 +602,8 @@ fn drawing_mouse_movement(
     if mouse.snapped == draw.end && draw.layer == draw.prev_layer {
         return;
     }
+
+    info!("{:?}", mouse.snapped);
 
     draw.end = mouse.snapped;
     draw.prev_layer = draw.layer;
@@ -593,6 +622,7 @@ fn drawing_mouse_movement(
 
     if mouse.snapped == draw.start {
         draw.segments = vec![];
+        draw.adds = vec![];
         draw.valid = false;
     }
 
@@ -600,6 +630,140 @@ fn drawing_mouse_movement(
     // SegmentCollision::Touching and split the RoadSegment(s) in that case.
     // TODO we need to handle SegmentCollision::Connecting and combine the
     // RoadSegment(s) in that case.
+
+    let possible = possible_lines(draw.start, mouse.snapped, draw.axis_preference);
+
+    let mut filtered_adds = vec![];
+
+    for possibility in possible.iter() {
+        let mut adds = vec![];
+        let mut ok = true;
+
+        for (segment_i, (a, b)) in possibility.iter().enumerate() {
+            let mut connections = (vec![], vec![]);
+
+            if segment_i == 1 {
+                connections.0.push(SegmentConnection::Previous);
+            }
+
+            for (entity, parent, collider, layer) in q_colliders.iter() {
+                match collider {
+                    Collider::Segment(s) => match segment_collision(s.0, s.1, *a, *b) {
+                        SegmentCollision::Intersecting | SegmentCollision::Overlapping => {
+                            if layer.0 == draw.layer || layer.0 == 0 {
+                                ok = false;
+                                break;
+                            }
+                        }
+                        SegmentCollision::Touching => {
+                            // "Touching" collisions are allowed only if they are the
+                            // start or end of the line we are currently drawing.
+                            //
+                            // Ideally, segment_collision would return the intersection
+                            // point(s) and we could just check that.
+
+                            if layer.0 == 0 {
+                                ok = false;
+                                break;
+                            }
+
+                            let start_touching = matches!(
+                                point_segment_collision(draw.start, s.0, s.1),
+                                SegmentCollision::Touching
+                            );
+                            let end_touching = matches!(
+                                point_segment_collision(draw.end, s.0, s.1),
+                                SegmentCollision::Touching
+                            );
+
+                            if !start_touching && !end_touching {
+                                ok = false;
+                                break;
+                            }
+
+                            if start_touching {
+                                connections.0.push(SegmentConnection::Split(parent.0))
+                            }
+                            if end_touching {
+                                connections.1.push(SegmentConnection::Split(parent.0))
+                            }
+                        }
+                        SegmentCollision::Connecting => {
+                            // "Connecting" collisions are allowed only if they are the
+                            // start or end of the line we are currently drawing.
+                            //
+                            // Ideally, segment_collision would return the intersection
+                            // point(s) and we could just check that.
+
+                            if layer.0 == 0 {
+                                ok = false;
+                                break;
+                            }
+
+                            let start_touching = matches!(
+                                point_segment_collision(draw.start, s.0, s.1),
+                                SegmentCollision::Connecting
+                            );
+                            let end_touching = matches!(
+                                point_segment_collision(draw.end, s.0, s.1),
+                                SegmentCollision::Connecting
+                            );
+
+                            if !start_touching && !end_touching {
+                                ok = false;
+                                break;
+                            }
+
+                            if (draw.start == *a && start_touching)
+                                || (draw.end == *a && end_touching)
+                            {
+                                connections.0.push(SegmentConnection::Add(parent.0))
+                            }
+                            if (draw.start == *b && start_touching)
+                                || (draw.end == *b && end_touching)
+                            {
+                                connections.1.push(SegmentConnection::Add(parent.0))
+                            }
+                        }
+                        SegmentCollision::None => {}
+                    },
+                    Collider::Point(p) => match point_segment_collision(*p, *a, *b) {
+                        SegmentCollision::Connecting => {
+                            if *p != draw.start && *p != draw.end {
+                                ok = false;
+                                break;
+                            }
+
+                            if *a == *p {
+                                connections.0.push(SegmentConnection::Add(parent.0));
+                            }
+                            if *b == *p {
+                                connections.1.push(SegmentConnection::Add(parent.0));
+                            }
+                        }
+                        SegmentCollision::None => {}
+                        _ => {
+                            ok = false;
+                            break;
+                        }
+                    },
+                }
+            }
+
+            if !ok {
+                break;
+            }
+
+            adds.push(AddSegment {
+                points: (*a, *b),
+                connections,
+            })
+        }
+
+        if ok {
+            filtered_adds.push(adds);
+        }
+    }
 
     let possible = possible_lines(draw.start, mouse.snapped, draw.axis_preference);
     let mut filtered = possible.iter().filter(|possibility| {
@@ -656,12 +820,15 @@ fn drawing_mouse_movement(
 
     if let Some(segments) = filtered.next() {
         draw.segments = segments.clone();
+        draw.adds = filtered_adds.first().cloned().unwrap();
         draw.valid = true;
     } else if let Some(segments) = possible.iter().next() {
         draw.segments = segments.clone();
+        draw.adds = vec![];
         draw.valid = false;
     } else {
         draw.segments = vec![];
+        draw.adds = vec![];
         draw.valid = false;
     }
 }
@@ -743,6 +910,45 @@ fn update_score(score: Res<Score>, mut q_score: Query<&mut Text, With<ScoreText>
 
     let mut text = q_score.single_mut().unwrap();
     text.sections[0].value = format!("SCORE {}", score.0);
+}
+
+fn spawn_road_segment(
+    commands: &mut Commands,
+    graph: &mut RoadGraph,
+    points: (Vec2, Vec2),
+    layer: u32,
+) -> (NodeIndex, NodeIndex) {
+    let color = FINISHED_ROAD_COLORS[layer as usize - 1];
+    let ent = commands
+        .spawn_bundle(GeometryBuilder::build_as(
+            &shapes::Line(points.0, points.1),
+            ShapeColors::new(color.as_rgba_linear()),
+            DrawMode::Stroke(StrokeOptions::default().with_line_width(2.0)),
+            Transform::default(),
+        ))
+        .insert(RoadSegment {
+            points: points,
+            layer,
+        })
+        .with_children(|parent| {
+            parent
+                .spawn()
+                .insert(Collider::Segment(points))
+                .insert(ColliderLayer(layer));
+        })
+        .id();
+
+    let start_node = graph.graph.add_node(ent);
+    let end_node = graph.graph.add_node(ent);
+
+    graph
+        .graph
+        .add_edge(start_node, end_node, (points.0 - points.1).length());
+    commands
+        .entity(ent)
+        .insert(SegmentGraphNodes(start_node, end_node));
+
+    return (start_node, end_node);
 }
 
 fn spawn_obstacle(commands: &mut Commands, top_left: Vec2, bottom_right: Vec2) {
