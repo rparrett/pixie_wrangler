@@ -1248,7 +1248,7 @@ fn setup(
     spawn_obstacle(
         &mut commands,
         Vec2::new(288.0, 0.0),
-        Vec2::new(332.0, -144.0),
+        Vec2::new(336.0, -144.0),
     );
     spawn_obstacle(
         &mut commands,
