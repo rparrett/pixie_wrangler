@@ -4,6 +4,7 @@ use bevy::prelude::*;
 pub enum SegmentCollision {
     Overlapping,
     Connecting,
+    ConnectingParallel,
     Touching,
     Intersecting,
     None,
@@ -85,7 +86,7 @@ pub fn segment_collision(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> SegmentColli
             || dx.2 == 0.0 && dy.2 == 0.0
             || dx.3 == 0.0 && dy.3 == 0.0
         {
-            return SegmentCollision::Connecting;
+            return SegmentCollision::ConnectingParallel;
         }
 
         return SegmentCollision::None;

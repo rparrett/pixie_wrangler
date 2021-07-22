@@ -150,7 +150,7 @@ struct AddSegment {
 enum SegmentConnection {
     Previous,
     Add(Entity),
-    Extend(Entity),
+    TryExtend(Entity),
     Split(Entity),
 }
 
@@ -452,8 +452,62 @@ fn drawing_mouse_click(
                 for add in draw.adds.iter() {
                     info!("Add: {:?}", add);
 
+                    // SegmentConnection::TryExtend is only valid if extending the
+                    // target segment would not break any existing connections.
+
+                    let valid_extension_a = add.connections.0.len() == 1
+                        && add
+                            .connections
+                            .0
+                            .iter()
+                            .all(|c| matches!(c, SegmentConnection::TryExtend(_)));
+                    let valid_extension_b = add.connections.1.len() == 1
+                        && add
+                            .connections
+                            .1
+                            .iter()
+                            .all(|c| matches!(c, SegmentConnection::TryExtend(_)));
+
+                    info!(
+                        "valid_extension_a {:?} valid_extension_b {:?}",
+                        valid_extension_a, valid_extension_b
+                    );
+
+                    let mut points = add.points.clone();
+
+                    info!("before: {:?}", points);
+
+                    if valid_extension_a {
+                        if let SegmentConnection::TryExtend(entity) =
+                            add.connections.0.iter().next().unwrap()
+                        {
+                            let segment = q_road_segments.get(*entity).unwrap();
+
+                            if add.points.0 == segment.points.0 {
+                                points.0 = segment.points.1;
+                            } else {
+                                points.0 = segment.points.0;
+                            }
+                        }
+                    }
+                    if valid_extension_b {
+                        if let SegmentConnection::TryExtend(entity) =
+                            add.connections.1.iter().next().unwrap()
+                        {
+                            let segment = q_road_segments.get(*entity).unwrap();
+
+                            if add.points.1 == segment.points.1 {
+                                points.1 = segment.points.0;
+                            } else {
+                                points.1 = segment.points.1;
+                            }
+                        }
+                    }
+
+                    info!("after: {:?}", points);
+
                     let (start_node, end_node) =
-                        spawn_road_segment(&mut commands, &mut graph, add.points, draw.layer);
+                        spawn_road_segment(&mut commands, &mut graph, points, draw.layer);
 
                     for (node, is_start, connections, point) in [
                         (start_node, true, &add.connections.0, add.points.0),
@@ -486,6 +540,55 @@ fn drawing_mouse_click(
                                         _ => {
                                             info!("encountered a thing that should not happen");
                                         }
+                                    }
+                                }
+                                SegmentConnection::TryExtend(entity) => {
+                                    let t_segment = q_road_segments.get(*entity);
+                                    let t_nodes = q_segment_nodes.get(*entity);
+
+                                    match (t_nodes, t_segment) {
+                                        (Ok(t_nodes), Ok(t_segment)) => {
+                                            if (*is_start && valid_extension_a)
+                                                || (!is_start && valid_extension_b)
+                                            {
+                                                let neighbors = if t_segment.points.0 == *point {
+                                                    graph
+                                                        .graph
+                                                        .neighbors(t_nodes.1)
+                                                        .collect::<Vec<_>>()
+                                                } else {
+                                                    graph
+                                                        .graph
+                                                        .neighbors(t_nodes.0)
+                                                        .collect::<Vec<_>>()
+                                                };
+
+                                                for neighbor in neighbors {
+                                                    graph.graph.add_edge(
+                                                        neighbor,
+                                                        if *is_start {
+                                                            start_node
+                                                        } else {
+                                                            end_node
+                                                        },
+                                                        0.0,
+                                                    );
+                                                }
+
+                                                commands.entity(*entity).despawn_recursive();
+                                                graph.graph.remove_node(t_nodes.0);
+                                                graph.graph.remove_node(t_nodes.1);
+                                            } else {
+                                                // normal add
+                                                if t_segment.points.0 == *point {
+                                                    graph.graph.add_edge(*node, t_nodes.0, 0.0);
+                                                }
+                                                if t_segment.points.1 == *point {
+                                                    graph.graph.add_edge(*node, t_nodes.1, 0.0);
+                                                }
+                                            }
+                                        }
+                                        _ => {}
                                     }
                                 }
                                 SegmentConnection::Previous => {
@@ -542,7 +645,6 @@ fn drawing_mouse_click(
                                     graph.graph.remove_node(s_nodes.0);
                                     graph.graph.remove_node(s_nodes.1);
                                 }
-                                _ => {}
                             };
                         }
                     }
@@ -634,6 +736,7 @@ fn drawing_mouse_movement(
     let possible = possible_lines(draw.start, mouse.snapped, draw.axis_preference);
 
     let mut filtered_adds = vec![];
+    let mut filtered_segments = vec![];
 
     for possibility in possible.iter() {
         let mut adds = vec![];
@@ -648,85 +751,101 @@ fn drawing_mouse_movement(
 
             for (entity, parent, collider, layer) in q_colliders.iter() {
                 match collider {
-                    Collider::Segment(s) => match segment_collision(s.0, s.1, *a, *b) {
-                        SegmentCollision::Intersecting | SegmentCollision::Overlapping => {
-                            if layer.0 == draw.layer || layer.0 == 0 {
-                                ok = false;
-                                break;
+                    Collider::Segment(s) => {
+                        let collision = segment_collision(s.0, s.1, *a, *b);
+
+                        match collision {
+                            SegmentCollision::Intersecting | SegmentCollision::Overlapping => {
+                                if layer.0 == draw.layer || layer.0 == 0 {
+                                    ok = false;
+                                    break;
+                                }
                             }
+                            SegmentCollision::Touching => {
+                                // "Touching" collisions are allowed only if they are the
+                                // start or end of the line we are currently drawing.
+                                //
+                                // Ideally, segment_collision would return the intersection
+                                // point(s) and we could just check that.
+
+                                if layer.0 == 0 {
+                                    ok = false;
+                                    break;
+                                }
+
+                                let start_touching = matches!(
+                                    point_segment_collision(draw.start, s.0, s.1),
+                                    SegmentCollision::Touching
+                                );
+                                let end_touching = matches!(
+                                    point_segment_collision(draw.end, s.0, s.1),
+                                    SegmentCollision::Touching
+                                );
+
+                                if !start_touching && !end_touching {
+                                    ok = false;
+                                    break;
+                                }
+
+                                if start_touching {
+                                    connections.0.push(SegmentConnection::Split(parent.0))
+                                }
+                                if end_touching {
+                                    connections.1.push(SegmentConnection::Split(parent.0))
+                                }
+                            }
+                            SegmentCollision::Connecting | SegmentCollision::ConnectingParallel => {
+                                // "Connecting" collisions are allowed only if they are the
+                                // start or end of the line we are currently drawing.
+                                //
+                                // Ideally, segment_collision would return the intersection
+                                // point(s) and we could just check that.
+
+                                if layer.0 == 0 {
+                                    ok = false;
+                                    break;
+                                }
+
+                                let start_touching = matches!(
+                                    point_segment_collision(draw.start, s.0, s.1),
+                                    SegmentCollision::Connecting
+                                );
+                                let end_touching = matches!(
+                                    point_segment_collision(draw.end, s.0, s.1),
+                                    SegmentCollision::Connecting
+                                );
+
+                                if !start_touching && !end_touching {
+                                    ok = false;
+                                    break;
+                                }
+
+                                if (draw.start == *a && start_touching)
+                                    || (draw.end == *a && end_touching)
+                                {
+                                    if matches!(collision, SegmentCollision::ConnectingParallel)
+                                        && layer.0 == draw.layer
+                                    {
+                                        connections.0.push(SegmentConnection::TryExtend(parent.0))
+                                    } else {
+                                        connections.0.push(SegmentConnection::Add(parent.0))
+                                    }
+                                }
+                                if (draw.start == *b && start_touching)
+                                    || (draw.end == *b && end_touching)
+                                {
+                                    if matches!(collision, SegmentCollision::ConnectingParallel)
+                                        && layer.0 == draw.layer
+                                    {
+                                        connections.1.push(SegmentConnection::TryExtend(parent.0))
+                                    } else {
+                                        connections.1.push(SegmentConnection::Add(parent.0))
+                                    }
+                                }
+                            }
+                            SegmentCollision::None => {}
                         }
-                        SegmentCollision::Touching => {
-                            // "Touching" collisions are allowed only if they are the
-                            // start or end of the line we are currently drawing.
-                            //
-                            // Ideally, segment_collision would return the intersection
-                            // point(s) and we could just check that.
-
-                            if layer.0 == 0 {
-                                ok = false;
-                                break;
-                            }
-
-                            let start_touching = matches!(
-                                point_segment_collision(draw.start, s.0, s.1),
-                                SegmentCollision::Touching
-                            );
-                            let end_touching = matches!(
-                                point_segment_collision(draw.end, s.0, s.1),
-                                SegmentCollision::Touching
-                            );
-
-                            if !start_touching && !end_touching {
-                                ok = false;
-                                break;
-                            }
-
-                            if start_touching {
-                                connections.0.push(SegmentConnection::Split(parent.0))
-                            }
-                            if end_touching {
-                                connections.1.push(SegmentConnection::Split(parent.0))
-                            }
-                        }
-                        SegmentCollision::Connecting => {
-                            // "Connecting" collisions are allowed only if they are the
-                            // start or end of the line we are currently drawing.
-                            //
-                            // Ideally, segment_collision would return the intersection
-                            // point(s) and we could just check that.
-
-                            if layer.0 == 0 {
-                                ok = false;
-                                break;
-                            }
-
-                            let start_touching = matches!(
-                                point_segment_collision(draw.start, s.0, s.1),
-                                SegmentCollision::Connecting
-                            );
-                            let end_touching = matches!(
-                                point_segment_collision(draw.end, s.0, s.1),
-                                SegmentCollision::Connecting
-                            );
-
-                            if !start_touching && !end_touching {
-                                ok = false;
-                                break;
-                            }
-
-                            if (draw.start == *a && start_touching)
-                                || (draw.end == *a && end_touching)
-                            {
-                                connections.0.push(SegmentConnection::Add(parent.0))
-                            }
-                            if (draw.start == *b && start_touching)
-                                || (draw.end == *b && end_touching)
-                            {
-                                connections.1.push(SegmentConnection::Add(parent.0))
-                            }
-                        }
-                        SegmentCollision::None => {}
-                    },
+                    }
                     Collider::Point(p) => match point_segment_collision(*p, *a, *b) {
                         SegmentCollision::Connecting => {
                             if *p != draw.start && *p != draw.end {
@@ -762,63 +881,11 @@ fn drawing_mouse_movement(
 
         if ok {
             filtered_adds.push(adds);
+            filtered_segments.push(possibility.clone());
         }
     }
 
-    let possible = possible_lines(draw.start, mouse.snapped, draw.axis_preference);
-    let mut filtered = possible.iter().filter(|possibility| {
-        !possibility.iter().any(|(a, b)| {
-            q_colliders.iter().any(|(_e, _p, c, layer)| match c {
-                Collider::Segment(s) => match segment_collision(s.0, s.1, *a, *b) {
-                    SegmentCollision::Intersecting => layer.0 == draw.layer || layer.0 == 0,
-                    SegmentCollision::Overlapping => layer.0 == draw.layer || layer.0 == 0,
-                    SegmentCollision::Touching => {
-                        // "Touching" collisions are allowed only if they are the
-                        // start or end of the line we are currently drawing.
-                        //
-                        // Ideally, segment_collision would return the intersection
-                        // point(s) and we could just check that.
-
-                        let bad = layer.0 == 0
-                            || (!matches!(
-                                point_segment_collision(draw.start, s.0, s.1),
-                                SegmentCollision::Touching
-                            ) && !matches!(
-                                point_segment_collision(draw.end, s.0, s.1),
-                                SegmentCollision::Touching
-                            ));
-
-                        bad
-                    }
-                    SegmentCollision::Connecting => {
-                        // "Connecting" collisions are allowed only if they are the
-                        // start or end of the line we are currently drawing.
-                        //
-                        // Ideally, segment_collision would return the intersection
-                        // point(s) and we could just check that.
-
-                        let bad = layer.0 == 0
-                            || (!matches!(
-                                point_segment_collision(draw.start, s.0, s.1),
-                                SegmentCollision::Connecting
-                            ) && !matches!(
-                                point_segment_collision(draw.end, s.0, s.1),
-                                SegmentCollision::Connecting
-                            ));
-                        bad
-                    }
-                    _ => false,
-                },
-                Collider::Point(p) => match point_segment_collision(*p, *a, *b) {
-                    SegmentCollision::Connecting => *p != draw.start && *p != draw.end,
-                    SegmentCollision::None => false,
-                    _ => true,
-                },
-            })
-        })
-    });
-
-    if let Some(segments) = filtered.next() {
+    if let Some(segments) = filtered_segments.iter().next() {
         draw.segments = segments.clone();
         draw.adds = filtered_adds.first().cloned().unwrap();
         draw.valid = true;
