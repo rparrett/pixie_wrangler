@@ -57,26 +57,14 @@ pub fn segment_collision(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> SegmentColli
         let dx = (a1.x - b1.x, a1.x - b2.x, a2.x - b1.x, a2.x - b2.x);
         let dy = (a1.y - b1.y, a1.y - b2.y, a2.y - b1.y, a2.y - b2.y);
 
-        if !(((dx.0 == 0.0 || dx.0 < 0.0)
-            && (dx.1 == 0.0 || dx.1 < 0.0)
-            && (dx.2 == 0.0 || dx.2 < 0.0)
-            && (dx.3 == 0.0 || dx.3 < 0.0))
-            || ((dx.0 == 0.0 || dx.0 > 0.0)
-                && (dx.1 == 0.0 || dx.1 > 0.0)
-                && (dx.2 == 0.0 || dx.2 > 0.0)
-                && (dx.3 == 0.0 || dx.3 > 0.0)))
+        if !(((dx.0 <= 0.0) && (dx.1 <= 0.0) && (dx.2 <= 0.0) && (dx.3 <= 0.0))
+            || ((dx.0 >= 0.0) && (dx.1 >= 0.0) && (dx.2 >= 0.0) && (dx.3 >= 0.0)))
         {
             return SegmentCollision::Overlapping;
         }
 
-        if !(((dy.0 == 0.0 || dy.0 < 0.0)
-            && (dy.1 == 0.0 || dy.1 < 0.0)
-            && (dy.2 == 0.0 || dy.2 < 0.0)
-            && (dy.3 == 0.0 || dy.3 < 0.0))
-            || ((dy.0 == 0.0 || dy.0 > 0.0)
-                && (dy.1 == 0.0 || dy.1 > 0.0)
-                && (dy.2 == 0.0 || dy.2 > 0.0)
-                && (dy.3 == 0.0 || dy.3 > 0.0)))
+        if !(((dy.0 <= 0.0) && (dy.1 <= 0.0) && (dy.2 <= 0.0) && (dy.3 <= 0.0))
+            || ((dy.0 >= 0.0) && (dy.1 >= 0.0) && (dy.2 >= 0.0) && (dy.3 >= 0.0)))
         {
             return SegmentCollision::Overlapping;
         }
@@ -100,11 +88,7 @@ pub fn segment_collision(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> SegmentColli
     let u = numerator / denominator;
     let t = dab.perp_dot(db) / denominator;
 
-    if (t == 0.0 && u == 1.0)
-        || (u == 0.0 && t == 1.0)
-        || (u == 0.0 && t == 0.0)
-        || (u == 1.0 && t == 1.0)
-    {
+    if (t == 1.0 || t == 0.0) && (u == 0.0 || u == 1.0) {
         return SegmentCollision::Connecting;
     }
 
@@ -118,7 +102,7 @@ pub fn segment_collision(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> SegmentColli
         return SegmentCollision::Intersecting;
     }
 
-    return SegmentCollision::None;
+    SegmentCollision::None
 }
 
 #[cfg(test)]
