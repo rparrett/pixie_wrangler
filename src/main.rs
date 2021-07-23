@@ -356,6 +356,26 @@ fn reset_button_system(
     }
 }
 
+fn is_boring(in_flavors: &Vec<u32>, out_flavors: &Vec<u32>) -> bool {
+    if in_flavors.windows(2).any(|v| v[0] == v[1]) {
+        return true;
+    }
+
+    if out_flavors.windows(2).any(|v| v[0] == v[1]) {
+        return true;
+    }
+
+    if in_flavors.first().unwrap() == out_flavors.first().unwrap() {
+        return true;
+    }
+
+    if in_flavors.last().unwrap() == out_flavors.last().unwrap() {
+        return true;
+    }
+
+    false
+}
+
 fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {
     (position / grid_size).round() * grid_size
 }
@@ -1394,8 +1414,11 @@ fn setup(
     in_flavors.push(multiples[1]);
     out_flavors.push(multiples[2]);
     out_flavors.push(multiples[3]);
-    in_flavors.shuffle(&mut rng);
-    out_flavors.shuffle(&mut rng);
+    while is_boring(&in_flavors, &out_flavors) {
+        info!("shuffling a boring level");
+        in_flavors.shuffle(&mut rng);
+        out_flavors.shuffle(&mut rng);
+    }
 
     for (i, flavor) in in_flavors.iter().enumerate() {
         points[i].1 = vec![*flavor];
