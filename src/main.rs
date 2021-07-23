@@ -41,9 +41,12 @@ fn main() {
     app.add_system(drawing_mouse_click.system().after("drawing_mouse_movement"));
     app.add_system(draw_mouse.system().after("drawing_mouse_movement"));
     app.add_system(button_system.system());
+    app.add_system(pixie_button_system.system());
+    app.add_system(reset_button_system.system().before("update_score"));
+
     app.add_system(move_pixies.system().label("pixies"));
     app.add_system(emit_pixies.system());
-    app.add_system(update_score.system().after("pixies"));
+    app.add_system(update_score.system().label("update_score").after("pixies"));
 
     app.add_stage_after(CoreStage::Update, "after_update", SystemStage::parallel());
     app.add_system_to_stage("after_update", update_cost.system());
@@ -63,6 +66,10 @@ struct DrawingLine;
 struct GridPoint;
 struct ScoreText;
 struct CostText;
+
+struct PixieButton;
+struct ResetButton;
+
 #[derive(Default)]
 struct Score(u32);
 #[derive(Debug)]
@@ -204,16 +211,32 @@ fn button_system(
         (&Interaction, &mut Handle<ColorMaterial>),
         (Changed<Interaction>, With<Button>),
     >,
-    graph: Res<RoadGraph>,
-    q_terminuses: Query<(&Terminus, &PointGraphNode)>,
-    q_road_chunks: Query<(&RoadSegment, &SegmentGraphNodes)>,
-    mut commands: Commands,
 ) {
     for (interaction, mut material) in interaction_query.iter_mut() {
         match *interaction {
             Interaction::Clicked => {
                 *material = button_materials.pressed.clone();
+            }
+            Interaction::Hovered => {
+                *material = button_materials.hovered.clone();
+            }
+            Interaction::None => {
+                *material = button_materials.normal.clone();
+            }
+        }
+    }
+}
 
+fn pixie_button_system(
+    interaction_query: Query<&Interaction, (Changed<Interaction>, With<Button>, With<PixieButton>)>,
+    graph: Res<RoadGraph>,
+    q_terminuses: Query<(&Terminus, &PointGraphNode)>,
+    q_road_chunks: Query<(&RoadSegment, &SegmentGraphNodes)>,
+    mut commands: Commands,
+) {
+    for interaction in interaction_query.iter() {
+        match *interaction {
+            Interaction::Clicked => {
                 let mut ok = true;
                 let mut paths = vec![];
 
@@ -291,12 +314,44 @@ fn button_system(
                     });
                 }
             }
-            Interaction::Hovered => {
-                *material = button_materials.hovered.clone();
+            _ => {}
+        }
+    }
+}
+
+fn reset_button_system(
+    interaction_query: Query<&Interaction, (Changed<Interaction>, With<Button>, With<ResetButton>)>,
+    mut graph: ResMut<RoadGraph>,
+    mut score: ResMut<Score>,
+    q_road_chunks: Query<Entity, With<RoadSegment>>,
+    q_pixies: Query<Entity, With<Pixie>>,
+    q_emitters: Query<Entity, With<PixieEmitter>>,
+    q_terminuses: Query<Entity, With<Terminus>>,
+    mut commands: Commands,
+) {
+    for interaction in interaction_query.iter() {
+        match *interaction {
+            Interaction::Clicked => {
+                for chunk in q_road_chunks
+                    .iter()
+                    .chain(q_pixies.iter())
+                    .chain(q_emitters.iter())
+                {
+                    commands.entity(chunk).despawn_recursive();
+                }
+
+                graph.graph.clear();
+
+                // we just nuked the graph, but left the start/end points
+                // so we need to overwrite their old nodes with new ones.
+                for entity in q_terminuses.iter() {
+                    let node = graph.graph.add_node(entity);
+                    commands.entity(entity).insert(PointGraphNode(node));
+                }
+
+                score.0 = 0;
             }
-            Interaction::None => {
-                *material = button_materials.normal.clone();
-            }
+            _ => {}
         }
     }
 }
@@ -1489,6 +1544,7 @@ fn setup(
                         });
 
                     // right-aligned bar items
+
                     parent
                         .spawn_bundle(NodeBundle {
                             style: Style {
@@ -1505,7 +1561,7 @@ fn setup(
                             parent
                                 .spawn_bundle(ButtonBundle {
                                     style: Style {
-                                        size: Size::new(Val::Px(250.0), Val::Percent(100.0)),
+                                        size: Size::new(Val::Px(150.0), Val::Percent(100.0)),
                                         // horizontally center child text
                                         justify_content: JustifyContent::Center,
                                         // vertically center child text
@@ -1515,6 +1571,40 @@ fn setup(
                                     material: button_materials.normal.clone(),
                                     ..Default::default()
                                 })
+                                .insert(ResetButton)
+                                .with_children(|parent| {
+                                    parent.spawn_bundle(TextBundle {
+                                        text: Text::with_section(
+                                            "RESET",
+                                            TextStyle {
+                                                font: asset_server
+                                                    .load("fonts/CooperHewitt-Medium.ttf"),
+                                                font_size: 30.0,
+                                                color: Color::rgb(0.9, 0.9, 0.9),
+                                            },
+                                            Default::default(),
+                                        ),
+                                        ..Default::default()
+                                    });
+                                });
+                            parent
+                                .spawn_bundle(ButtonBundle {
+                                    style: Style {
+                                        size: Size::new(Val::Px(250.0), Val::Percent(100.0)),
+                                        // horizontally center child text
+                                        justify_content: JustifyContent::Center,
+                                        // vertically center child text
+                                        align_items: AlignItems::Center,
+                                        margin: Rect {
+                                            left: Val::Px(10.0),
+                                            ..Default::default()
+                                        },
+                                        ..Default::default()
+                                    },
+                                    material: button_materials.normal.clone(),
+                                    ..Default::default()
+                                })
+                                .insert(PixieButton)
                                 .with_children(|parent| {
                                     parent.spawn_bundle(TextBundle {
                                         text: Text::with_section(
