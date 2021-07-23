@@ -23,6 +23,15 @@
       }
     </style>
   </head>
+  <body>
+      <canvas id="bevy"></canvas>
+      <pre>
+- press 1 or 2 to switch between drawing normal lines or tunnels. (tunnels are more expensive)
+- "release" button won't do anything unless all paths are connected
+- (not implemented yet) if differently flavored pixies have to share a line, there will be traffic congestion
+- (not implemented yet) angles equal to or more acute than 90 degrees will slow pixies down
+      </pre>
+  </body>
   <script type="module">
     import init from './target/wasm.js'
     init()
