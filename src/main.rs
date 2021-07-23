@@ -8,6 +8,7 @@ use bevy_prototype_lyon::prelude::*;
 use petgraph::algo::astar;
 use petgraph::dot::{Config, Dot};
 use petgraph::stable_graph::{NodeIndex, StableUnGraph};
+use rand::seq::SliceRandom;
 
 fn main() {
     let mut app = App::build();
@@ -165,7 +166,13 @@ struct ButtonMaterials {
 const GRID_SIZE: f32 = 48.0;
 const BOTTOM_BAR_HEIGHT: f32 = 70.0;
 
-const PIXIE_COLORS: [Color; 4] = [Color::AQUAMARINE, Color::PINK, Color::ORANGE, Color::PURPLE];
+const PIXIE_COLORS: [Color; 5] = [
+    Color::AQUAMARINE,
+    Color::PINK,
+    Color::ORANGE,
+    Color::PURPLE,
+    Color::DARK_GREEN,
+];
 const FINISHED_ROAD_COLORS: [Color; 2] = [
     Color::rgb(0.251, 0.435, 0.729),
     Color::rgb(0.247, 0.725, 0.314),
@@ -1260,48 +1267,88 @@ fn setup(
         }
     }
 
-    let points = [
+    let mut points = [
         (
-            snap_to_grid(Vec2::new(-500.0, -192.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(-576.0, -192.0), GRID_SIZE),
             vec![0],
             vec![],
         ),
         (
-            snap_to_grid(Vec2::new(-500.0, -48.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(-576.0, -96.0), GRID_SIZE),
             vec![3],
             vec![],
         ),
         (
-            snap_to_grid(Vec2::new(-500.0, 144.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(-576.0, 0.0), GRID_SIZE),
             vec![2],
             vec![],
         ),
         (
-            snap_to_grid(Vec2::new(-500.0, 288.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(-576.0, 96.0), GRID_SIZE),
             vec![1],
             vec![],
         ),
         (
-            snap_to_grid(Vec2::new(500.0, -192.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(-576.0, 192.0), GRID_SIZE),
+            vec![1],
+            vec![],
+        ),
+        (
+            snap_to_grid(Vec2::new(-576.0, 288.0), GRID_SIZE),
+            vec![1],
+            vec![],
+        ),
+        (
+            snap_to_grid(Vec2::new(576.0, -192.0), GRID_SIZE),
             vec![],
             vec![1],
         ),
         (
-            snap_to_grid(Vec2::new(500.0, -48.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(576.0, -96.0), GRID_SIZE),
             vec![],
             vec![2],
         ),
         (
-            snap_to_grid(Vec2::new(500.0, 144.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(576.0, 0.0), GRID_SIZE),
             vec![],
             vec![3],
         ),
         (
-            snap_to_grid(Vec2::new(500.0, 288.0), GRID_SIZE),
+            snap_to_grid(Vec2::new(576.0, 96.0), GRID_SIZE),
+            vec![],
+            vec![0],
+        ),
+        (
+            snap_to_grid(Vec2::new(576.0, 192.0), GRID_SIZE),
+            vec![],
+            vec![0],
+        ),
+        (
+            snap_to_grid(Vec2::new(576.0, 288.0), GRID_SIZE),
             vec![],
             vec![0],
         ),
     ];
+
+    let mut rng = rand::thread_rng();
+    let mut in_flavors = vec![0, 1, 2, 3];
+    let mut out_flavors = vec![0, 1, 2, 3];
+
+    let multiples: Vec<u32> = in_flavors.choose_multiple(&mut rng, 4).cloned().collect();
+    in_flavors.push(multiples[0]);
+    in_flavors.push(multiples[1]);
+    out_flavors.push(multiples[2]);
+    out_flavors.push(multiples[3]);
+    in_flavors.shuffle(&mut rng);
+    out_flavors.shuffle(&mut rng);
+
+    for (i, flavor) in in_flavors.iter().enumerate() {
+        points[i].1 = vec![*flavor];
+    }
+
+    for (i, flavor) in out_flavors.iter().enumerate() {
+        points[i + points.len() / 2].2 = vec![*flavor];
+    }
 
     for (p, emits, collects) in points.iter().cloned() {
         spawn_terminus(
