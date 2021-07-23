@@ -504,10 +504,6 @@ fn drawing_mouse_click(
     q_segment_nodes: Query<&SegmentGraphNodes>,
     q_road_segments: Query<&RoadSegment>,
 ) {
-    if !draw.is_changed() && !mouse.is_changed() {
-        return;
-    }
-
     if mouse.window_position.y < BOTTOM_BAR_HEIGHT {
         return;
     }
