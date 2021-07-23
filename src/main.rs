@@ -24,11 +24,18 @@ fn main() {
     app.add_startup_system(setup.system());
     app.add_system(keyboard_system.system().before("mouse"));
     app.add_system(mouse_movement.system().label("mouse"));
+    // TODO next two systems could be in a system set, maybe?
+    app.add_system(
+        not_drawing_mouse_movement
+            .system()
+            .label("not_drawing_mouse_movement")
+            .after("mouse"),
+    );
     app.add_system(
         drawing_mouse_movement
             .system()
             .label("drawing_mouse_movement")
-            .after("mouse"),
+            .after("not_drawing_mouse_movement"),
     );
     app.add_system(drawing_mouse_click.system().after("drawing_mouse_movement"));
     app.add_system(draw_mouse.system().after("drawing_mouse_movement"));
@@ -352,7 +359,11 @@ fn draw_mouse(
             radius: 5.5,
             center: snapped,
         };
-        let color = DRAWING_ROAD_COLORS[draw.layer as usize - 1];
+        let color = if draw.valid {
+            DRAWING_ROAD_COLORS[draw.layer as usize - 1]
+        } else {
+            Color::RED
+        };
         commands
             .spawn_bundle(GeometryBuilder::build_as(
                 &shape,
@@ -399,6 +410,7 @@ fn keyboard_system(keyboard_input: Res<Input<KeyCode>>, mut drawing_state: ResMu
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn drawing_mouse_click(
     mut commands: Commands,
     mouse: Res<MouseState>,
@@ -420,10 +432,11 @@ fn drawing_mouse_click(
     for event in mouse_button_input_events.iter() {
         if event.button == MouseButton::Left && event.state == Released {
             if !draw.drawing {
-                // TODO is it ok to start drawing here?
-                draw.drawing = true;
-                draw.start = snap_to_grid(mouse.position, GRID_SIZE);
-                draw.end = draw.start;
+                if draw.valid {
+                    draw.drawing = true;
+                    draw.start = mouse.snapped;
+                    draw.end = draw.start;
+                }
             } else {
                 if draw.end == draw.start {
                     draw.drawing = false;
@@ -463,7 +476,7 @@ fn drawing_mouse_click(
                         valid_extension_a, valid_extension_b
                     );
 
-                    let mut points = add.points.clone();
+                    let mut points = add.points;
 
                     info!("before: {:?}", points);
 
@@ -667,6 +680,34 @@ fn mouse_movement(
     }
 }
 
+fn not_drawing_mouse_movement(
+    mut draw: ResMut<DrawingState>,
+    mouse: Res<MouseState>,
+    q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
+) {
+    if draw.drawing {
+        return;
+    }
+
+    let bad = q_colliders
+        .iter()
+        .any(|(_parent, collider, layer)| match collider {
+            Collider::Segment(segment) => {
+                match point_segment_collision(mouse.snapped, segment.0, segment.1) {
+                    SegmentCollision::None => false,
+                    _ => layer.0 == 0,
+                }
+            }
+            _ => false,
+        });
+
+    if bad {
+        draw.valid = false;
+    } else {
+        draw.valid = true;
+    }
+}
+
 fn drawing_mouse_movement(
     mut draw: ResMut<DrawingState>,
     mouse: Res<MouseState>,
@@ -700,7 +741,7 @@ fn drawing_mouse_movement(
     if mouse.snapped == draw.start {
         draw.segments = vec![];
         draw.adds = vec![];
-        draw.valid = false;
+        draw.valid = true;
     }
 
     // TODO we need to allow lines to both start and end with
