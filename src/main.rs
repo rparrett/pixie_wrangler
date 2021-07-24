@@ -51,12 +51,34 @@ fn main() {
     app.add_system(update_score.system().label("update_score").after("pixies"));
 
     app.add_stage_after(CoreStage::Update, "after_update", SystemStage::parallel());
-    app.add_system_to_stage("after_update", update_cost.system());
+    app.add_system_to_stage("after_update", update_cost.system().label("update_cost"));
+    app.add_system_to_stage(
+        "after_update",
+        update_elapsed.system().label("update_elapsed"),
+    );
+    app.add_system_to_stage(
+        "after_update",
+        update_elapsed_text.system().after("update_elapsed"),
+    );
+    app.add_system_to_stage(
+        "after_update",
+        update_efficiency
+            .system()
+            .label("update_efficiency")
+            .after("update_elapsed"),
+    );
+    app.add_system_to_stage(
+        "after_update",
+        update_efficiency_text.system().after("update_efficiency"),
+    );
     app.init_resource::<DrawingState>();
+    app.init_resource::<TestingState>();
     app.init_resource::<MouseState>();
     app.init_resource::<RoadGraph>();
     app.init_resource::<ButtonMaterials>();
     app.init_resource::<Score>();
+    app.init_resource::<Cost>();
+    app.init_resource::<Efficiency>();
     app.run();
 }
 
@@ -68,12 +90,18 @@ struct DrawingLine;
 struct GridPoint;
 struct ScoreText;
 struct CostText;
+struct EfficiencyText;
+struct ElapsedText;
 
 struct PixieButton;
 struct ResetButton;
 
 #[derive(Default)]
 struct Score(u32);
+#[derive(Default)]
+struct Cost(u32);
+#[derive(Default)]
+struct Efficiency(Option<u32>);
 #[derive(Debug)]
 struct RoadSegment {
     points: (Vec2, Vec2),
@@ -118,6 +146,13 @@ impl Default for DrawingState {
             prev_layer: 1,
         }
     }
+}
+
+#[derive(Default)]
+struct TestingState {
+    started: Option<f64>,
+    elapsed: f64,
+    done: bool,
 }
 
 #[derive(Default, Debug)]
@@ -255,8 +290,13 @@ fn button_system(
 fn pixie_button_system(
     interaction_query: Query<&Interaction, (Changed<Interaction>, With<Button>, With<PixieButton>)>,
     graph: Res<RoadGraph>,
+    time: Res<Time>,
+    mut score: ResMut<Score>,
+    mut efficiency: ResMut<Efficiency>,
+    mut test: ResMut<TestingState>,
     q_terminuses: Query<(&Terminus, &PointGraphNode)>,
     q_road_chunks: Query<(&RoadSegment, &SegmentGraphNodes)>,
+    q_emitters: Query<Entity, With<PixieEmitter>>,
     mut commands: Commands,
 ) {
     for interaction in interaction_query.iter() {
@@ -330,6 +370,10 @@ fn pixie_button_system(
                     continue;
                 }
 
+                for entity in q_emitters.iter() {
+                    commands.entity(entity).despawn();
+                }
+
                 for (flavor, world_path) in paths {
                     commands.spawn().insert(PixieEmitter {
                         flavor: *flavor,
@@ -338,6 +382,12 @@ fn pixie_button_system(
                         timer: Timer::from_seconds(0.4, true),
                     });
                 }
+
+                test.started = Some(time.seconds_since_startup());
+                test.elapsed = 0.0;
+                test.done = false;
+                score.0 = 0;
+                efficiency.0 = None;
             }
             _ => {}
         }
@@ -348,6 +398,8 @@ fn reset_button_system(
     interaction_query: Query<&Interaction, (Changed<Interaction>, With<Button>, With<ResetButton>)>,
     mut graph: ResMut<RoadGraph>,
     mut score: ResMut<Score>,
+    mut efficiency: ResMut<Efficiency>,
+    mut test: ResMut<TestingState>,
     q_road_chunks: Query<Entity, With<RoadSegment>>,
     q_pixies: Query<Entity, With<Pixie>>,
     q_emitters: Query<Entity, With<PixieEmitter>>,
@@ -374,7 +426,11 @@ fn reset_button_system(
                     commands.entity(entity).insert(PointGraphNode(node));
                 }
 
+                test.started = None;
+                test.done = false;
+                test.elapsed = 0.0;
                 score.0 = 0;
+                efficiency.0 = None;
             }
             _ => {}
         }
@@ -1199,7 +1255,7 @@ fn update_score(score: Res<Score>, mut q_score: Query<&mut Text, With<ScoreText>
     }
 
     let mut text = q_score.single_mut().unwrap();
-    text.sections[0].value = format!("SCORE {}", score.0);
+    text.sections[0].value = format!("Þ{}", score.0);
 }
 
 fn spawn_road_segment(
@@ -1383,6 +1439,7 @@ fn spawn_terminus(
 fn update_cost(
     graph: Res<RoadGraph>,
     draw: Res<DrawingState>,
+    mut r_cost: ResMut<Cost>,
     q_segments: Query<(&RoadSegment, &Children)>,
     q_colliders: Query<&ColliderLayer>,
     mut q_cost: Query<&mut Text, With<CostText>>,
@@ -1412,6 +1469,8 @@ fn update_cost(
     cost /= GRID_SIZE;
     let cost_round = cost.ceil();
 
+    r_cost.0 = cost as u32;
+
     let mut potential_cost = 0.0;
     if draw.valid {
         for segment in draw.segments.iter() {
@@ -1435,6 +1494,78 @@ fn update_cost(
             text.sections[1].value = "".to_string();
         }
         text.sections[1].style.color = FINISHED_ROAD_COLORS[draw.layer as usize - 1]
+    }
+}
+
+fn update_efficiency(
+    mut test: ResMut<TestingState>,
+    score: Res<Score>,
+    cost: Res<Cost>,
+    mut efficiency: ResMut<Efficiency>,
+    time: Res<Time>,
+    q_emitter: Query<&PixieEmitter>,
+    q_pixie: Query<Entity, With<Pixie>>,
+) {
+    if test.done {
+        return;
+    }
+
+    if q_emitter.iter().count() < 1 {
+        return;
+    }
+
+    for emitter in q_emitter.iter() {
+        if emitter.remaining > 0 {
+            return;
+        }
+    }
+
+    if q_pixie.iter().count() > 1 {
+        return;
+    }
+
+    efficiency.0 =
+        Some(((score.0 as f32 / cost.0 as f32 / test.elapsed as f32) * 10000.0).ceil() as u32);
+
+    test.done = true;
+}
+
+fn update_efficiency_text(
+    efficiency: Res<Efficiency>,
+    mut q_efficiency_text: Query<&mut Text, With<EfficiencyText>>,
+) {
+    if !efficiency.is_changed() {
+        return;
+    }
+
+    let eff_text = if let Some(val) = efficiency.0 {
+        format!("Æ{}", val)
+    } else {
+        "Æ?".to_string()
+    };
+
+    if let Some(mut text) = q_efficiency_text.iter_mut().next() {
+        text.sections[0].value = eff_text;
+    }
+}
+
+fn update_elapsed(mut test: ResMut<TestingState>, time: Res<Time>) {
+    if test.done {
+        return;
+    }
+
+    if let Some(started) = test.started {
+        test.elapsed = time.seconds_since_startup() - started;
+    }
+}
+
+fn update_elapsed_text(test: Res<TestingState>, mut q_text: Query<&mut Text, With<ElapsedText>>) {
+    if !test.is_changed() {
+        return;
+    }
+
+    for mut text in q_text.iter_mut() {
+        text.sections[0].value = format!("ŧ{:.1}", test.elapsed);
     }
 }
 
@@ -1672,30 +1803,10 @@ fn setup(
                                             right: Val::Px(10.0),
                                             ..Default::default()
                                         },
+                                        size: Size::new(Val::Px(100.0), Val::Px(30.0)),
                                         ..Default::default()
                                     },
-                                    text: Text::with_section(
-                                        "0",
-                                        TextStyle {
-                                            font: asset_server
-                                                .load("fonts/CooperHewitt-Medium.ttf"),
-                                            font_size: 30.0,
-                                            color: FINISHED_ROAD_COLORS[0],
-                                        },
-                                        Default::default(),
-                                    ),
-                                    ..Default::default()
-                                })
-                                .insert(ScoreText);
-                            parent
-                                .spawn_bundle(TextBundle {
-                                    style: Style {
-                                        margin: Rect {
-                                            right: Val::Px(10.0),
-                                            ..Default::default()
-                                        },
-                                        ..Default::default()
-                                    },
+
                                     text: Text {
                                         sections: vec![
                                             TextSection {
@@ -1713,7 +1824,7 @@ fn setup(
                                                     font: asset_server
                                                         .load("fonts/CooperHewitt-Medium.ttf"),
                                                     font_size: 30.0,
-                                                    color: FINISHED_ROAD_COLORS[0],
+                                                    color: PIXIE_COLORS[0],
                                                 },
                                             },
                                         ],
@@ -1722,6 +1833,82 @@ fn setup(
                                     ..Default::default()
                                 })
                                 .insert(CostText);
+
+                            parent
+                                .spawn_bundle(TextBundle {
+                                    style: Style {
+                                        margin: Rect {
+                                            right: Val::Px(10.0),
+                                            ..Default::default()
+                                        },
+                                        size: Size::new(Val::Px(100.0), Val::Px(30.0)),
+                                        ..Default::default()
+                                    },
+                                    text: Text::with_section(
+                                        "0",
+                                        TextStyle {
+                                            font: asset_server
+                                                .load("fonts/CooperHewitt-Medium.ttf"),
+                                            font_size: 30.0,
+                                            color: PIXIE_COLORS[1],
+                                        },
+                                        Default::default(),
+                                    ),
+                                    ..Default::default()
+                                })
+                                .insert(ScoreText);
+
+                            parent
+                                .spawn_bundle(TextBundle {
+                                    style: Style {
+                                        margin: Rect {
+                                            right: Val::Px(10.0),
+                                            ..Default::default()
+                                        },
+                                        size: Size::new(Val::Px(100.0), Val::Px(30.0)),
+                                        ..Default::default()
+                                    },
+                                    text: Text {
+                                        sections: vec![TextSection {
+                                            value: "0".to_string(),
+                                            style: TextStyle {
+                                                font: asset_server
+                                                    .load("fonts/CooperHewitt-Medium.ttf"),
+                                                font_size: 30.0,
+                                                color: PIXIE_COLORS[2],
+                                            },
+                                        }],
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                })
+                                .insert(ElapsedText);
+
+                            parent
+                                .spawn_bundle(TextBundle {
+                                    style: Style {
+                                        margin: Rect {
+                                            right: Val::Px(10.0),
+                                            ..Default::default()
+                                        },
+                                        size: Size::new(Val::Px(100.0), Val::Px(30.0)),
+                                        ..Default::default()
+                                    },
+                                    text: Text {
+                                        sections: vec![TextSection {
+                                            value: "0".to_string(),
+                                            style: TextStyle {
+                                                font: asset_server
+                                                    .load("fonts/CooperHewitt-Medium.ttf"),
+                                                font_size: 30.0,
+                                                color: FINISHED_ROAD_COLORS[1],
+                                            },
+                                        }],
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                })
+                                .insert(EfficiencyText);
                         });
 
                     // right-aligned bar items
