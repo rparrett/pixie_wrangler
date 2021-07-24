@@ -836,6 +836,9 @@ fn drawing_mouse_movement(
         for (segment_i, (a, b)) in possibility.iter().enumerate() {
             let mut connections = (vec![], vec![]);
 
+            let mut split_layers: (HashSet<u32>, HashSet<u32>) =
+                (HashSet::default(), HashSet::default());
+
             if segment_i == 1 {
                 connections.0.push(SegmentConnection::Previous);
             }
@@ -878,11 +881,35 @@ fn drawing_mouse_movement(
                                     break;
                                 }
 
+                                // account for the specific scenario where two lines on
+                                // different layers are being "split" at the point where
+                                // they would intersect. do this by keeping track of the
+                                // layers that have been split so far, and calling foul
+                                // if we're about to split another.
+
+                                if start_touching
+                                    && !split_layers.0.contains(&layer.0)
+                                    && split_layers.0.len() >= 1
+                                {
+                                    ok = false;
+                                    break;
+                                }
+
+                                if end_touching
+                                    && !split_layers.1.contains(&layer.0)
+                                    && split_layers.1.len() >= 1
+                                {
+                                    ok = false;
+                                    break;
+                                }
+
                                 if start_touching {
-                                    connections.0.push(SegmentConnection::Split(parent.0))
+                                    connections.0.push(SegmentConnection::Split(parent.0));
+                                    split_layers.0.insert(layer.0);
                                 }
                                 if end_touching {
-                                    connections.1.push(SegmentConnection::Split(parent.0))
+                                    connections.1.push(SegmentConnection::Split(parent.0));
+                                    split_layers.1.insert(layer.0);
                                 }
                             }
                             SegmentCollision::Connecting | SegmentCollision::ConnectingParallel => {

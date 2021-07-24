@@ -6,9 +6,8 @@ An exciting blend of traffic simulation games and printed circuit board design.
 
 ## TODO
 
-- [ ] Draw a `/` on layer 1. Cross with with a `\` on layer 2. If a line is drawn
-      from the intersection, both lines get split and connected to the new line.
-      This should not be possible.
+- [ ] Traffic congestion between differently flavored pixies
+- [ ] Acute and right angles should slow down pixies
 
 ## Prerequisites
 
