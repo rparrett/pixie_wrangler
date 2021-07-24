@@ -177,12 +177,13 @@ struct ButtonMaterials {
 const GRID_SIZE: f32 = 48.0;
 const BOTTOM_BAR_HEIGHT: f32 = 70.0;
 
-const PIXIE_COLORS: [Color; 5] = [
+const PIXIE_COLORS: [Color; 6] = [
     Color::AQUAMARINE,
     Color::PINK,
     Color::ORANGE,
     Color::PURPLE,
     Color::DARK_GREEN,
+    Color::YELLOW,
 ];
 const FINISHED_ROAD_COLORS: [Color; 2] = [
     Color::rgb(0.251, 0.435, 0.729),
@@ -1391,77 +1392,110 @@ fn setup(
     }
 
     let mut points = [
+        // left
         (
             snap_to_grid(Vec2::new(-576.0, -192.0), GRID_SIZE),
-            vec![0],
+            vec![],
             vec![],
         ),
         (
             snap_to_grid(Vec2::new(-576.0, -96.0), GRID_SIZE),
-            vec![3],
+            vec![],
             vec![],
         ),
         (
             snap_to_grid(Vec2::new(-576.0, 0.0), GRID_SIZE),
-            vec![2],
+            vec![],
             vec![],
         ),
         (
             snap_to_grid(Vec2::new(-576.0, 96.0), GRID_SIZE),
-            vec![1],
+            vec![],
             vec![],
         ),
         (
             snap_to_grid(Vec2::new(-576.0, 192.0), GRID_SIZE),
-            vec![1],
+            vec![],
             vec![],
         ),
         (
             snap_to_grid(Vec2::new(-576.0, 288.0), GRID_SIZE),
-            vec![1],
+            vec![],
+            vec![],
+        ),
+        // top
+        (
+            snap_to_grid(Vec2::new(-192.0, 336.0), GRID_SIZE),
+            vec![],
             vec![],
         ),
         (
+            snap_to_grid(Vec2::new(0.0, 336.0), GRID_SIZE),
+            vec![],
+            vec![],
+        ),
+        (
+            snap_to_grid(Vec2::new(192.0, 336.0), GRID_SIZE),
+            vec![],
+            vec![],
+        ),
+        // bottom
+        (
+            snap_to_grid(Vec2::new(-192.0, -240.0), GRID_SIZE),
+            vec![],
+            vec![],
+        ),
+        (
+            snap_to_grid(Vec2::new(0.0, -240.0), GRID_SIZE),
+            vec![],
+            vec![],
+        ),
+        (
+            snap_to_grid(Vec2::new(192.0, -240.0), GRID_SIZE),
+            vec![],
+            vec![],
+        ),
+        // right
+        (
             snap_to_grid(Vec2::new(576.0, -192.0), GRID_SIZE),
             vec![],
-            vec![1],
+            vec![],
         ),
         (
             snap_to_grid(Vec2::new(576.0, -96.0), GRID_SIZE),
             vec![],
-            vec![2],
+            vec![],
         ),
         (
             snap_to_grid(Vec2::new(576.0, 0.0), GRID_SIZE),
             vec![],
-            vec![3],
+            vec![],
         ),
         (
             snap_to_grid(Vec2::new(576.0, 96.0), GRID_SIZE),
             vec![],
-            vec![0],
+            vec![],
         ),
         (
             snap_to_grid(Vec2::new(576.0, 192.0), GRID_SIZE),
             vec![],
-            vec![0],
+            vec![],
         ),
         (
             snap_to_grid(Vec2::new(576.0, 288.0), GRID_SIZE),
             vec![],
-            vec![0],
+            vec![],
         ),
     ];
 
     let mut rng = rand::thread_rng();
-    let mut in_flavors = vec![0, 1, 2, 3];
-    let mut out_flavors = vec![0, 1, 2, 3];
+    let mut in_flavors = vec![0, 1, 2, 3, 4, 5];
+    let mut out_flavors = vec![0, 1, 2, 3, 4, 5];
 
-    let multiples: Vec<u32> = in_flavors.choose_multiple(&mut rng, 4).cloned().collect();
-    in_flavors.push(multiples[0]);
-    in_flavors.push(multiples[1]);
-    out_flavors.push(multiples[2]);
-    out_flavors.push(multiples[3]);
+    let multiples: Vec<u32> = in_flavors.choose_multiple(&mut rng, 3).cloned().collect();
+    in_flavors.extend(multiples.iter());
+    out_flavors.extend(multiples);
+
     while is_boring(&in_flavors, &out_flavors) {
         info!("shuffling a boring level");
         in_flavors.shuffle(&mut rng);
