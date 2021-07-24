@@ -849,11 +849,15 @@ fn drawing_mouse_movement(
                         let collision = segment_collision(s.0, s.1, *a, *b);
 
                         match collision {
-                            SegmentCollision::Intersecting | SegmentCollision::Overlapping => {
+                            SegmentCollision::Intersecting => {
                                 if layer.0 == draw.layer || layer.0 == 0 {
                                     ok = false;
                                     break;
                                 }
+                            }
+                            SegmentCollision::Overlapping => {
+                                ok = false;
+                                break;
                             }
                             SegmentCollision::Touching => {
                                 // "Touching" collisions are allowed only if they are the
