@@ -129,6 +129,26 @@ struct Terminus {
 struct Pixie {
     path: Vec<Vec2>,
     path_index: usize,
+    next_corner_angle: Option<f32>,
+    max_speed: f32,
+    current_speed: f32,
+    current_speed_limit: f32,
+    acceleration: f32,
+    deceleration: f32,
+}
+impl Default for Pixie {
+    fn default() -> Self {
+        Self {
+            path: vec![],
+            path_index: 0,
+            next_corner_angle: None,
+            max_speed: 60.0,
+            current_speed: 30.0,
+            current_speed_limit: 60.0,
+            acceleration: 25.0,
+            deceleration: 50.0,
+        }
+    }
 }
 
 struct PixieEmitter {
@@ -314,7 +334,7 @@ fn pixie_button_system(
                     commands.spawn().insert(PixieEmitter {
                         flavor: *flavor,
                         path: world_path,
-                        remaining: 70,
+                        remaining: 50,
                         timer: Timer::from_seconds(0.4, true),
                     });
                 }
@@ -379,6 +399,21 @@ fn is_boring(in_flavors: &Vec<u32>, out_flavors: &Vec<u32>) -> bool {
     }
 
     false
+}
+
+/// Given three points forming two line segments, return the angle formed
+/// at the middle. Returns values in the range of 0.0..=180.0
+///
+/// ```text
+/// a - b
+///      \
+///       c
+/// ```
+fn corner_angle(a: Vec2, b: Vec2, c: Vec2) -> f32 {
+    let seg_a = a - b;
+    let seg_b = c - b;
+
+    seg_a.perp_dot(seg_b).abs().atan2(seg_a.dot(seg_b))
 }
 
 fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {
@@ -1075,6 +1110,7 @@ fn emit_pixies(time: Res<Time>, mut q_emitters: Query<&mut PixieEmitter>, mut co
             .insert(Pixie {
                 path: emitter.path.clone(),
                 path_index: 0,
+                ..Default::default()
             });
 
         emitter.remaining -= 1;
@@ -1095,13 +1131,38 @@ fn move_pixies(
         }
 
         let next_waypoint = pixie.path[pixie.path_index + 1];
-
         let dist = transform.translation.truncate().distance(next_waypoint);
+
+        if dist < GRID_SIZE {
+            if let Some(angle) = pixie.next_corner_angle {
+                if angle <= 45.0 {
+                    pixie.current_speed_limit = 10.0;
+                } else if angle <= 90.0 {
+                    pixie.current_speed_limit = 30.0;
+                }
+            } else {
+                pixie.current_speed_limit = pixie.max_speed;
+            }
+        } else {
+            pixie.current_speed_limit = pixie.max_speed;
+        }
 
         let delta = time.delta_seconds();
 
-        let speed = 60.0;
-        let step = speed * delta;
+        let speed_diff = pixie.current_speed_limit - pixie.current_speed;
+        if speed_diff > f32::EPSILON {
+            pixie.current_speed += pixie.acceleration * delta;
+            if pixie.current_speed > pixie.current_speed_limit {
+                pixie.current_speed = pixie.current_speed_limit;
+            }
+        } else if speed_diff < f32::EPSILON {
+            pixie.current_speed -= pixie.deceleration * delta;
+            if pixie.current_speed < pixie.current_speed_limit {
+                pixie.current_speed = pixie.current_speed_limit;
+            }
+        }
+
+        let step = pixie.current_speed * delta;
 
         // five radians per second, clockwise
         transform.rotate(Quat::from_rotation_z(-5.0 * delta));
@@ -1113,6 +1174,21 @@ fn move_pixies(
             transform.translation.x = next_waypoint.x;
             transform.translation.y = next_waypoint.y;
             pixie.path_index += 1;
+        }
+
+        if !pixie.next_corner_angle.is_some() || step > dist {
+            if let (Some(current_waypoint), Some(next_waypoint), Some(next_next_waypoint)) = (
+                pixie.path.get(pixie.path_index),
+                pixie.path.get(pixie.path_index + 1),
+                pixie.path.get(pixie.path_index + 2),
+            ) {
+                pixie.next_corner_angle = Some(
+                    corner_angle(*current_waypoint, *next_waypoint, *next_next_waypoint)
+                        .to_degrees(),
+                );
+            } else {
+                pixie.next_corner_angle = Some(180.0);
+            }
         }
     }
 }
