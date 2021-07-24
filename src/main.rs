@@ -16,6 +16,7 @@ fn main() {
         .insert_resource(Msaa { samples: 4 })
         .insert_resource(WindowDescriptor {
             title: String::from("Pixie Wrangler"),
+            #[cfg(target_arch = "wasm32")]
             canvas: Some("#bevy".to_string()),
             ..Default::default()
         })
