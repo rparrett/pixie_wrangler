@@ -491,6 +491,9 @@ fn keyboard_system(keyboard_input: Res<Input<KeyCode>>, mut drawing_state: ResMu
         drawing_state.layer = 1;
     } else if keyboard_input.pressed(KeyCode::Key2) {
         drawing_state.layer = 2;
+    } else if keyboard_input.pressed(KeyCode::Escape) {
+        drawing_state.drawing = false;
+        drawing_state.segments = vec![];
     }
 }
 
