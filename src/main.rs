@@ -96,6 +96,7 @@ struct DrawingState {
     start: Vec2,
     end: Vec2,
     valid: bool,
+    stop: bool,
     segments: Vec<(Vec2, Vec2)>,
     adds: Vec<AddSegment>,
     axis_preference: Option<Axis>,
@@ -109,6 +110,7 @@ impl Default for DrawingState {
             start: Vec2::new(0.0, 0.0),
             end: Vec2::new(0.0, 0.0),
             valid: false,
+            stop: false,
             segments: vec![],
             adds: vec![],
             axis_preference: None,
@@ -727,14 +729,19 @@ fn drawing_mouse_click(
                     previous_end = Some(end_node);
                 }
 
-                println!(
-                    "{:?}",
-                    Dot::with_config(&graph.graph, &[Config::EdgeNoLabel, Config::NodeIndexLabel])
-                );
+                if draw.stop {
+                    draw.drawing = false;
+                    draw.stop = false;
+                }
 
                 draw.start = draw.end;
                 draw.adds = vec![];
                 draw.segments = vec![];
+
+                println!(
+                    "{:?}",
+                    Dot::with_config(&graph.graph, &[Config::EdgeNoLabel, Config::NodeIndexLabel])
+                );
             }
         }
     }
@@ -831,12 +838,15 @@ fn drawing_mouse_movement(
 
     let possible = possible_lines(draw.start, mouse.snapped, draw.axis_preference);
 
+    // groan
     let mut filtered_adds = vec![];
     let mut filtered_segments = vec![];
+    let mut filtered_stops = vec![];
 
     for possibility in possible.iter() {
         let mut adds = vec![];
         let mut ok = true;
+        let mut stop = false;
 
         for (segment_i, (a, b)) in possibility.iter().enumerate() {
             let mut connections = (vec![], vec![]);
@@ -975,9 +985,16 @@ fn drawing_mouse_movement(
                     }
                     Collider::Point(p) => match point_segment_collision(*p, *a, *b) {
                         SegmentCollision::Connecting => {
+                            // don't allow the midpoint of the line to connect to a
+                            // terminus
+
                             if *p != draw.start && *p != draw.end {
                                 ok = false;
                                 break;
+                            }
+
+                            if *p == draw.end {
+                                stop = true;
                             }
 
                             if *a == *p {
@@ -1009,12 +1026,14 @@ fn drawing_mouse_movement(
         if ok {
             filtered_adds.push(adds);
             filtered_segments.push(possibility.clone());
+            filtered_stops.push(stop);
         }
     }
 
     if let Some(segments) = filtered_segments.get(0) {
         draw.segments = segments.clone();
         draw.adds = filtered_adds.first().cloned().unwrap();
+        draw.stop = filtered_stops.first().cloned().unwrap();
         draw.valid = true;
     } else if let Some(segments) = possible.get(0) {
         draw.segments = segments.clone();
