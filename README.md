@@ -6,6 +6,9 @@ An exciting blend of traffic simulation games and printed circuit board design.
 
 ## TODO
 
+- [ ] Pressing escape should cancel line drawing
+- [ ] Drawing to a Terminus should cancel drawing
+- [ ] Maybe the cursor should turn white when not drawing?
 - [ ] Traffic congestion between differently flavored pixies
 - [ ] Acute and right angles should slow down pixies
 
