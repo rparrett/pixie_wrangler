@@ -443,8 +443,10 @@ fn draw_mouse(
             radius: 5.5,
             center: snapped,
         };
-        let color = if draw.valid {
+        let color = if draw.drawing && draw.valid {
             DRAWING_ROAD_COLORS[draw.layer as usize - 1]
+        } else if !draw.drawing && draw.valid {
+            UI_WHITE_COLOR
         } else {
             Color::RED
         };
