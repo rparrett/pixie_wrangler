@@ -1568,9 +1568,9 @@ fn setup(
     let mut in_flavors = vec![0, 1, 2, 3, 4, 5];
     let mut out_flavors = vec![0, 1, 2, 3, 4, 5];
 
-    let multiples: Vec<u32> = in_flavors.choose_multiple(&mut rng, 3).cloned().collect();
-    in_flavors.extend(multiples.iter());
-    out_flavors.extend(multiples);
+    let multiples: Vec<u32> = in_flavors.choose_multiple(&mut rng, 6).cloned().collect();
+    in_flavors.extend(multiples.iter().take(3));
+    out_flavors.extend(multiples.iter().skip(3).take(3));
 
     while is_boring(&in_flavors, &out_flavors) {
         info!("shuffling a boring level");
