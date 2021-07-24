@@ -824,11 +824,6 @@ fn drawing_mouse_movement(
         draw.valid = true;
     }
 
-    // TODO we need to allow lines to both start and end with
-    // SegmentCollision::Touching and split the RoadSegment(s) in that case.
-    // TODO we need to handle SegmentCollision::Connecting and combine the
-    // RoadSegment(s) in that case.
-
     let possible = possible_lines(draw.start, mouse.snapped, draw.axis_preference);
 
     let mut filtered_adds = vec![];
