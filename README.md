@@ -7,7 +7,8 @@ An exciting blend of traffic simulation games and printed circuit board design.
 ## TODO
 
 - [ ] Traffic congestion between differently flavored pixies
-- [ ] Acute and right angles should slow down pixies
+- [ ] Add "rip up net" tool (no undo)
+- [ ] Add buttons for first/last layer
 
 ## Prerequisites
 
