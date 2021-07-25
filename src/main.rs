@@ -178,9 +178,9 @@ impl Default for Pixie {
             path_index: 0,
             next_corner_angle: None,
             max_speed: 60.0,
-            current_speed: 30.0,
+            current_speed: 60.0,
             current_speed_limit: 60.0,
-            acceleration: 25.0,
+            acceleration: 10.0,
             deceleration: 50.0,
         }
     }
