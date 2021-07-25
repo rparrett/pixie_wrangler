@@ -3,7 +3,15 @@
     <title>Pixie Wrangler</title>
     <meta charset="utf-8"/>
     <style>
+      @font-face {
+        font-family: 'Cooper Hewitt';
+        font-style: normal;
+        font-weight: 400;
+        src: local('Cooper Hewitt Medium'),
+            url('../fonts/montserrat-v14-latin-regular.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+      }
       body {
+        font-family: 'Cooper Hewitt', 'sans-serif';
         background: linear-gradient(
           135deg,
           white 0%,
@@ -17,22 +25,34 @@
         background-size: 20px 20px;
       }
       canvas {
-        width: 480px;
-        height: 320px;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+        width: 1280px;
+        height: 720px;
+        background-color: white;
+      }
+      .instructions {
+        margin-left: auto;
+        margin-right: auto;
+        margin-top: 10px;
+        padding: 10px;
+        width: 1260px;
         background-color: white;
       }
     </style>
   </head>
   <body>
       <canvas id="bevy"></canvas>
-      <pre>
-- click to start drawing a line
-- click again on the start of the current segment to stop drawing
-- press 1 or 2 to switch between drawing normal lines or tunnels. (tunnels are more expensive)
-- "release" button won't do anything unless all paths are connected
-- (not implemented yet) if differently flavored pixies have to share a line, there will be traffic congestion
-- (not implemented yet) angles equal to or more acute than 90 degrees will slow pixies down
-      </pre>
+      <div class="instructions">
+- click to start drawing a line<br/>
+- click again on the start of the current segment to stop drawing<br/>
+- press 1 or 2 to switch between drawing normal lines or tunnels. (tunnels are more expensive)<br/>
+- "release" button won't do anything unless all paths are connected<br/>
+- pixies must slow down for sharp turns<br/>
+- score (Æ) is pixies (Þ) / cost (§) / time (ŧ)<br/>
+- (not implemented yet) if differently flavored pixies have to share a line, there will be traffic congestion or they will annihilate each other<br/>
+      </div>
   </body>
   <script type="module">
     import init from './target/wasm.js'
