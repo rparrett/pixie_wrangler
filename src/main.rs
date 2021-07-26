@@ -1,4 +1,7 @@
 use crate::collision::{point_segment_collision, segment_collision, SegmentCollision};
+use crate::radio_button::{
+    RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonPlugin,
+};
 
 use bevy::{
     input::mouse::MouseButtonInput, input::ElementState::Released, prelude::*, utils::HashSet,
@@ -25,6 +28,7 @@ fn main() {
     #[cfg(target_arch = "wasm32")]
     app.add_plugin(bevy_webgl2::WebGL2Plugin);
     app.add_plugin(ShapePlugin);
+    app.add_plugin(RadioButtonPlugin);
     app.add_startup_system(setup.system());
     app.add_system(keyboard_system.system().before("mouse"));
     app.add_system(mouse_movement.system().label("mouse"));
@@ -60,18 +64,6 @@ fn main() {
             .after("net_ripping_mouse_movement"),
     );
     app.add_system(button_system.system());
-    app.add_system(
-        radio_button_system
-            .system()
-            .label("radio_button_system")
-            .before("tool_button_display_system"),
-    );
-    app.add_system(
-        radio_button_group_system
-            .system()
-            .label("radio_button_group_system")
-            .after("radio_button_system"),
-    );
     app.add_system(
         tool_button_display_system
             .system()
@@ -126,6 +118,7 @@ fn main() {
 }
 
 mod collision;
+mod radio_button;
 
 struct MainCamera;
 struct Cursor;
@@ -137,13 +130,6 @@ struct CostText;
 struct EfficiencyText;
 struct ElapsedText;
 
-struct RadioButtonGroup {
-    entities: Vec<Entity>,
-}
-struct RadioButton {
-    selected: bool,
-}
-struct RadioButtonGroupRelation(Entity);
 struct ToolButton;
 struct LayerOneButton;
 struct LayerTwoButton;
@@ -304,6 +290,17 @@ struct ButtonMaterials {
     hovered: Handle<ColorMaterial>,
     pressed: Handle<ColorMaterial>,
 }
+impl FromWorld for ButtonMaterials {
+    fn from_world(world: &mut World) -> Self {
+        let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
+        ButtonMaterials {
+            normal: materials.add(Color::rgb(0.15, 0.15, 0.15).into()),
+            hovered: materials.add(Color::rgb(0.25, 0.25, 0.25).into()),
+            pressed: materials.add(Color::rgb(0.35, 0.75, 0.35).into()),
+        }
+    }
+}
+
 const GRID_SIZE: f32 = 48.0;
 const BOTTOM_BAR_HEIGHT: f32 = 70.0;
 
@@ -328,68 +325,6 @@ const GRID_COLOR: Color = Color::rgb(0.086, 0.105, 0.133);
 const UI_WHITE_COLOR: Color = Color::rgb(0.788, 0.82, 0.851);
 
 const TUNNEL_MULTIPLIER: f32 = 2.0;
-
-impl FromWorld for ButtonMaterials {
-    fn from_world(world: &mut World) -> Self {
-        let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
-        ButtonMaterials {
-            normal: materials.add(Color::rgb(0.15, 0.15, 0.15).into()),
-            hovered: materials.add(Color::rgb(0.25, 0.25, 0.25).into()),
-            pressed: materials.add(Color::rgb(0.35, 0.75, 0.35).into()),
-        }
-    }
-}
-
-fn radio_button_group_system(
-    mut q: QuerySet<(
-        Query<(Entity, &RadioButton, &RadioButtonGroupRelation), Changed<RadioButton>>,
-        Query<&mut RadioButton>,
-    )>,
-    q_radio_group: Query<&RadioButtonGroup>,
-) {
-    let mut unselect = vec![];
-    for (entity, radio, group_rel) in q.q0().iter() {
-        if let Ok(radio_group) = q_radio_group.get(group_rel.0) {
-            if radio.selected {
-                for other_entity in radio_group.entities.iter() {
-                    if *other_entity != entity {
-                        unselect.push(*other_entity);
-                    }
-                }
-            }
-        }
-    }
-
-    for entity in unselect.iter() {
-        if let Ok(mut other_radio) = q.q1_mut().get_mut(*entity) {
-            other_radio.selected = false;
-        }
-    }
-}
-
-fn radio_button_system(
-    button_materials: Res<ButtonMaterials>,
-    mut interaction_query: Query<
-        (&mut RadioButton, &Interaction, &mut Handle<ColorMaterial>),
-        (Changed<Interaction>, With<Button>, With<RadioButton>),
-    >,
-) {
-    for (mut radio, interaction, mut material) in interaction_query.iter_mut() {
-        match *interaction {
-            Interaction::Clicked => {
-                *material = button_materials.pressed.clone();
-
-                radio.selected = true;
-            }
-            Interaction::Hovered => {
-                *material = button_materials.hovered.clone();
-            }
-            Interaction::None => {
-                *material = button_materials.normal.clone();
-            }
-        }
-    }
-}
 
 fn tool_button_display_system(
     mut q_text: Query<&mut Text>,
