@@ -8,6 +8,7 @@ use bevy_prototype_lyon::prelude::*;
 use petgraph::algo::astar;
 use petgraph::dot::{Config, Dot};
 use petgraph::stable_graph::{NodeIndex, StableUnGraph};
+use petgraph::visit::{DfsPostOrder, Walker};
 use rand::seq::SliceRandom;
 
 fn main() {
@@ -27,7 +28,13 @@ fn main() {
     app.add_startup_system(setup.system());
     app.add_system(keyboard_system.system().before("mouse"));
     app.add_system(mouse_movement.system().label("mouse"));
-    // TODO next two systems could be in a system set, maybe?
+    // TODO next three systems could be in a system set, maybe?
+    app.add_system(
+        net_ripping_mouse_movement
+            .system()
+            .label("net_ripping_mouse_movement")
+            .after("mouse"),
+    );
     app.add_system(
         not_drawing_mouse_movement
             .system()
@@ -38,11 +45,39 @@ fn main() {
         drawing_mouse_movement
             .system()
             .label("drawing_mouse_movement")
-            .after("not_drawing_mouse_movement"),
+            .after("mouse"),
     );
     app.add_system(drawing_mouse_click.system().after("drawing_mouse_movement"));
+    app.add_system(
+        net_ripping_mouse_click
+            .system()
+            .after("net_ripping_mouse_movement"),
+    );
     app.add_system(draw_mouse.system().after("drawing_mouse_movement"));
+    app.add_system(
+        draw_net_ripping
+            .system()
+            .after("net_ripping_mouse_movement"),
+    );
     app.add_system(button_system.system());
+    app.add_system(
+        radio_button_system
+            .system()
+            .label("radio_button_system")
+            .before("tool_button_display_system"),
+    );
+    app.add_system(
+        radio_button_group_system
+            .system()
+            .label("radio_button_group_system")
+            .after("radio_button_system"),
+    );
+    app.add_system(
+        tool_button_display_system
+            .system()
+            .label("tool_button_display_system")
+            .after("radio_button_group_system"),
+    );
     app.add_system(pixie_button_system.system());
     app.add_system(reset_button_system.system().before("update_score"));
 
@@ -72,6 +107,8 @@ fn main() {
         update_efficiency_text.system().after("update_efficiency"),
     );
     app.init_resource::<DrawingState>();
+    app.init_resource::<LineDrawingState>();
+    app.init_resource::<NetRippingState>();
     app.init_resource::<TestingState>();
     app.init_resource::<MouseState>();
     app.init_resource::<RoadGraph>();
@@ -87,12 +124,24 @@ mod collision;
 struct MainCamera;
 struct Cursor;
 struct DrawingLine;
+struct RippingLine;
 struct GridPoint;
 struct ScoreText;
 struct CostText;
 struct EfficiencyText;
 struct ElapsedText;
 
+struct RadioButtonGroup {
+    entities: Vec<Entity>,
+}
+struct RadioButton {
+    selected: bool,
+}
+struct RadioButtonGroupRelation(Entity);
+struct ToolButton;
+struct LayerOneButton;
+struct LayerTwoButton;
+struct NetRippingButton;
 struct PixieButton;
 struct ResetButton;
 
@@ -119,7 +168,21 @@ enum Axis {
     Y,
 }
 
+enum DrawingMode {
+    LineDrawing,
+    NetRipping,
+}
+impl Default for DrawingMode {
+    fn default() -> Self {
+        DrawingMode::LineDrawing
+    }
+}
+#[derive(Default)]
 struct DrawingState {
+    mode: DrawingMode,
+}
+
+struct LineDrawingState {
     drawing: bool,
     start: Vec2,
     end: Vec2,
@@ -131,7 +194,7 @@ struct DrawingState {
     layer: u32,
     prev_layer: u32,
 }
-impl Default for DrawingState {
+impl Default for LineDrawingState {
     fn default() -> Self {
         Self {
             drawing: false,
@@ -146,6 +209,12 @@ impl Default for DrawingState {
             prev_layer: 1,
         }
     }
+}
+#[derive(Default)]
+struct NetRippingState {
+    entities: Vec<Entity>,
+    nodes: Vec<NodeIndex>,
+    segments: Vec<(Vec2, Vec2)>,
 }
 
 #[derive(Default)]
@@ -265,11 +334,79 @@ impl FromWorld for ButtonMaterials {
     }
 }
 
+fn radio_button_group_system(
+    mut q: QuerySet<(
+        Query<(Entity, &RadioButton, &RadioButtonGroupRelation), Changed<RadioButton>>,
+        Query<&mut RadioButton>,
+    )>,
+    q_radio_group: Query<&RadioButtonGroup>,
+) {
+    let mut unselect = vec![];
+    for (entity, radio, group_rel) in q.q0().iter() {
+        if let Ok(radio_group) = q_radio_group.get(group_rel.0) {
+            if radio.selected {
+                for other_entity in radio_group.entities.iter() {
+                    if *other_entity != entity {
+                        unselect.push(*other_entity);
+                    }
+                }
+            }
+        }
+    }
+
+    for entity in unselect.iter() {
+        if let Ok(mut other_radio) = q.q1_mut().get_mut(*entity) {
+            other_radio.selected = false;
+        }
+    }
+}
+
+fn radio_button_system(
+    button_materials: Res<ButtonMaterials>,
+    mut interaction_query: Query<
+        (&mut RadioButton, &Interaction, &mut Handle<ColorMaterial>),
+        (Changed<Interaction>, With<Button>, With<RadioButton>),
+    >,
+) {
+    for (mut radio, interaction, mut material) in interaction_query.iter_mut() {
+        match *interaction {
+            Interaction::Clicked => {
+                *material = button_materials.pressed.clone();
+
+                radio.selected = true;
+            }
+            Interaction::Hovered => {
+                *material = button_materials.hovered.clone();
+            }
+            Interaction::None => {
+                *material = button_materials.normal.clone();
+            }
+        }
+    }
+}
+
+fn tool_button_display_system(
+    mut q_text: Query<&mut Text>,
+    q_button: Query<(&RadioButton, &Children), (Changed<RadioButton>, With<ToolButton>)>,
+) {
+    for (button, children) in q_button.iter() {
+        for child in children.iter() {
+            if let Ok(mut text) = q_text.get_mut(*child) {
+                text.sections[0].style.color = if button.selected {
+                    Color::GREEN
+                } else {
+                    UI_WHITE_COLOR
+                };
+            }
+        }
+    }
+}
+
 fn button_system(
     button_materials: Res<ButtonMaterials>,
     mut interaction_query: Query<
         (&Interaction, &mut Handle<ColorMaterial>),
-        (Changed<Interaction>, With<Button>),
+        (Changed<Interaction>, With<Button>, Without<RadioButton>),
     >,
 ) {
     for (interaction, mut material) in interaction_query.iter_mut() {
@@ -522,7 +659,7 @@ fn possible_lines(from: Vec2, to: Vec2, axis_preference: Option<Axis>) -> Vec<Ve
 
 fn draw_mouse(
     mut commands: Commands,
-    draw: Res<DrawingState>,
+    draw: Res<LineDrawingState>,
     mouse: Res<MouseState>,
     q_cursor: Query<Entity, With<Cursor>>,
     q_drawing: Query<Entity, With<DrawingLine>>,
@@ -582,14 +719,103 @@ fn draw_mouse(
     }
 }
 
-fn keyboard_system(keyboard_input: Res<Input<KeyCode>>, mut drawing_state: ResMut<DrawingState>) {
+fn draw_net_ripping(
+    mut commands: Commands,
+    rip: Res<NetRippingState>,
+    q_ripping: Query<Entity, With<RippingLine>>,
+) {
+    if !rip.is_changed() {
+        return;
+    }
+
+    for ent in q_ripping.iter() {
+        commands.entity(ent).despawn();
+    }
+
+    for (a, b) in rip.segments.iter() {
+        commands
+            .spawn_bundle(GeometryBuilder::build_as(
+                &shapes::Line(*a, *b),
+                ShapeColors::new(Color::RED),
+                DrawMode::Stroke(StrokeOptions::default().with_line_width(2.0)),
+                Transform::from_xyz(0.0, 0.0, 2.0),
+            ))
+            .insert(RippingLine);
+    }
+}
+
+fn keyboard_system(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut line_state: ResMut<LineDrawingState>,
+    mut drawing_state: ResMut<DrawingState>,
+    mut q_radio_button: Query<&mut RadioButton>,
+    q_layer_one_button: Query<Entity, With<LayerOneButton>>,
+    q_layer_two_button: Query<Entity, With<LayerTwoButton>>,
+    q_net_ripping_button: Query<Entity, With<NetRippingButton>>,
+) {
     if keyboard_input.pressed(KeyCode::Key1) {
-        drawing_state.layer = 1;
+        line_state.layer = 1;
+        drawing_state.mode = DrawingMode::LineDrawing;
+
+        if let Ok(ent) = q_layer_one_button.single() {
+            if let Ok(mut radio) = q_radio_button.get_mut(ent) {
+                radio.selected = true;
+            }
+        }
     } else if keyboard_input.pressed(KeyCode::Key2) {
-        drawing_state.layer = 2;
+        line_state.layer = 2;
+        drawing_state.mode = DrawingMode::LineDrawing;
+
+        if let Ok(ent) = q_layer_two_button.single() {
+            if let Ok(mut radio) = q_radio_button.get_mut(ent) {
+                radio.selected = true;
+            }
+        }
     } else if keyboard_input.pressed(KeyCode::Escape) {
-        drawing_state.drawing = false;
-        drawing_state.segments = vec![];
+        line_state.drawing = false;
+        line_state.segments = vec![];
+
+        if matches!(drawing_state.mode, DrawingMode::NetRipping) {
+            drawing_state.mode = DrawingMode::LineDrawing;
+        };
+    } else if keyboard_input.pressed(KeyCode::R) {
+        line_state.drawing = false;
+        line_state.segments = vec![];
+
+        drawing_state.mode = DrawingMode::NetRipping;
+
+        if let Ok(ent) = q_net_ripping_button.single() {
+            if let Ok(mut radio) = q_radio_button.get_mut(ent) {
+                radio.selected = true;
+            }
+        }
+    }
+}
+
+fn net_ripping_mouse_click(
+    mut commands: Commands,
+    mut mouse_button_input_events: EventReader<MouseButtonInput>,
+    mut rip: ResMut<NetRippingState>,
+    draw: Res<DrawingState>,
+    mut graph: ResMut<RoadGraph>,
+) {
+    if !matches!(draw.mode, DrawingMode::NetRipping) {
+        return;
+    }
+
+    for event in mouse_button_input_events.iter() {
+        if event.button == MouseButton::Left && event.state == Released {
+            for entity in rip.entities.iter() {
+                commands.entity(*entity).despawn_recursive();
+            }
+            for node in rip.nodes.iter() {
+                graph.graph.remove_node(*node);
+            }
+
+            rip.entities = vec![];
+            rip.nodes = vec![];
+            rip.segments = vec![];
+        }
     }
 }
 
@@ -597,7 +823,8 @@ fn keyboard_system(keyboard_input: Res<Input<KeyCode>>, mut drawing_state: ResMu
 fn drawing_mouse_click(
     mut commands: Commands,
     mouse: Res<MouseState>,
-    mut draw: ResMut<DrawingState>,
+    draw: ResMut<DrawingState>,
+    mut line_draw: ResMut<LineDrawingState>,
     mut graph: ResMut<RoadGraph>,
     mut mouse_button_input_events: EventReader<MouseButtonInput>,
     q_point_nodes: Query<&PointGraphNode>,
@@ -608,30 +835,34 @@ fn drawing_mouse_click(
         return;
     }
 
+    if !matches!(draw.mode, DrawingMode::LineDrawing) {
+        return;
+    }
+
     for event in mouse_button_input_events.iter() {
         if event.button == MouseButton::Left && event.state == Released {
-            if !draw.drawing {
-                if draw.valid {
-                    draw.drawing = true;
-                    draw.start = mouse.snapped;
-                    draw.end = draw.start;
+            if !line_draw.drawing {
+                if line_draw.valid {
+                    line_draw.drawing = true;
+                    line_draw.start = mouse.snapped;
+                    line_draw.end = line_draw.start;
                 }
             } else {
-                if draw.end == draw.start {
-                    draw.drawing = false;
+                if line_draw.end == line_draw.start {
+                    line_draw.drawing = false;
                 }
 
-                if !draw.valid {
+                if !line_draw.valid {
                     continue;
                 }
 
-                if draw.adds.is_empty() {
+                if line_draw.adds.is_empty() {
                     continue;
                 }
 
                 let mut previous_end: Option<NodeIndex> = None;
 
-                for add in draw.adds.iter() {
+                for add in line_draw.adds.iter() {
                     info!("Add: {:?}", add);
 
                     // SegmentConnection::TryExtend is only valid if extending the
@@ -689,7 +920,7 @@ fn drawing_mouse_click(
                     info!("after: {:?}", points);
 
                     let (start_node, end_node) =
-                        spawn_road_segment(&mut commands, &mut graph, points, draw.layer);
+                        spawn_road_segment(&mut commands, &mut graph, points, line_draw.layer);
 
                     for (node, is_start, connections, point) in [
                         (start_node, true, &add.connections.0, add.points.0),
@@ -821,14 +1052,14 @@ fn drawing_mouse_click(
                     previous_end = Some(end_node);
                 }
 
-                if draw.stop {
-                    draw.drawing = false;
-                    draw.stop = false;
+                if line_draw.stop {
+                    line_draw.drawing = false;
+                    line_draw.stop = false;
                 }
 
-                draw.start = draw.end;
-                draw.adds = vec![];
-                draw.segments = vec![];
+                line_draw.start = line_draw.end;
+                line_draw.adds = vec![];
+                line_draw.segments = vec![];
 
                 println!(
                     "{:?}",
@@ -864,12 +1095,88 @@ fn mouse_movement(
     }
 }
 
+fn net_ripping_mouse_movement(
+    draw: Res<DrawingState>,
+    mouse: Res<MouseState>,
+    mut net: ResMut<NetRippingState>,
+    graph: Res<RoadGraph>,
+    q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
+    q_road_segments: Query<&RoadSegment>,
+    q_segment_nodes: Query<&SegmentGraphNodes>,
+) {
+    if !matches!(draw.mode, DrawingMode::NetRipping) {
+        return;
+    }
+
+    if !mouse.is_changed() && !draw.is_changed() {
+        return;
+    }
+
+    // TODO we don't need to do this work if mouse.snapped is not changed.
+    // maybe we need a separate resource / change detection for MouseSnappingState
+    // or something.
+
+    net.entities = vec![];
+    net.nodes = vec![];
+    net.segments = vec![];
+
+    let mut collisions: Vec<_> = q_colliders
+        .iter()
+        .filter_map(|(parent, collider, layer)| match collider {
+            Collider::Segment(segment) => {
+                match point_segment_collision(mouse.snapped, segment.0, segment.1) {
+                    SegmentCollision::None => None,
+                    _ => {
+                        if layer.0 == 0 {
+                            None
+                        } else {
+                            Some((parent.0, layer.0))
+                        }
+                    }
+                }
+            }
+            _ => None,
+        })
+        .collect();
+
+    if collisions.is_empty() {
+        return;
+    }
+
+    // if there are multiple collisions, choose one on the top-most layer
+
+    collisions.sort_by(|a, b| a.1.cmp(&b.1));
+
+    if let Some((entity, _layer)) = collisions.first() {
+        if let Ok(node) = q_segment_nodes.get(*entity) {
+            let dfs = DfsPostOrder::new(&graph.graph, node.0);
+            for index in dfs.iter(&graph.graph) {
+                if let Some(net_entity) = graph.graph.node_weight(index) {
+                    if let Ok(seg) = q_road_segments.get(*net_entity) {
+                        net.entities.push(*net_entity);
+                        net.nodes.push(index);
+                        net.segments.push(seg.points);
+                    }
+                }
+            }
+        }
+    }
+
+    info!("{:?}", net.entities);
+    info!("{:?}", net.nodes);
+}
+
 fn not_drawing_mouse_movement(
-    mut draw: ResMut<DrawingState>,
+    mut line_draw: ResMut<LineDrawingState>,
+    draw: Res<DrawingState>,
     mouse: Res<MouseState>,
     q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
 ) {
-    if draw.drawing {
+    if !matches!(draw.mode, DrawingMode::LineDrawing) {
+        return;
+    }
+
+    if line_draw.drawing {
         return;
     }
 
@@ -886,14 +1193,14 @@ fn not_drawing_mouse_movement(
         });
 
     if bad {
-        draw.valid = false;
+        line_draw.valid = false;
     } else {
-        draw.valid = true;
+        line_draw.valid = true;
     }
 }
 
 fn drawing_mouse_movement(
-    mut draw: ResMut<DrawingState>,
+    mut draw: ResMut<LineDrawingState>,
     mouse: Res<MouseState>,
     q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
 ) {
@@ -1438,7 +1745,7 @@ fn spawn_terminus(
 
 fn update_cost(
     graph: Res<RoadGraph>,
-    draw: Res<DrawingState>,
+    draw: Res<LineDrawingState>,
     mut r_cost: ResMut<Cost>,
     q_segments: Query<(&RoadSegment, &Children)>,
     q_colliders: Query<&ColliderLayer>,
@@ -1502,7 +1809,6 @@ fn update_efficiency(
     score: Res<Score>,
     cost: Res<Cost>,
     mut efficiency: ResMut<Efficiency>,
-    time: Res<Time>,
     q_emitter: Query<&PixieEmitter>,
     q_pixie: Query<Entity, With<Pixie>>,
 ) {
@@ -1571,6 +1877,7 @@ fn update_elapsed_text(test: Res<TestingState>, mut q_text: Query<&mut Text, Wit
 
 fn setup(
     mut commands: Commands,
+    mut more_commands: Commands,
     mut graph: ResMut<RoadGraph>,
     asset_server: Res<AssetServer>,
     button_materials: Res<ButtonMaterials>,
@@ -1782,7 +2089,7 @@ fn setup(
                     ..Default::default()
                 })
                 .with_children(|parent| {
-                    // left-aligned bar items
+                    // Tool Buttons
                     parent
                         .spawn_bundle(NodeBundle {
                             style: Style {
@@ -1796,14 +2103,149 @@ fn setup(
                             ..Default::default()
                         })
                         .with_children(|parent| {
+                            let layer_one_id = parent
+                                .spawn_bundle(ButtonBundle {
+                                    style: Style {
+                                        size: Size::new(Val::Px(50.0), Val::Percent(100.0)),
+                                        // horizontally center child text
+                                        justify_content: JustifyContent::Center,
+                                        // vertically center child text
+                                        align_items: AlignItems::Center,
+                                        ..Default::default()
+                                    },
+                                    material: button_materials.normal.clone(),
+                                    ..Default::default()
+                                })
+                                .insert(LayerOneButton)
+                                .insert(ToolButton)
+                                .insert(RadioButton { selected: true })
+                                .with_children(|parent| {
+                                    parent.spawn_bundle(TextBundle {
+                                        text: Text::with_section(
+                                            "1",
+                                            TextStyle {
+                                                font: asset_server
+                                                    .load("fonts/CooperHewitt-Medium.ttf"),
+                                                font_size: 30.0,
+                                                color: Color::rgb(0.9, 0.9, 0.9),
+                                            },
+                                            Default::default(),
+                                        ),
+                                        ..Default::default()
+                                    });
+                                })
+                                .id();
+
+                            let layer_two_id = parent
+                                .spawn_bundle(ButtonBundle {
+                                    style: Style {
+                                        size: Size::new(Val::Px(50.0), Val::Percent(100.0)),
+                                        // horizontally center child text
+                                        justify_content: JustifyContent::Center,
+                                        // vertically center child text
+                                        align_items: AlignItems::Center,
+                                        margin: Rect {
+                                            left: Val::Px(10.0),
+                                            ..Default::default()
+                                        },
+                                        ..Default::default()
+                                    },
+                                    material: button_materials.normal.clone(),
+                                    ..Default::default()
+                                })
+                                .insert(LayerTwoButton)
+                                .insert(ToolButton)
+                                .insert(RadioButton { selected: false })
+                                .with_children(|parent| {
+                                    parent.spawn_bundle(TextBundle {
+                                        text: Text::with_section(
+                                            "2",
+                                            TextStyle {
+                                                font: asset_server
+                                                    .load("fonts/CooperHewitt-Medium.ttf"),
+                                                font_size: 30.0,
+                                                color: Color::rgb(0.9, 0.9, 0.9),
+                                            },
+                                            Default::default(),
+                                        ),
+                                        ..Default::default()
+                                    });
+                                })
+                                .id();
+
+                            let net_ripping_id = parent
+                                .spawn_bundle(ButtonBundle {
+                                    style: Style {
+                                        size: Size::new(Val::Px(50.0), Val::Percent(100.0)),
+                                        // horizontally center child text
+                                        justify_content: JustifyContent::Center,
+                                        // vertically center child text
+                                        align_items: AlignItems::Center,
+                                        margin: Rect {
+                                            left: Val::Px(10.0),
+                                            ..Default::default()
+                                        },
+                                        ..Default::default()
+                                    },
+                                    material: button_materials.normal.clone(),
+                                    ..Default::default()
+                                })
+                                .insert(NetRippingButton)
+                                .insert(ToolButton)
+                                .insert(RadioButton { selected: false })
+                                .with_children(|parent| {
+                                    parent.spawn_bundle(TextBundle {
+                                        text: Text::with_section(
+                                            "R",
+                                            TextStyle {
+                                                font: asset_server
+                                                    .load("fonts/CooperHewitt-Medium.ttf"),
+                                                font_size: 30.0,
+                                                color: Color::rgb(0.9, 0.9, 0.9),
+                                            },
+                                            Default::default(),
+                                        ),
+                                        ..Default::default()
+                                    });
+                                })
+                                .id();
+
+                            let tool_group_id = more_commands
+                                .spawn()
+                                .insert(RadioButtonGroup {
+                                    entities: vec![layer_one_id, layer_two_id, net_ripping_id],
+                                })
+                                .id();
+                            more_commands
+                                .entity(layer_one_id)
+                                .insert(RadioButtonGroupRelation(tool_group_id));
+                            more_commands
+                                .entity(layer_two_id)
+                                .insert(RadioButtonGroupRelation(tool_group_id));
+                            more_commands
+                                .entity(net_ripping_id)
+                                .insert(RadioButtonGroupRelation(tool_group_id));
+                        });
+
+                    // Score, etc
+                    parent
+                        .spawn_bundle(NodeBundle {
+                            style: Style {
+                                size: Size::new(Val::Auto, Val::Percent(100.0)),
+                                flex_direction: FlexDirection::Row,
+                                justify_content: JustifyContent::FlexEnd,
+                                align_items: AlignItems::Center,
+                                ..Default::default()
+                            },
+                            material: materials.add(Color::NONE.into()),
+                            ..Default::default()
+                        })
+                        .with_children(|parent| {
+                            // Score etc
                             parent
                                 .spawn_bundle(TextBundle {
                                     style: Style {
-                                        margin: Rect {
-                                            right: Val::Px(10.0),
-                                            ..Default::default()
-                                        },
-                                        size: Size::new(Val::Px(100.0), Val::Px(30.0)),
+                                        size: Size::new(Val::Px(120.0), Val::Px(30.0)),
                                         ..Default::default()
                                     },
 
@@ -1837,10 +2279,6 @@ fn setup(
                             parent
                                 .spawn_bundle(TextBundle {
                                     style: Style {
-                                        margin: Rect {
-                                            right: Val::Px(10.0),
-                                            ..Default::default()
-                                        },
                                         size: Size::new(Val::Px(100.0), Val::Px(30.0)),
                                         ..Default::default()
                                     },
@@ -1861,10 +2299,6 @@ fn setup(
                             parent
                                 .spawn_bundle(TextBundle {
                                     style: Style {
-                                        margin: Rect {
-                                            right: Val::Px(10.0),
-                                            ..Default::default()
-                                        },
                                         size: Size::new(Val::Px(100.0), Val::Px(30.0)),
                                         ..Default::default()
                                     },
@@ -1887,10 +2321,6 @@ fn setup(
                             parent
                                 .spawn_bundle(TextBundle {
                                     style: Style {
-                                        margin: Rect {
-                                            right: Val::Px(10.0),
-                                            ..Default::default()
-                                        },
                                         size: Size::new(Val::Px(100.0), Val::Px(30.0)),
                                         ..Default::default()
                                     },
