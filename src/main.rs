@@ -78,6 +78,12 @@ fn main() {
             .label("tool_button_display_system")
             .after("radio_button_group_system"),
     );
+    app.add_system(tool_button_system.system().after("mouse"));
+    app.add_system(
+        drawing_mode_change
+            .system()
+            .after("radio_button_group_system"),
+    );
     app.add_system(pixie_button_system.system());
     app.add_system(reset_button_system.system().before("update_score"));
 
@@ -398,6 +404,47 @@ fn tool_button_display_system(
                     UI_WHITE_COLOR
                 };
             }
+        }
+    }
+}
+
+fn tool_button_system(
+    interaction_one_query: Query<&Interaction, (Changed<Interaction>, With<LayerOneButton>)>,
+    interaction_two_query: Query<&Interaction, (Changed<Interaction>, With<LayerTwoButton>)>,
+    interaction_rip_query: Query<&Interaction, (Changed<Interaction>, With<NetRippingButton>)>,
+    mut drawing: ResMut<DrawingState>,
+    mut line_drawing: ResMut<LineDrawingState>,
+) {
+    for interaction in interaction_one_query.iter() {
+        match *interaction {
+            Interaction::Clicked => {
+                line_drawing.layer = 1;
+                if !matches!(drawing.mode, DrawingMode::LineDrawing) {
+                    drawing.mode = DrawingMode::LineDrawing;
+                }
+            }
+            _ => {}
+        }
+    }
+    for interaction in interaction_two_query.iter() {
+        match *interaction {
+            Interaction::Clicked => {
+                line_drawing.layer = 2;
+                if !matches!(drawing.mode, DrawingMode::LineDrawing) {
+                    drawing.mode = DrawingMode::LineDrawing;
+                }
+            }
+            _ => {}
+        }
+    }
+    for interaction in interaction_rip_query.iter() {
+        match *interaction {
+            Interaction::Clicked => {
+                if !matches!(drawing.mode, DrawingMode::NetRipping) {
+                    drawing.mode = DrawingMode::NetRipping;
+                }
+            }
+            _ => {}
         }
     }
 }
@@ -744,6 +791,23 @@ fn draw_net_ripping(
     }
 }
 
+fn drawing_mode_change(
+    draw: Res<DrawingState>,
+    mut line_state: ResMut<LineDrawingState>,
+    mut ripping_state: ResMut<NetRippingState>,
+) {
+    if !draw.is_changed() {
+        return;
+    }
+
+    line_state.drawing = false;
+    line_state.segments = vec![];
+
+    ripping_state.entities = vec![];
+    ripping_state.nodes = vec![];
+    ripping_state.segments = vec![];
+}
+
 fn keyboard_system(
     keyboard_input: Res<Input<KeyCode>>,
     mut line_state: ResMut<LineDrawingState>,
@@ -755,7 +819,9 @@ fn keyboard_system(
 ) {
     if keyboard_input.pressed(KeyCode::Key1) {
         line_state.layer = 1;
-        drawing_state.mode = DrawingMode::LineDrawing;
+        if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
+            drawing_state.mode = DrawingMode::LineDrawing;
+        }
 
         if let Ok(ent) = q_layer_one_button.single() {
             if let Ok(mut radio) = q_radio_button.get_mut(ent) {
@@ -764,7 +830,9 @@ fn keyboard_system(
         }
     } else if keyboard_input.pressed(KeyCode::Key2) {
         line_state.layer = 2;
-        drawing_state.mode = DrawingMode::LineDrawing;
+        if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
+            drawing_state.mode = DrawingMode::LineDrawing;
+        }
 
         if let Ok(ent) = q_layer_two_button.single() {
             if let Ok(mut radio) = q_radio_button.get_mut(ent) {
@@ -772,17 +840,16 @@ fn keyboard_system(
             }
         }
     } else if keyboard_input.pressed(KeyCode::Escape) {
-        line_state.drawing = false;
-        line_state.segments = vec![];
-
         if matches!(drawing_state.mode, DrawingMode::NetRipping) {
             drawing_state.mode = DrawingMode::LineDrawing;
-        };
+        } else {
+            line_state.drawing = false;
+            line_state.segments = vec![];
+        }
     } else if keyboard_input.pressed(KeyCode::R) {
-        line_state.drawing = false;
-        line_state.segments = vec![];
-
-        drawing_state.mode = DrawingMode::NetRipping;
+        if !matches!(drawing_state.mode, DrawingMode::NetRipping) {
+            drawing_state.mode = DrawingMode::NetRipping;
+        }
 
         if let Ok(ent) = q_net_ripping_button.single() {
             if let Ok(mut radio) = q_radio_button.get_mut(ent) {
