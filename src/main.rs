@@ -1835,7 +1835,7 @@ fn update_efficiency(
         }
     }
 
-    if q_pixie.iter().count() > 1 {
+    if q_pixie.iter().count() > 0 {
         return;
     }
 
