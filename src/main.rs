@@ -320,11 +320,11 @@ fn tool_button_display_system(
 }
 
 fn tool_button_system(
+    mut drawing_state: ResMut<DrawingState>,
+    mut line_state: ResMut<LineDrawingState>,
     q_interaction_one: Query<&Interaction, (Changed<Interaction>, With<LayerOneButton>)>,
     q_interaction_two: Query<&Interaction, (Changed<Interaction>, With<LayerTwoButton>)>,
     q_interaction_rip: Query<&Interaction, (Changed<Interaction>, With<NetRippingButton>)>,
-    mut drawing_state: ResMut<DrawingState>,
-    mut line_state: ResMut<LineDrawingState>,
 ) {
     for interaction in q_interaction_one.iter() {
         match *interaction {
@@ -493,16 +493,16 @@ fn pixie_button_text_system(
 }
 
 fn pixie_button_system(
-    q_interaction: Query<&Interaction, (Changed<Interaction>, With<Button>, With<PixieButton>)>,
+    mut commands: Commands,
     time: Res<Time>,
     mut score: ResMut<Score>,
     mut efficiency: ResMut<Efficiency>,
     mut testing_state: ResMut<TestingState>,
     pathfinding: Res<PathfindingState>,
+    q_interaction: Query<&Interaction, (Changed<Interaction>, With<Button>, With<PixieButton>)>,
     q_emitters: Query<Entity, With<PixieEmitter>>,
     q_pixies: Query<Entity, With<Pixie>>,
     mut q_indicator: Query<(&mut Visible, &Parent), With<TerminusIssueIndicator>>,
-    mut commands: Commands,
 ) {
     for interaction in q_interaction.iter() {
         match *interaction {
@@ -555,6 +555,7 @@ fn pixie_button_system(
 }
 
 fn reset_button_system(
+    mut commands: Commands,
     q_interaction: Query<&Interaction, (Changed<Interaction>, With<Button>, With<ResetButton>)>,
     mut graph: ResMut<RoadGraph>,
     mut score: ResMut<Score>,
@@ -564,7 +565,6 @@ fn reset_button_system(
     q_pixies: Query<Entity, With<Pixie>>,
     q_emitters: Query<Entity, With<PixieEmitter>>,
     q_terminuses: Query<Entity, With<Terminus>>,
-    mut commands: Commands,
 ) {
     for interaction in q_interaction.iter() {
         match *interaction {
@@ -865,11 +865,11 @@ fn net_ripping_mouse_click(
 #[allow(clippy::too_many_arguments)]
 fn drawing_mouse_click(
     mut commands: Commands,
+    mut mouse_button_input_events: EventReader<MouseButtonInput>,
     mouse: Res<MouseState>,
     drawing_state: ResMut<DrawingState>,
     mut line_state: ResMut<LineDrawingState>,
     mut graph: ResMut<RoadGraph>,
-    mut mouse_button_input_events: EventReader<MouseButtonInput>,
     q_point_nodes: Query<&PointGraphNode>,
     q_segment_nodes: Query<&SegmentGraphNodes>,
     q_road_segments: Query<&RoadSegment>,
