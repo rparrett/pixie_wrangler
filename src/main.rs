@@ -88,13 +88,12 @@ fn main() {
         "after_update",
         SystemSet::new()
             .label("score_a")
-            .with_system(update_score.system())
             .with_system(update_cost.system())
-            .with_system(update_elapsed.system()),
+            .with_system(update_test_state.system()),
     );
     app.add_system_to_stage(
         "after_update",
-        update_efficiency
+        update_test_state
             .system()
             .label("update_efficiency")
             .after("score_a"),
@@ -104,6 +103,7 @@ fn main() {
         SystemSet::new()
             .label("score_ui")
             .after("update_efficiency")
+            .with_system(update_score_text.system())
             .with_system(update_elapsed_text.system())
             .with_system(update_efficiency_text.system()),
     );
@@ -1166,9 +1166,6 @@ fn net_ripping_mouse_movement(
             }
         }
     }
-
-    info!("{:?}", net.entities);
-    info!("{:?}", net.nodes);
 }
 
 fn not_drawing_mouse_movement(
@@ -1565,7 +1562,7 @@ fn move_pixies(
     }
 }
 
-fn update_score(score: Res<Score>, mut q_score: Query<&mut Text, With<ScoreText>>) {
+fn update_score_text(score: Res<Score>, mut q_score: Query<&mut Text, With<ScoreText>>) {
     if !score.is_changed() {
         return;
     }
@@ -1754,13 +1751,13 @@ fn spawn_terminus(
 
 fn update_cost(
     graph: Res<RoadGraph>,
-    draw: Res<LineDrawingState>,
+    line_draw: Res<LineDrawingState>,
     mut r_cost: ResMut<Cost>,
     q_segments: Query<(&RoadSegment, &Children)>,
     q_colliders: Query<&ColliderLayer>,
     mut q_cost: Query<&mut Text, With<CostText>>,
 ) {
-    if !graph.is_changed() && !draw.is_changed() {
+    if !graph.is_changed() && !line_draw.is_changed() {
         return;
     }
 
@@ -1788,9 +1785,9 @@ fn update_cost(
     r_cost.0 = cost as u32;
 
     let mut potential_cost = 0.0;
-    if draw.valid {
-        for segment in draw.segments.iter() {
-            let multiplier = if draw.layer > 1 {
+    if line_draw.valid {
+        for segment in line_draw.segments.iter() {
+            let multiplier = if line_draw.layer > 1 {
                 TUNNEL_MULTIPLIER
             } else {
                 1.0
@@ -1809,20 +1806,22 @@ fn update_cost(
         } else {
             text.sections[1].value = "".to_string();
         }
-        text.sections[1].style.color = FINISHED_ROAD_COLORS[draw.layer as usize - 1]
+        text.sections[1].style.color = FINISHED_ROAD_COLORS[line_draw.layer as usize - 1]
     }
 }
 
-fn update_efficiency(
+fn update_test_state(
     mut test: ResMut<TestingState>,
-    score: Res<Score>,
-    cost: Res<Cost>,
-    mut efficiency: ResMut<Efficiency>,
+    time: Res<Time>,
     q_emitter: Query<&PixieEmitter>,
     q_pixie: Query<Entity, With<Pixie>>,
 ) {
     if test.done {
         return;
+    }
+
+    if let Some(started) = test.started {
+        test.elapsed = time.seconds_since_startup() - started;
     }
 
     if q_emitter.iter().count() < 1 {
@@ -1839,21 +1838,21 @@ fn update_efficiency(
         return;
     }
 
-    efficiency.0 =
-        Some(((score.0 as f32 / cost.0 as f32 / test.elapsed as f32) * 10000.0).ceil() as u32);
-
     test.done = true;
 }
 
 fn update_efficiency_text(
-    efficiency: Res<Efficiency>,
+    test: Res<TestingState>,
+    score: Res<Score>,
+    cost: Res<Cost>,
     mut q_efficiency_text: Query<&mut Text, With<EfficiencyText>>,
 ) {
-    if !efficiency.is_changed() {
+    if !test.is_changed() {
         return;
     }
 
-    let eff_text = if let Some(val) = efficiency.0 {
+    let eff_text = if test.done {
+        let val = ((score.0 as f32 / cost.0 as f32 / test.elapsed as f32) * 10000.0).ceil() as u32;
         format!("Æ{}", val)
     } else {
         "Æ?".to_string()
@@ -1861,16 +1860,6 @@ fn update_efficiency_text(
 
     if let Some(mut text) = q_efficiency_text.iter_mut().next() {
         text.sections[0].value = eff_text;
-    }
-}
-
-fn update_elapsed(mut test: ResMut<TestingState>, time: Res<Time>) {
-    if test.done {
-        return;
-    }
-
-    if let Some(started) = test.started {
-        test.elapsed = time.seconds_since_startup() - started;
     }
 }
 
@@ -2020,7 +2009,6 @@ fn setup(
     out_flavors.extend(multiples.iter().skip(3).take(3));
 
     while is_boring(&in_flavors, &out_flavors) {
-        info!("shuffling a boring level");
         in_flavors.shuffle(&mut rng);
         out_flavors.shuffle(&mut rng);
     }
