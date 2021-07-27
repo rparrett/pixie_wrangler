@@ -1,4 +1,5 @@
 use crate::collision::{point_segment_collision, segment_collision, SegmentCollision};
+use crate::pixie::{Pixie, PixieEmitter, PixiePlugin, PIXIE_COLORS};
 use crate::radio_button::{
     RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonPlugin,
 };
@@ -13,6 +14,10 @@ use petgraph::dot::{Config, Dot};
 use petgraph::stable_graph::{NodeIndex, StableUnGraph};
 use petgraph::visit::{DfsPostOrder, Walker};
 use rand::seq::SliceRandom;
+
+mod collision;
+mod pixie;
+mod radio_button;
 
 fn main() {
     let mut app = App::build();
@@ -29,6 +34,7 @@ fn main() {
     app.add_plugin(bevy_webgl2::WebGL2Plugin);
     app.add_plugin(ShapePlugin);
     app.add_plugin(RadioButtonPlugin);
+    app.add_plugin(PixiePlugin);
     app.add_startup_system(setup.system());
     app.add_system(keyboard_system.system().before("mouse"));
     app.add_system(mouse_movement.system().label("mouse"));
@@ -79,9 +85,6 @@ fn main() {
     app.add_system(pixie_button_system.system());
     app.add_system(reset_button_system.system());
 
-    app.add_system(move_pixies.system().label("pixies"));
-    app.add_system(emit_pixies.system());
-
     app.add_stage_after(CoreStage::Update, "after_update", SystemStage::parallel());
 
     app.add_system_set_to_stage(
@@ -119,9 +122,6 @@ fn main() {
     app.init_resource::<Efficiency>();
     app.run();
 }
-
-mod collision;
-mod radio_button;
 
 struct MainCamera;
 struct Cursor;
@@ -225,37 +225,6 @@ struct Terminus {
     emits: HashSet<u32>,
     collects: HashSet<u32>,
 }
-struct Pixie {
-    path: Vec<Vec2>,
-    path_index: usize,
-    next_corner_angle: Option<f32>,
-    max_speed: f32,
-    current_speed: f32,
-    current_speed_limit: f32,
-    acceleration: f32,
-    deceleration: f32,
-}
-impl Default for Pixie {
-    fn default() -> Self {
-        Self {
-            path: vec![],
-            path_index: 0,
-            next_corner_angle: None,
-            max_speed: 60.0,
-            current_speed: 60.0,
-            current_speed_limit: 60.0,
-            acceleration: 10.0,
-            deceleration: 50.0,
-        }
-    }
-}
-
-struct PixieEmitter {
-    flavor: u32,
-    path: Vec<Vec2>,
-    remaining: u32,
-    timer: Timer,
-}
 
 #[derive(Default)]
 struct RoadGraph {
@@ -307,14 +276,6 @@ impl FromWorld for ButtonMaterials {
 const GRID_SIZE: f32 = 48.0;
 const BOTTOM_BAR_HEIGHT: f32 = 70.0;
 
-const PIXIE_COLORS: [Color; 6] = [
-    Color::AQUAMARINE,
-    Color::PINK,
-    Color::ORANGE,
-    Color::PURPLE,
-    Color::DARK_GREEN,
-    Color::YELLOW,
-];
 const FINISHED_ROAD_COLORS: [Color; 2] = [
     Color::rgb(0.251, 0.435, 0.729),
     Color::rgb(0.247, 0.725, 0.314),
@@ -1448,117 +1409,6 @@ fn drawing_mouse_movement(
         draw.segments = vec![];
         draw.adds = vec![];
         draw.valid = false;
-    }
-}
-
-fn emit_pixies(time: Res<Time>, mut q_emitters: Query<&mut PixieEmitter>, mut commands: Commands) {
-    for mut emitter in q_emitters.iter_mut() {
-        if emitter.remaining == 0 {
-            continue;
-        }
-
-        emitter.timer.tick(time.delta());
-
-        if !emitter.timer.finished() {
-            continue;
-        }
-
-        let shape = shapes::RegularPolygon {
-            sides: 6,
-            feature: shapes::RegularPolygonFeature::Radius(6.0),
-            ..shapes::RegularPolygon::default()
-        };
-
-        commands
-            .spawn_bundle(GeometryBuilder::build_as(
-                &shape,
-                ShapeColors::new(PIXIE_COLORS[(emitter.flavor) as usize].as_rgba_linear()),
-                DrawMode::Fill(FillOptions::default()),
-                Transform::from_translation(emitter.path.first().unwrap().extend(1.0)),
-            ))
-            .insert(Pixie {
-                path: emitter.path.clone(),
-                path_index: 0,
-                ..Default::default()
-            });
-
-        emitter.remaining -= 1;
-    }
-}
-
-fn move_pixies(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut score: ResMut<Score>,
-    mut query: Query<(Entity, &mut Pixie, &mut Transform)>,
-) {
-    for (entity, mut pixie, mut transform) in query.iter_mut() {
-        if pixie.path_index >= pixie.path.len() - 1 {
-            commands.entity(entity).despawn_recursive();
-            score.0 += 1;
-            continue;
-        }
-
-        let next_waypoint = pixie.path[pixie.path_index + 1];
-        let dist = transform.translation.truncate().distance(next_waypoint);
-
-        if dist < GRID_SIZE {
-            if let Some(angle) = pixie.next_corner_angle {
-                if angle <= 45.0 {
-                    pixie.current_speed_limit = 10.0;
-                } else if angle <= 90.0 {
-                    pixie.current_speed_limit = 30.0;
-                }
-            } else {
-                pixie.current_speed_limit = pixie.max_speed;
-            }
-        } else {
-            pixie.current_speed_limit = pixie.max_speed;
-        }
-
-        let delta = time.delta_seconds();
-
-        let speed_diff = pixie.current_speed_limit - pixie.current_speed;
-        if speed_diff > f32::EPSILON {
-            pixie.current_speed += pixie.acceleration * delta;
-            if pixie.current_speed > pixie.current_speed_limit {
-                pixie.current_speed = pixie.current_speed_limit;
-            }
-        } else if speed_diff < f32::EPSILON {
-            pixie.current_speed -= pixie.deceleration * delta;
-            if pixie.current_speed < pixie.current_speed_limit {
-                pixie.current_speed = pixie.current_speed_limit;
-            }
-        }
-
-        let step = pixie.current_speed * delta;
-
-        // five radians per second, clockwise
-        transform.rotate(Quat::from_rotation_z(-5.0 * delta));
-
-        if step < dist {
-            transform.translation.x += step / dist * (next_waypoint.x - transform.translation.x);
-            transform.translation.y += step / dist * (next_waypoint.y - transform.translation.y);
-        } else {
-            transform.translation.x = next_waypoint.x;
-            transform.translation.y = next_waypoint.y;
-            pixie.path_index += 1;
-        }
-
-        if !pixie.next_corner_angle.is_some() || step > dist {
-            if let (Some(current_waypoint), Some(next_waypoint), Some(next_next_waypoint)) = (
-                pixie.path.get(pixie.path_index),
-                pixie.path.get(pixie.path_index + 1),
-                pixie.path.get(pixie.path_index + 2),
-            ) {
-                pixie.next_corner_angle = Some(
-                    corner_angle(*current_waypoint, *next_waypoint, *next_next_waypoint)
-                        .to_degrees(),
-                );
-            } else {
-                pixie.next_corner_angle = Some(180.0);
-            }
-        }
     }
 }
 
