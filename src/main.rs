@@ -1181,6 +1181,10 @@ fn not_drawing_mouse_movement(
         return;
     }
 
+    if !mouse.is_changed() {
+        return;
+    }
+
     if line_draw.drawing {
         return;
     }
