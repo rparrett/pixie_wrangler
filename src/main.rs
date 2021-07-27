@@ -320,39 +320,39 @@ fn tool_button_display_system(
 }
 
 fn tool_button_system(
-    interaction_one_query: Query<&Interaction, (Changed<Interaction>, With<LayerOneButton>)>,
-    interaction_two_query: Query<&Interaction, (Changed<Interaction>, With<LayerTwoButton>)>,
-    interaction_rip_query: Query<&Interaction, (Changed<Interaction>, With<NetRippingButton>)>,
-    mut drawing: ResMut<DrawingState>,
-    mut line_drawing: ResMut<LineDrawingState>,
+    q_interaction_one: Query<&Interaction, (Changed<Interaction>, With<LayerOneButton>)>,
+    q_interaction_two: Query<&Interaction, (Changed<Interaction>, With<LayerTwoButton>)>,
+    q_interaction_rip: Query<&Interaction, (Changed<Interaction>, With<NetRippingButton>)>,
+    mut drawing_state: ResMut<DrawingState>,
+    mut line_state: ResMut<LineDrawingState>,
 ) {
-    for interaction in interaction_one_query.iter() {
+    for interaction in q_interaction_one.iter() {
         match *interaction {
             Interaction::Clicked => {
-                line_drawing.layer = 1;
-                if !matches!(drawing.mode, DrawingMode::LineDrawing) {
-                    drawing.mode = DrawingMode::LineDrawing;
+                line_state.layer = 1;
+                if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
+                    drawing_state.mode = DrawingMode::LineDrawing;
                 }
             }
             _ => {}
         }
     }
-    for interaction in interaction_two_query.iter() {
+    for interaction in q_interaction_two.iter() {
         match *interaction {
             Interaction::Clicked => {
-                line_drawing.layer = 2;
-                if !matches!(drawing.mode, DrawingMode::LineDrawing) {
-                    drawing.mode = DrawingMode::LineDrawing;
+                line_state.layer = 2;
+                if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
+                    drawing_state.mode = DrawingMode::LineDrawing;
                 }
             }
             _ => {}
         }
     }
-    for interaction in interaction_rip_query.iter() {
+    for interaction in q_interaction_rip.iter() {
         match *interaction {
             Interaction::Clicked => {
-                if !matches!(drawing.mode, DrawingMode::NetRipping) {
-                    drawing.mode = DrawingMode::NetRipping;
+                if !matches!(drawing_state.mode, DrawingMode::NetRipping) {
+                    drawing_state.mode = DrawingMode::NetRipping;
                 }
             }
             _ => {}
@@ -362,12 +362,12 @@ fn tool_button_system(
 
 fn button_system(
     button_materials: Res<ButtonMaterials>,
-    mut interaction_query: Query<
+    mut q_interaction: Query<
         (&Interaction, &mut Handle<ColorMaterial>),
         (Changed<Interaction>, With<Button>, Without<RadioButton>),
     >,
 ) {
-    for (interaction, mut material) in interaction_query.iter_mut() {
+    for (interaction, mut material) in q_interaction.iter_mut() {
         match *interaction {
             Interaction::Clicked => {
                 *material = button_materials.pressed.clone();
@@ -466,18 +466,18 @@ fn pathfinding_system(
 
 fn pixie_button_text_system(
     pathfinding: Res<PathfindingState>,
-    testing: Res<TestingState>,
+    testing_state: Res<TestingState>,
     mut q_text: Query<&mut Text>,
     q_pixie_button: Query<&Children, With<PixieButton>>,
 ) {
-    if !pathfinding.is_changed() && !testing.is_changed() {
+    if !pathfinding.is_changed() && !testing_state.is_changed() {
         return;
     }
 
     for children in q_pixie_button.iter() {
         for child in children.iter() {
             if let Ok(mut text) = q_text.get_mut(*child) {
-                if testing.started.is_some() && !testing.done {
+                if testing_state.started.is_some() && !testing_state.done {
                     text.sections[0].value = "NO WAIT STOP".to_string();
                 } else {
                     text.sections[0].value = "RELEASE THE PIXIES".to_string();
@@ -493,28 +493,28 @@ fn pixie_button_text_system(
 }
 
 fn pixie_button_system(
-    interaction_query: Query<&Interaction, (Changed<Interaction>, With<Button>, With<PixieButton>)>,
+    q_interaction: Query<&Interaction, (Changed<Interaction>, With<Button>, With<PixieButton>)>,
     time: Res<Time>,
     mut score: ResMut<Score>,
     mut efficiency: ResMut<Efficiency>,
-    mut testing: ResMut<TestingState>,
+    mut testing_state: ResMut<TestingState>,
     pathfinding: Res<PathfindingState>,
     q_emitters: Query<Entity, With<PixieEmitter>>,
     q_pixies: Query<Entity, With<Pixie>>,
     mut q_indicator: Query<(&mut Visible, &Parent), With<TerminusIssueIndicator>>,
     mut commands: Commands,
 ) {
-    for interaction in interaction_query.iter() {
+    for interaction in q_interaction.iter() {
         match *interaction {
             Interaction::Clicked => {
-                if testing.started.is_some() && !testing.done {
+                if testing_state.started.is_some() && !testing_state.done {
                     for entity in q_emitters.iter().chain(q_pixies.iter()) {
                         commands.entity(entity).despawn();
                     }
 
-                    testing.started = None;
-                    testing.elapsed = 0.0;
-                    testing.done = false;
+                    testing_state.started = None;
+                    testing_state.elapsed = 0.0;
+                    testing_state.done = false;
                     score.0 = 0;
                 } else {
                     if !pathfinding.valid {
@@ -542,9 +542,9 @@ fn pixie_button_system(
                         });
                     }
 
-                    testing.started = Some(time.seconds_since_startup());
-                    testing.elapsed = 0.0;
-                    testing.done = false;
+                    testing_state.started = Some(time.seconds_since_startup());
+                    testing_state.elapsed = 0.0;
+                    testing_state.done = false;
                     score.0 = 0;
                     efficiency.0 = None;
                 }
@@ -555,18 +555,18 @@ fn pixie_button_system(
 }
 
 fn reset_button_system(
-    interaction_query: Query<&Interaction, (Changed<Interaction>, With<Button>, With<ResetButton>)>,
+    q_interaction: Query<&Interaction, (Changed<Interaction>, With<Button>, With<ResetButton>)>,
     mut graph: ResMut<RoadGraph>,
     mut score: ResMut<Score>,
     mut efficiency: ResMut<Efficiency>,
-    mut test: ResMut<TestingState>,
+    mut testing_state: ResMut<TestingState>,
     q_road_chunks: Query<Entity, With<RoadSegment>>,
     q_pixies: Query<Entity, With<Pixie>>,
     q_emitters: Query<Entity, With<PixieEmitter>>,
     q_terminuses: Query<Entity, With<Terminus>>,
     mut commands: Commands,
 ) {
-    for interaction in interaction_query.iter() {
+    for interaction in q_interaction.iter() {
         match *interaction {
             Interaction::Clicked => {
                 for chunk in q_road_chunks
@@ -586,9 +586,9 @@ fn reset_button_system(
                     commands.entity(entity).insert(PointGraphNode(node));
                 }
 
-                test.started = None;
-                test.done = false;
-                test.elapsed = 0.0;
+                testing_state.started = None;
+                testing_state.done = false;
+                testing_state.elapsed = 0.0;
                 score.0 = 0;
                 efficiency.0 = None;
             }
@@ -682,12 +682,12 @@ fn possible_lines(from: Vec2, to: Vec2, axis_preference: Option<Axis>) -> Vec<Ve
 
 fn draw_mouse(
     mut commands: Commands,
-    draw: Res<LineDrawingState>,
+    line_drawing: Res<LineDrawingState>,
     mouse: Res<MouseState>,
     q_cursor: Query<Entity, With<Cursor>>,
     q_drawing: Query<Entity, With<DrawingLine>>,
 ) {
-    if mouse.is_changed() || draw.is_changed() {
+    if mouse.is_changed() || line_drawing.is_changed() {
         let snapped = snap_to_grid(mouse.position, GRID_SIZE);
 
         for entity in q_cursor.iter() {
@@ -697,9 +697,9 @@ fn draw_mouse(
             radius: 5.5,
             center: snapped,
         };
-        let color = if draw.drawing && draw.valid {
-            DRAWING_ROAD_COLORS[draw.layer as usize - 1]
-        } else if !draw.drawing && draw.valid {
+        let color = if line_drawing.drawing && line_drawing.valid {
+            DRAWING_ROAD_COLORS[line_drawing.layer as usize - 1]
+        } else if !line_drawing.drawing && line_drawing.valid {
             UI_WHITE_COLOR
         } else {
             Color::RED
@@ -714,7 +714,7 @@ fn draw_mouse(
             .insert(Cursor);
     }
 
-    if !draw.is_changed() {
+    if !line_drawing.is_changed() {
         return;
     }
 
@@ -722,14 +722,14 @@ fn draw_mouse(
         commands.entity(entity).despawn();
     }
 
-    if draw.drawing {
-        let color = if draw.valid {
-            DRAWING_ROAD_COLORS[draw.layer as usize - 1]
+    if line_drawing.drawing {
+        let color = if line_drawing.valid {
+            DRAWING_ROAD_COLORS[line_drawing.layer as usize - 1]
         } else {
             Color::RED
         };
 
-        for (a, b) in draw.segments.iter() {
+        for (a, b) in line_drawing.segments.iter() {
             commands
                 .spawn_bundle(GeometryBuilder::build_as(
                     &shapes::Line(*a, *b),
@@ -744,10 +744,10 @@ fn draw_mouse(
 
 fn draw_net_ripping(
     mut commands: Commands,
-    rip: Res<NetRippingState>,
+    ripping_state: Res<NetRippingState>,
     q_ripping: Query<Entity, With<RippingLine>>,
 ) {
-    if !rip.is_changed() {
+    if !ripping_state.is_changed() {
         return;
     }
 
@@ -755,7 +755,7 @@ fn draw_net_ripping(
         commands.entity(ent).despawn();
     }
 
-    for (a, b) in rip.segments.iter() {
+    for (a, b) in ripping_state.segments.iter() {
         commands
             .spawn_bundle(GeometryBuilder::build_as(
                 &shapes::Line(*a, *b),
@@ -768,11 +768,11 @@ fn draw_net_ripping(
 }
 
 fn drawing_mode_change(
-    draw: Res<DrawingState>,
+    drawing_state: Res<DrawingState>,
     mut line_state: ResMut<LineDrawingState>,
     mut ripping_state: ResMut<NetRippingState>,
 ) {
-    if !draw.is_changed() {
+    if !drawing_state.is_changed() {
         return;
     }
 
@@ -838,26 +838,26 @@ fn keyboard_system(
 fn net_ripping_mouse_click(
     mut commands: Commands,
     mut mouse_button_input_events: EventReader<MouseButtonInput>,
-    mut rip: ResMut<NetRippingState>,
-    draw: Res<DrawingState>,
+    mut ripping_state: ResMut<NetRippingState>,
+    drawing_state: Res<DrawingState>,
     mut graph: ResMut<RoadGraph>,
 ) {
-    if !matches!(draw.mode, DrawingMode::NetRipping) {
+    if !matches!(drawing_state.mode, DrawingMode::NetRipping) {
         return;
     }
 
     for event in mouse_button_input_events.iter() {
         if event.button == MouseButton::Left && event.state == Released {
-            for entity in rip.entities.iter() {
+            for entity in ripping_state.entities.iter() {
                 commands.entity(*entity).despawn_recursive();
             }
-            for node in rip.nodes.iter() {
+            for node in ripping_state.nodes.iter() {
                 graph.graph.remove_node(*node);
             }
 
-            rip.entities = vec![];
-            rip.nodes = vec![];
-            rip.segments = vec![];
+            ripping_state.entities = vec![];
+            ripping_state.nodes = vec![];
+            ripping_state.segments = vec![];
         }
     }
 }
@@ -866,8 +866,8 @@ fn net_ripping_mouse_click(
 fn drawing_mouse_click(
     mut commands: Commands,
     mouse: Res<MouseState>,
-    draw: ResMut<DrawingState>,
-    mut line_draw: ResMut<LineDrawingState>,
+    drawing_state: ResMut<DrawingState>,
+    mut line_state: ResMut<LineDrawingState>,
     mut graph: ResMut<RoadGraph>,
     mut mouse_button_input_events: EventReader<MouseButtonInput>,
     q_point_nodes: Query<&PointGraphNode>,
@@ -878,34 +878,34 @@ fn drawing_mouse_click(
         return;
     }
 
-    if !matches!(draw.mode, DrawingMode::LineDrawing) {
+    if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
         return;
     }
 
     for event in mouse_button_input_events.iter() {
         if event.button == MouseButton::Left && event.state == Released {
-            if !line_draw.drawing {
-                if line_draw.valid {
-                    line_draw.drawing = true;
-                    line_draw.start = mouse.snapped;
-                    line_draw.end = line_draw.start;
+            if !line_state.drawing {
+                if line_state.valid {
+                    line_state.drawing = true;
+                    line_state.start = mouse.snapped;
+                    line_state.end = line_state.start;
                 }
             } else {
-                if line_draw.end == line_draw.start {
-                    line_draw.drawing = false;
+                if line_state.end == line_state.start {
+                    line_state.drawing = false;
                 }
 
-                if !line_draw.valid {
+                if !line_state.valid {
                     continue;
                 }
 
-                if line_draw.adds.is_empty() {
+                if line_state.adds.is_empty() {
                     continue;
                 }
 
                 let mut previous_end: Option<NodeIndex> = None;
 
-                for add in line_draw.adds.iter() {
+                for add in line_state.adds.iter() {
                     info!("Add: {:?}", add);
 
                     // SegmentConnection::TryExtend is only valid if extending the
@@ -963,7 +963,7 @@ fn drawing_mouse_click(
                     info!("after: {:?}", points);
 
                     let (start_node, end_node) =
-                        spawn_road_segment(&mut commands, &mut graph, points, line_draw.layer);
+                        spawn_road_segment(&mut commands, &mut graph, points, line_state.layer);
 
                     for (node, is_start, connections, point) in [
                         (start_node, true, &add.connections.0, add.points.0),
@@ -1095,14 +1095,14 @@ fn drawing_mouse_click(
                     previous_end = Some(end_node);
                 }
 
-                if line_draw.stop {
-                    line_draw.drawing = false;
-                    line_draw.stop = false;
+                if line_state.stop {
+                    line_state.drawing = false;
+                    line_state.stop = false;
                 }
 
-                line_draw.start = line_draw.end;
-                line_draw.adds = vec![];
-                line_draw.segments = vec![];
+                line_state.start = line_state.end;
+                line_state.adds = vec![];
+                line_state.segments = vec![];
 
                 println!(
                     "{:?}",
@@ -1139,19 +1139,19 @@ fn mouse_movement(
 }
 
 fn net_ripping_mouse_movement(
-    draw: Res<DrawingState>,
+    drawing_state: Res<DrawingState>,
     mouse: Res<MouseState>,
-    mut net: ResMut<NetRippingState>,
+    mut ripping_state: ResMut<NetRippingState>,
     graph: Res<RoadGraph>,
     q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
     q_road_segments: Query<&RoadSegment>,
     q_segment_nodes: Query<&SegmentGraphNodes>,
 ) {
-    if !matches!(draw.mode, DrawingMode::NetRipping) {
+    if !matches!(drawing_state.mode, DrawingMode::NetRipping) {
         return;
     }
 
-    if !mouse.is_changed() && !draw.is_changed() {
+    if !mouse.is_changed() && !drawing_state.is_changed() {
         return;
     }
 
@@ -1159,9 +1159,9 @@ fn net_ripping_mouse_movement(
     // maybe we need a separate resource / change detection for MouseSnappingState
     // or something.
 
-    net.entities = vec![];
-    net.nodes = vec![];
-    net.segments = vec![];
+    ripping_state.entities = vec![];
+    ripping_state.nodes = vec![];
+    ripping_state.segments = vec![];
 
     let mut collisions: Vec<_> = q_colliders
         .iter()
@@ -1196,9 +1196,9 @@ fn net_ripping_mouse_movement(
             for index in dfs.iter(&graph.graph) {
                 if let Some(net_entity) = graph.graph.node_weight(index) {
                     if let Ok(seg) = q_road_segments.get(*net_entity) {
-                        net.entities.push(*net_entity);
-                        net.nodes.push(index);
-                        net.segments.push(seg.points);
+                        ripping_state.entities.push(*net_entity);
+                        ripping_state.nodes.push(index);
+                        ripping_state.segments.push(seg.points);
                     }
                 }
             }
@@ -1207,12 +1207,12 @@ fn net_ripping_mouse_movement(
 }
 
 fn not_drawing_mouse_movement(
-    mut line_draw: ResMut<LineDrawingState>,
-    draw: Res<DrawingState>,
+    mut line_state: ResMut<LineDrawingState>,
+    drawing_state: Res<DrawingState>,
     mouse: Res<MouseState>,
     q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
 ) {
-    if !matches!(draw.mode, DrawingMode::LineDrawing) {
+    if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
         return;
     }
 
@@ -1220,7 +1220,7 @@ fn not_drawing_mouse_movement(
         return;
     }
 
-    if line_draw.drawing {
+    if line_state.drawing {
         return;
     }
 
@@ -1236,50 +1236,50 @@ fn not_drawing_mouse_movement(
             _ => false,
         });
 
-    if bad && line_draw.valid {
-        line_draw.valid = false;
-    } else if !bad && !line_draw.valid {
-        line_draw.valid = true;
+    if bad && line_state.valid {
+        line_state.valid = false;
+    } else if !bad && !line_state.valid {
+        line_state.valid = true;
     }
 }
 
 fn drawing_mouse_movement(
-    mut draw: ResMut<LineDrawingState>,
+    mut line_state: ResMut<LineDrawingState>,
     mouse: Res<MouseState>,
     q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
 ) {
-    if !draw.drawing {
+    if !line_state.drawing {
         return;
     }
 
-    if mouse.snapped == draw.end && draw.layer == draw.prev_layer {
+    if mouse.snapped == line_state.end && line_state.layer == line_state.prev_layer {
         return;
     }
 
     info!("{:?}", mouse.snapped);
 
-    draw.end = mouse.snapped;
-    draw.prev_layer = draw.layer;
+    line_state.end = mouse.snapped;
+    line_state.prev_layer = line_state.layer;
 
     // when we begin drawing, set the "axis preference" corresponding to the
     // direction the player initially moves the mouse.
 
-    let diff = (mouse.snapped - draw.start).abs() / GRID_SIZE;
-    if diff.x <= 1.0 && diff.y <= 1.0 && mouse.snapped != draw.start {
+    let diff = (mouse.snapped - line_state.start).abs() / GRID_SIZE;
+    if diff.x <= 1.0 && diff.y <= 1.0 && mouse.snapped != line_state.start {
         if diff.x > diff.y {
-            draw.axis_preference = Some(Axis::X);
+            line_state.axis_preference = Some(Axis::X);
         } else if diff.y > diff.x {
-            draw.axis_preference = Some(Axis::Y);
+            line_state.axis_preference = Some(Axis::Y);
         }
     }
 
-    if mouse.snapped == draw.start {
-        draw.segments = vec![];
-        draw.adds = vec![];
-        draw.valid = true;
+    if mouse.snapped == line_state.start {
+        line_state.segments = vec![];
+        line_state.adds = vec![];
+        line_state.valid = true;
     }
 
-    let possible = possible_lines(draw.start, mouse.snapped, draw.axis_preference);
+    let possible = possible_lines(line_state.start, mouse.snapped, line_state.axis_preference);
 
     // groan
     let mut filtered_adds = vec![];
@@ -1308,7 +1308,7 @@ fn drawing_mouse_movement(
 
                         match collision {
                             SegmentCollision::Intersecting => {
-                                if layer.0 == draw.layer || layer.0 == 0 {
+                                if layer.0 == line_state.layer || layer.0 == 0 {
                                     ok = false;
                                     break;
                                 }
@@ -1330,11 +1330,11 @@ fn drawing_mouse_movement(
                                 }
 
                                 let start_touching = matches!(
-                                    point_segment_collision(draw.start, s.0, s.1),
+                                    point_segment_collision(line_state.start, s.0, s.1),
                                     SegmentCollision::Touching
                                 );
                                 let end_touching = matches!(
-                                    point_segment_collision(draw.end, s.0, s.1),
+                                    point_segment_collision(line_state.end, s.0, s.1),
                                     SegmentCollision::Touching
                                 );
 
@@ -1387,11 +1387,11 @@ fn drawing_mouse_movement(
                                 }
 
                                 let start_touching = matches!(
-                                    point_segment_collision(draw.start, s.0, s.1),
+                                    point_segment_collision(line_state.start, s.0, s.1),
                                     SegmentCollision::Connecting
                                 );
                                 let end_touching = matches!(
-                                    point_segment_collision(draw.end, s.0, s.1),
+                                    point_segment_collision(line_state.end, s.0, s.1),
                                     SegmentCollision::Connecting
                                 );
 
@@ -1400,22 +1400,22 @@ fn drawing_mouse_movement(
                                     break;
                                 }
 
-                                if (draw.start == *a && start_touching)
-                                    || (draw.end == *a && end_touching)
+                                if (line_state.start == *a && start_touching)
+                                    || (line_state.end == *a && end_touching)
                                 {
                                     if matches!(collision, SegmentCollision::ConnectingParallel)
-                                        && layer.0 == draw.layer
+                                        && layer.0 == line_state.layer
                                     {
                                         connections.0.push(SegmentConnection::TryExtend(parent.0))
                                     } else {
                                         connections.0.push(SegmentConnection::Add(parent.0))
                                     }
                                 }
-                                if (draw.start == *b && start_touching)
-                                    || (draw.end == *b && end_touching)
+                                if (line_state.start == *b && start_touching)
+                                    || (line_state.end == *b && end_touching)
                                 {
                                     if matches!(collision, SegmentCollision::ConnectingParallel)
-                                        && layer.0 == draw.layer
+                                        && layer.0 == line_state.layer
                                     {
                                         connections.1.push(SegmentConnection::TryExtend(parent.0))
                                     } else {
@@ -1431,12 +1431,12 @@ fn drawing_mouse_movement(
                             // don't allow the midpoint of the line to connect to a
                             // terminus
 
-                            if *p != draw.start && *p != draw.end {
+                            if *p != line_state.start && *p != line_state.end {
                                 ok = false;
                                 break;
                             }
 
-                            if *p == draw.end {
+                            if *p == line_state.end {
                                 stop = true;
                             }
 
@@ -1474,18 +1474,18 @@ fn drawing_mouse_movement(
     }
 
     if let Some(segments) = filtered_segments.get(0) {
-        draw.segments = segments.clone();
-        draw.adds = filtered_adds.first().cloned().unwrap();
-        draw.stop = filtered_stops.first().cloned().unwrap();
-        draw.valid = true;
+        line_state.segments = segments.clone();
+        line_state.adds = filtered_adds.first().cloned().unwrap();
+        line_state.stop = filtered_stops.first().cloned().unwrap();
+        line_state.valid = true;
     } else if let Some(segments) = possible.get(0) {
-        draw.segments = segments.clone();
-        draw.adds = vec![];
-        draw.valid = false;
+        line_state.segments = segments.clone();
+        line_state.adds = vec![];
+        line_state.valid = false;
     } else {
-        draw.segments = vec![];
-        draw.adds = vec![];
-        draw.valid = false;
+        line_state.segments = vec![];
+        line_state.adds = vec![];
+        line_state.valid = false;
     }
 }
 
@@ -1764,17 +1764,17 @@ fn update_cost(
 }
 
 fn update_test_state(
-    mut test: ResMut<TestingState>,
+    mut testing_state: ResMut<TestingState>,
     time: Res<Time>,
     q_emitter: Query<&PixieEmitter>,
     q_pixie: Query<Entity, With<Pixie>>,
 ) {
-    if test.done {
+    if testing_state.done {
         return;
     }
 
-    if let Some(started) = test.started {
-        test.elapsed = time.seconds_since_startup() - started;
+    if let Some(started) = testing_state.started {
+        testing_state.elapsed = time.seconds_since_startup() - started;
     }
 
     if q_emitter.iter().count() < 1 {
@@ -1791,21 +1791,22 @@ fn update_test_state(
         return;
     }
 
-    test.done = true;
+    testing_state.done = true;
 }
 
 fn update_efficiency_text(
-    test: Res<TestingState>,
+    testing_state: Res<TestingState>,
     score: Res<Score>,
     cost: Res<Cost>,
     mut q_efficiency_text: Query<&mut Text, With<EfficiencyText>>,
 ) {
-    if !test.is_changed() {
+    if !testing_state.is_changed() {
         return;
     }
 
-    let eff_text = if test.done {
-        let val = ((score.0 as f32 / cost.0 as f32 / test.elapsed as f32) * 10000.0).ceil() as u32;
+    let eff_text = if testing_state.done {
+        let val = ((score.0 as f32 / cost.0 as f32 / testing_state.elapsed as f32) * 10000.0).ceil()
+            as u32;
         format!("Æ{}", val)
     } else {
         "Æ?".to_string()
@@ -1816,13 +1817,16 @@ fn update_efficiency_text(
     }
 }
 
-fn update_elapsed_text(test: Res<TestingState>, mut q_text: Query<&mut Text, With<ElapsedText>>) {
-    if !test.is_changed() {
+fn update_elapsed_text(
+    testing_state: Res<TestingState>,
+    mut q_text: Query<&mut Text, With<ElapsedText>>,
+) {
+    if !testing_state.is_changed() {
         return;
     }
 
     for mut text in q_text.iter_mut() {
-        text.sections[0].value = format!("ŧ{:.1}", test.elapsed);
+        text.sections[0].value = format!("ŧ{:.1}", testing_state.elapsed);
     }
 }
 
