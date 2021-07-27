@@ -91,6 +91,7 @@ fn main() {
         "after_update",
         SystemSet::new()
             .label("score_a")
+            .with_system(pathfinding_system.system())
             .with_system(update_cost.system())
             .with_system(update_test_state.system()),
     );
@@ -106,6 +107,7 @@ fn main() {
         SystemSet::new()
             .label("score_ui")
             .after("update_efficiency")
+            .with_system(pixie_button_text_system.system())
             .with_system(update_score_text.system())
             .with_system(update_elapsed_text.system())
             .with_system(update_efficiency_text.system()),
@@ -114,6 +116,7 @@ fn main() {
     app.init_resource::<LineDrawingState>();
     app.init_resource::<NetRippingState>();
     app.init_resource::<TestingState>();
+    app.init_resource::<PathfindingState>();
     app.init_resource::<MouseState>();
     app.init_resource::<RoadGraph>();
     app.init_resource::<ButtonMaterials>();
@@ -219,6 +222,13 @@ struct TestingState {
     done: bool,
 }
 
+#[derive(Default)]
+struct PathfindingState {
+    valid: bool,
+    paths: Vec<(u32, Vec<Vec2>)>,
+    invalid_nodes: Vec<Entity>,
+}
+
 #[derive(Default, Debug)]
 struct Terminus {
     point: Vec2,
@@ -287,6 +297,7 @@ const DRAWING_ROAD_COLORS: [Color; 2] = [
 const BACKGROUND_COLOR: Color = Color::rgb(0.05, 0.066, 0.09);
 const GRID_COLOR: Color = Color::rgb(0.086, 0.105, 0.133);
 const UI_WHITE_COLOR: Color = Color::rgb(0.788, 0.82, 0.851);
+const UI_GREY_RED_COLOR: Color = Color::rgb(1.0, 0.341, 0.341);
 
 const TUNNEL_MULTIPLIER: f32 = 2.0;
 
@@ -370,97 +381,137 @@ fn button_system(
     }
 }
 
+fn pathfinding_system(
+    graph: Res<RoadGraph>,
+    mut pathfinding: ResMut<PathfindingState>,
+    q_terminuses: Query<(Entity, &Terminus, &PointGraphNode)>,
+    q_road_chunks: Query<(&RoadSegment, &SegmentGraphNodes)>,
+) {
+    if !graph.is_changed() {
+        return;
+    }
+
+    info!("doing pathfinding");
+
+    let mut ok = true;
+    let mut paths = vec![];
+    let mut not_ok = vec![];
+
+    for (a_entity, a, a_node) in q_terminuses.iter() {
+        for (_, b, b_node) in q_terminuses.iter() {
+            for flavor in a.emits.intersection(&b.collects) {
+                info!(
+                    "Pixie (flavor {}) wants to go from {:?} to {:?}",
+                    flavor, a_node, b_node
+                );
+
+                let path = astar(
+                    &graph.graph,
+                    a_node.0,
+                    |finish| finish == b_node.0,
+                    |e| *e.weight(),
+                    |_| 0.0,
+                );
+
+                if let Some(path) = path {
+                    let mut world_path = vec![];
+
+                    let with_ents = path
+                        .1
+                        .iter()
+                        .filter_map(|node| graph.graph.node_weight(*node).map(|ent| (node, ent)));
+
+                    for (node, ent) in with_ents {
+                        if let Ok((_, t, _)) = q_terminuses.get(*ent) {
+                            world_path.push(t.point);
+                        }
+                        if let Ok((s, n)) = q_road_chunks.get(*ent) {
+                            if n.0 == *node {
+                                world_path.push(s.points.0)
+                            } else if n.1 == *node {
+                                world_path.push(s.points.1);
+                            } else {
+                                info!("pretty sure this shouldn't happen {:?}", s.points);
+                            }
+                        }
+                    }
+
+                    // would it be faster to avoid this duplication above?
+                    world_path.dedup();
+
+                    if world_path.is_empty() {
+                        ok = false;
+                        continue;
+                    }
+
+                    paths.push((*flavor, world_path));
+                } else {
+                    ok = false;
+                    not_ok.push(a_entity);
+                }
+            }
+        }
+    }
+
+    if !ok || paths.is_empty() {
+        pathfinding.valid = false;
+        pathfinding.invalid_nodes = not_ok;
+        return;
+    }
+
+    pathfinding.paths = paths;
+    pathfinding.valid = true;
+}
+
+fn pixie_button_text_system(
+    pathfinding: Res<PathfindingState>,
+    mut q_text: Query<&mut Text>,
+    q_pixie_button: Query<&Children, With<PixieButton>>,
+) {
+    if !pathfinding.is_changed() {
+        return;
+    }
+
+    for children in q_pixie_button.iter() {
+        for child in children.iter() {
+            if let Ok(mut text) = q_text.get_mut(*child) {
+                text.sections[0].style.color = if pathfinding.valid {
+                    UI_WHITE_COLOR
+                } else {
+                    UI_GREY_RED_COLOR
+                }
+            }
+        }
+    }
+}
+
 fn pixie_button_system(
     interaction_query: Query<&Interaction, (Changed<Interaction>, With<Button>, With<PixieButton>)>,
-    graph: Res<RoadGraph>,
     time: Res<Time>,
     mut score: ResMut<Score>,
     mut efficiency: ResMut<Efficiency>,
     mut test: ResMut<TestingState>,
-    q_terminuses: Query<(&Terminus, &PointGraphNode)>,
-    q_road_chunks: Query<(&RoadSegment, &SegmentGraphNodes)>,
+    pathfinding: Res<PathfindingState>,
+    q_terminus: Query<Entity, With<Terminus>>,
     q_emitters: Query<Entity, With<PixieEmitter>>,
     mut commands: Commands,
 ) {
     for interaction in interaction_query.iter() {
         match *interaction {
             Interaction::Clicked => {
-                let mut ok = true;
-                let mut paths = vec![];
-
-                for (a, a_node) in q_terminuses.iter() {
-                    for (b, b_node) in q_terminuses.iter() {
-                        for flavor in a.emits.intersection(&b.collects) {
-                            info!(
-                                "Pixie (flavor {}) wants to go from {:?} to {:?}",
-                                flavor, a_node, b_node
-                            );
-
-                            let path = astar(
-                                &graph.graph,
-                                a_node.0,
-                                |finish| finish == b_node.0,
-                                |e| *e.weight(),
-                                |_| 0.0,
-                            );
-
-                            if let Some(path) = path {
-                                let mut world_path = vec![];
-
-                                let with_ents = path.1.iter().filter_map(|node| {
-                                    graph.graph.node_weight(*node).map(|ent| (node, ent))
-                                });
-
-                                for (node, ent) in with_ents {
-                                    if let Ok((t, _)) = q_terminuses.get(*ent) {
-                                        world_path.push(t.point);
-                                    }
-                                    if let Ok((s, n)) = q_road_chunks.get(*ent) {
-                                        if n.0 == *node {
-                                            world_path.push(s.points.0)
-                                        } else if n.1 == *node {
-                                            world_path.push(s.points.1);
-                                        } else {
-                                            info!(
-                                                "pretty sure this shouldn't happen {:?}",
-                                                s.points
-                                            );
-                                        }
-                                    }
-                                }
-
-                                // would it be faster to avoid this duplication above?
-                                world_path.dedup();
-
-                                if world_path.is_empty() {
-                                    ok = false;
-                                    continue;
-                                }
-
-                                paths.push((flavor, world_path));
-                            } else {
-                                ok = false
-                            }
-                        }
-                    }
-                }
-
-                if !ok || paths.is_empty() {
-                    // TODO tell user we can't do that yet.
-                    // or better yet, do this path calc upon connecting to a terminus
-                    // and grey out the button if the requirements are not met.
-
-                    continue;
+                if !pathfinding.valid {
+                    // TODO highlight invalid nodes
+                    return;
                 }
 
                 for entity in q_emitters.iter() {
                     commands.entity(entity).despawn();
                 }
 
-                for (flavor, world_path) in paths {
+                for (flavor, world_path) in pathfinding.paths.iter() {
                     commands.spawn().insert(PixieEmitter {
                         flavor: *flavor,
-                        path: world_path,
+                        path: world_path.clone(),
                         remaining: 50,
                         timer: Timer::from_seconds(0.4, true),
                     });

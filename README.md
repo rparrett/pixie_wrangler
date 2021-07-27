@@ -8,8 +8,6 @@ An exciting blend of traffic simulation games and printed circuit board design.
 
 - [ ] Traffic congestion between differently flavored pixies
 - [ ] I would like to know my previous best score for a particular level
-- [ ] Pathfinding should be done on RoadGraph change so we can update "release"
-      button state
 - [ ] If (grayed) release button is clicked, we should highlight the offending
       OUT node
 - [ ] Pixies should move to lower z values when traveling on lower layers
