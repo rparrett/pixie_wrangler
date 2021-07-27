@@ -1201,9 +1201,9 @@ fn not_drawing_mouse_movement(
             _ => false,
         });
 
-    if bad {
+    if bad && line_draw.valid {
         line_draw.valid = false;
-    } else {
+    } else if !bad && !line_draw.valid {
         line_draw.valid = true;
     }
 }
