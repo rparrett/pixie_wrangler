@@ -7,8 +7,10 @@ An exciting blend of traffic simulation games and printed circuit board design.
 ## TODO
 
 - [ ] Traffic congestion between differently flavored pixies
-- [ ] Add "rip up net" tool (no undo)
-- [ ] Add buttons for first/last layer
+- [ ] Pixies should move to lower z values when traveling on lower layers
+- [ ] It would be nice if pixies could darken when traveling on lower layers
+- [ ] Maybe line drawing should automatically stop when drawing to an intersection
+- [ ] Randomize obstacles?
 
 ## Prerequisites
 
