@@ -77,32 +77,35 @@ fn main() {
             .after("radio_button_group_system"),
     );
     app.add_system(pixie_button_system.system());
-    app.add_system(reset_button_system.system().before("update_score"));
+    app.add_system(reset_button_system.system());
 
     app.add_system(move_pixies.system().label("pixies"));
     app.add_system(emit_pixies.system());
-    app.add_system(update_score.system().label("update_score").after("pixies"));
 
     app.add_stage_after(CoreStage::Update, "after_update", SystemStage::parallel());
-    app.add_system_to_stage("after_update", update_cost.system().label("update_cost"));
-    app.add_system_to_stage(
+
+    app.add_system_set_to_stage(
         "after_update",
-        update_elapsed.system().label("update_elapsed"),
-    );
-    app.add_system_to_stage(
-        "after_update",
-        update_elapsed_text.system().after("update_elapsed"),
+        SystemSet::new()
+            .label("score_a")
+            .with_system(update_score.system())
+            .with_system(update_cost.system())
+            .with_system(update_elapsed.system()),
     );
     app.add_system_to_stage(
         "after_update",
         update_efficiency
             .system()
             .label("update_efficiency")
-            .after("update_elapsed"),
+            .after("score_a"),
     );
-    app.add_system_to_stage(
+    app.add_system_set_to_stage(
         "after_update",
-        update_efficiency_text.system().after("update_efficiency"),
+        SystemSet::new()
+            .label("score_ui")
+            .after("update_efficiency")
+            .with_system(update_elapsed_text.system())
+            .with_system(update_efficiency_text.system()),
     );
     app.init_resource::<DrawingState>();
     app.init_resource::<LineDrawingState>();
