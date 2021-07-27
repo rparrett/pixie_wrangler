@@ -86,6 +86,11 @@ fn main() {
     app.add_system(reset_button_system.system());
 
     app.add_stage_after(CoreStage::Update, "after_update", SystemStage::parallel());
+    app.add_stage_after(
+        bevy_prototype_lyon::plugin::Stage::Shape,
+        "after_shape",
+        SystemStage::parallel(),
+    );
 
     app.add_system_set_to_stage(
         "after_update",
@@ -112,6 +117,9 @@ fn main() {
             .with_system(update_elapsed_text.system())
             .with_system(update_efficiency_text.system()),
     );
+
+    app.add_system_to_stage("after_shape", make_indicator_invisible.system());
+
     app.init_resource::<DrawingState>();
     app.init_resource::<LineDrawingState>();
     app.init_resource::<NetRippingState>();
@@ -235,6 +243,8 @@ struct Terminus {
     emits: HashSet<u32>,
     collects: HashSet<u32>,
 }
+struct TerminusIssueIndicator;
+struct StartsInvisible;
 
 #[derive(Default)]
 struct RoadGraph {
@@ -498,9 +508,9 @@ fn pixie_button_system(
     mut efficiency: ResMut<Efficiency>,
     mut testing: ResMut<TestingState>,
     pathfinding: Res<PathfindingState>,
-    q_terminus: Query<Entity, With<Terminus>>,
     q_emitters: Query<Entity, With<PixieEmitter>>,
     q_pixies: Query<Entity, With<Pixie>>,
+    mut q_indicator: Query<(&mut Visible, &Parent), With<TerminusIssueIndicator>>,
     mut commands: Commands,
 ) {
     for interaction in interaction_query.iter() {
@@ -517,12 +527,19 @@ fn pixie_button_system(
                     score.0 = 0;
                 } else {
                     if !pathfinding.valid {
-                        // TODO highlight invalid nodes
+                        for (mut visible, parent) in q_indicator.iter_mut() {
+                            visible.is_visible = pathfinding.invalid_nodes.contains(&parent.0);
+                        }
+
                         return;
                     }
 
                     for entity in q_emitters.iter() {
                         commands.entity(entity).despawn();
+                    }
+
+                    for (mut visible, _) in q_indicator.iter_mut() {
+                        visible.is_visible = false;
                     }
 
                     for (flavor, world_path) in pathfinding.paths.iter() {
@@ -1490,6 +1507,16 @@ fn update_score_text(score: Res<Score>, mut q_score: Query<&mut Text, With<Score
     text.sections[0].value = format!("Þ{}", score.0);
 }
 
+/// Workaround for bevy_prototype_lyon always setting `is_visible = true` after it builds a mesh.
+/// We'll just swoop in right afterwards and change it back.
+fn make_indicator_invisible(
+    mut q_indicator: Query<&mut Visible, (Changed<Handle<Mesh>>, With<StartsInvisible>)>,
+) {
+    for mut visible in q_indicator.iter_mut() {
+        visible.is_visible = false;
+    }
+}
+
 fn spawn_road_segment(
     commands: &mut Commands,
     graph: &mut RoadGraph,
@@ -1588,7 +1615,7 @@ fn spawn_terminus(
         .spawn_bundle(GeometryBuilder::build_as(
             &shapes::Circle {
                 radius: 5.5,
-                center: pos,
+                center: Vec2::splat(0.0),
             },
             ShapeColors::outlined(
                 BACKGROUND_COLOR.as_rgba_linear(),
@@ -1598,7 +1625,7 @@ fn spawn_terminus(
                 fill_options: FillOptions::default(),
                 outline_options: StrokeOptions::default().with_line_width(2.0),
             },
-            Transform::default(),
+            Transform::from_translation(pos.extend(0.0)),
         ))
         .insert(Terminus {
             point: pos,
@@ -1615,7 +1642,7 @@ fn spawn_terminus(
 
             for flavor in emits {
                 let label_pos =
-                    pos + Vec2::new(0.0, -1.0 * label_offset + -1.0 * i as f32 * label_spacing);
+                    Vec2::new(0.0, -1.0 * label_offset + -1.0 * i as f32 * label_spacing);
 
                 parent.spawn_bundle(Text2dBundle {
                     text: Text::with_section(
@@ -1639,7 +1666,7 @@ fn spawn_terminus(
 
             for flavor in collects {
                 let label_pos =
-                    pos + Vec2::new(0.0, -1.0 * label_offset + -1.0 * i as f32 * label_spacing);
+                    Vec2::new(0.0, -1.0 * label_offset + -1.0 * i as f32 * label_spacing);
 
                 parent.spawn_bundle(Text2dBundle {
                     text: Text::with_section(
@@ -1660,6 +1687,22 @@ fn spawn_terminus(
 
                 i += 1;
             }
+
+            // TODO above code supports multiple emitters/collectors, but below
+            // assumes a single emitter.
+
+            parent
+                .spawn_bundle(GeometryBuilder::build_as(
+                    &shapes::Circle {
+                        radius: 5.5,
+                        center: Vec2::splat(0.0),
+                    },
+                    ShapeColors::new(Color::RED),
+                    DrawMode::Fill(FillOptions::default()),
+                    Transform::from_xyz(-30.0, -1.0 * label_offset, 0.0),
+                ))
+                .insert(TerminusIssueIndicator)
+                .insert(StartsInvisible);
         })
         .id();
 
