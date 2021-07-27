@@ -465,20 +465,26 @@ fn pathfinding_system(
 
 fn pixie_button_text_system(
     pathfinding: Res<PathfindingState>,
+    testing: Res<TestingState>,
     mut q_text: Query<&mut Text>,
     q_pixie_button: Query<&Children, With<PixieButton>>,
 ) {
-    if !pathfinding.is_changed() {
+    if !pathfinding.is_changed() && !testing.is_changed() {
         return;
     }
 
     for children in q_pixie_button.iter() {
         for child in children.iter() {
             if let Ok(mut text) = q_text.get_mut(*child) {
-                text.sections[0].style.color = if pathfinding.valid {
-                    UI_WHITE_COLOR
+                if testing.started.is_some() && !testing.done {
+                    text.sections[0].value = "NO WAIT STOP".to_string();
                 } else {
-                    UI_GREY_RED_COLOR
+                    text.sections[0].value = "RELEASE THE PIXIES".to_string();
+                    text.sections[0].style.color = if pathfinding.valid {
+                        UI_WHITE_COLOR
+                    } else {
+                        UI_GREY_RED_COLOR
+                    }
                 }
             }
         }
@@ -490,38 +496,50 @@ fn pixie_button_system(
     time: Res<Time>,
     mut score: ResMut<Score>,
     mut efficiency: ResMut<Efficiency>,
-    mut test: ResMut<TestingState>,
+    mut testing: ResMut<TestingState>,
     pathfinding: Res<PathfindingState>,
     q_terminus: Query<Entity, With<Terminus>>,
     q_emitters: Query<Entity, With<PixieEmitter>>,
+    q_pixies: Query<Entity, With<Pixie>>,
     mut commands: Commands,
 ) {
     for interaction in interaction_query.iter() {
         match *interaction {
             Interaction::Clicked => {
-                if !pathfinding.valid {
-                    // TODO highlight invalid nodes
-                    return;
-                }
+                if testing.started.is_some() && !testing.done {
+                    for entity in q_emitters.iter().chain(q_pixies.iter()) {
+                        commands.entity(entity).despawn();
+                    }
 
-                for entity in q_emitters.iter() {
-                    commands.entity(entity).despawn();
-                }
+                    testing.started = None;
+                    testing.elapsed = 0.0;
+                    testing.done = false;
+                    score.0 = 0;
+                } else {
+                    if !pathfinding.valid {
+                        // TODO highlight invalid nodes
+                        return;
+                    }
 
-                for (flavor, world_path) in pathfinding.paths.iter() {
-                    commands.spawn().insert(PixieEmitter {
-                        flavor: *flavor,
-                        path: world_path.clone(),
-                        remaining: 50,
-                        timer: Timer::from_seconds(0.4, true),
-                    });
-                }
+                    for entity in q_emitters.iter() {
+                        commands.entity(entity).despawn();
+                    }
 
-                test.started = Some(time.seconds_since_startup());
-                test.elapsed = 0.0;
-                test.done = false;
-                score.0 = 0;
-                efficiency.0 = None;
+                    for (flavor, world_path) in pathfinding.paths.iter() {
+                        commands.spawn().insert(PixieEmitter {
+                            flavor: *flavor,
+                            path: world_path.clone(),
+                            remaining: 50,
+                            timer: Timer::from_seconds(0.4, true),
+                        });
+                    }
+
+                    testing.started = Some(time.seconds_since_startup());
+                    testing.elapsed = 0.0;
+                    testing.done = false;
+                    score.0 = 0;
+                    efficiency.0 = None;
+                }
             }
             _ => {}
         }

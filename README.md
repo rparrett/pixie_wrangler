@@ -8,7 +8,6 @@ An exciting blend of traffic simulation games and printed circuit board design.
 
 - [ ] Traffic congestion between differently flavored pixies
 - [ ] A test in progress should prevent line drawing / ripping
-- [ ] It should be possible to cancel the test
 - [ ] I would like to know my previous best score for a particular level
 - [ ] If (grayed) release button is clicked, we should highlight the offending
       OUT node
