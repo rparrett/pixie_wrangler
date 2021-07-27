@@ -1,64 +1,70 @@
 <html>
-  <head>
-    <title>Pixie Wrangler</title>
-    <meta charset="utf-8"/>
-    <style>
-      @font-face {
-        font-family: 'Cooper Hewitt';
-        font-style: normal;
-        font-weight: 400;
-        src: local('Cooper Hewitt Medium'),
-            url('../fonts/montserrat-v14-latin-regular.woff') format('woff'); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
-      }
-      body {
-        font-family: 'Cooper Hewitt', 'sans-serif';
-        background: linear-gradient(
-          135deg,
+
+<head>
+  <title>Pixie Wrangler</title>
+  <meta charset="utf-8" />
+  <style>
+    @font-face {
+      font-family: 'Cooper Hewitt';
+      font-style: normal;
+      font-weight: 400;
+      src: local('Cooper Hewitt Medium'),
+        url('../fonts/montserrat-v14-latin-regular.woff') format('woff');
+      /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+    }
+
+    body {
+      font-family: 'Cooper Hewitt', 'sans-serif';
+      background: linear-gradient(135deg,
           white 0%,
           white 49%,
           black 49%,
           black 51%,
           white 51%,
-          white 100%
-        );
-        background-repeat: repeat;
-        background-size: 20px 20px;
-      }
-      canvas {
-        display: block;
-        margin-left: auto;
-        margin-right: auto;
-        width: 1280px;
-        height: 720px;
-        background-color: white;
-      }
-      .instructions {
-        margin-left: auto;
-        margin-right: auto;
-        margin-top: 10px;
-        padding: 10px;
-        width: 1260px;
-        background-color: white;
-      }
-    </style>
-  </head>
-  <body>
-      <canvas id="bevy"></canvas>
-      <div class="instructions">
-        <ul>
-          <li>Click to start drawing a line</li>
-          <li>Click again on the start of the current segment to stop drawing</li>
-          <li>Press 1 or 2 to switch between drawing normal lines or tunnels. (tunnels are more expensive)</li>
-          <li>Press R to select the "net ripping tool"</li>
-          <li>"Release" button won't do anything unless all paths are connected</li>
-          <li>Pixies must slow down for sharp turns</li>
-          <li>Score (Æ) is Pixies (Þ) / Cost (§) / Time (ŧ)</li>
-          <li>(not implemented yet) if differently flavored pixies have to share a line, there will be traffic congestion or they will annihilate each other</li>
-        </ul>
-      </div>
-  </body>
-  <script type="module">
-    import init from './target/wasm.js'
-    init()
-  </script>
+          white 100%);
+      background-repeat: repeat;
+      background-size: 20px 20px;
+    }
+
+    canvas {
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+      width: 1280px;
+      height: 720px;
+      background-color: white;
+    }
+
+    .instructions {
+      margin-left: auto;
+      margin-right: auto;
+      margin-top: 10px;
+      padding: 10px;
+      width: 1260px;
+      background-color: white;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="bevy"></canvas>
+  <div class="instructions">
+    <ul>
+      <li>Click to start drawing a line</li>
+      <li>Click again on the start of the current segment to stop drawing</li>
+      <li>Press 1 or 2 to switch between drawing normal lines or tunnels. (tunnels are more expensive)</li>
+      <li>Press R to select the "net ripping tool"</li>
+      <li>"Release" button won't do anything unless all paths are connected</li>
+      <li>Pixies must slow down for sharp turns</li>
+      <li>Score (Æ) is Pixies (Þ) / Cost (§) / Time (ŧ)</li>
+      <li>(Not implemented yet) if differently flavored pixies have to share a line, there will be traffic congestion or
+        they will annihilate each other. For now, the game enforces this with an honor system.</li>
+    </ul>
+  </div>
+</body>
+<script type="module">
+  import init from './target/wasm.js'
+  init()
+</script>
+
 </html>
