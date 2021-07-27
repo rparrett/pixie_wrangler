@@ -118,7 +118,7 @@ fn main() {
             .with_system(update_efficiency_text.system()),
     );
 
-    app.add_system_to_stage("after_shape", make_indicator_invisible.system());
+    app.add_system_to_stage("after_shape", shape_visibility_fix.system());
 
     app.init_resource::<DrawingState>();
     app.init_resource::<LineDrawingState>();
@@ -244,7 +244,7 @@ struct Terminus {
     collects: HashSet<u32>,
 }
 struct TerminusIssueIndicator;
-struct StartsInvisible;
+struct ShapeStartsInvisible;
 
 #[derive(Default)]
 struct RoadGraph {
@@ -1509,10 +1509,10 @@ fn update_score_text(score: Res<Score>, mut q_score: Query<&mut Text, With<Score
 
 /// Workaround for bevy_prototype_lyon always setting `is_visible = true` after it builds a mesh.
 /// We'll just swoop in right afterwards and change it back.
-fn make_indicator_invisible(
-    mut q_indicator: Query<&mut Visible, (Changed<Handle<Mesh>>, With<StartsInvisible>)>,
+fn shape_visibility_fix(
+    mut invis: Query<&mut Visible, (Changed<Handle<Mesh>>, With<ShapeStartsInvisible>)>,
 ) {
-    for mut visible in q_indicator.iter_mut() {
+    for mut visible in invis.iter_mut() {
         visible.is_visible = false;
     }
 }
@@ -1702,7 +1702,7 @@ fn spawn_terminus(
                     Transform::from_xyz(-30.0, -1.0 * label_offset, 0.0),
                 ))
                 .insert(TerminusIssueIndicator)
-                .insert(StartsInvisible);
+                .insert(ShapeStartsInvisible);
         })
         .id();
 
