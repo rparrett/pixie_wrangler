@@ -1,4 +1,4 @@
-use crate::{corner_angle, Score, GRID_SIZE};
+use crate::{corner_angle, GameState, Score, GRID_SIZE};
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 
@@ -6,8 +6,12 @@ pub struct PixiePlugin;
 impl Plugin for PixiePlugin {
     // this is where we set up our plugin
     fn build(&self, app: &mut AppBuilder) {
-        app.add_system(move_pixies.system().label("pixies"));
-        app.add_system(emit_pixies.system());
+        app.add_system_set(
+            SystemSet::on_update(GameState::Playing)
+                .label("pixies")
+                .with_system(move_pixies.system())
+                .with_system(emit_pixies.system()),
+        );
     }
 }
 

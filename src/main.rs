@@ -35,89 +35,74 @@ fn main() {
     app.add_plugin(ShapePlugin);
     app.add_plugin(RadioButtonPlugin);
     app.add_plugin(PixiePlugin);
-    app.add_startup_system(setup.system());
-    app.add_system(keyboard_system.system().before("mouse"));
-    app.add_system(mouse_movement.system().label("mouse"));
-    // TODO next three systems could be in a system set, maybe?
-    app.add_system(
-        net_ripping_mouse_movement
-            .system()
-            .label("net_ripping_mouse_movement")
-            .after("mouse"),
-    );
-    app.add_system(
-        not_drawing_mouse_movement
-            .system()
-            .label("not_drawing_mouse_movement")
-            .after("mouse"),
-    );
-    app.add_system(
-        drawing_mouse_movement
-            .system()
-            .label("drawing_mouse_movement")
-            .after("mouse"),
-    );
-    app.add_system(drawing_mouse_click.system().after("drawing_mouse_movement"));
-    app.add_system(
-        net_ripping_mouse_click
-            .system()
-            .after("net_ripping_mouse_movement"),
-    );
-    app.add_system(draw_mouse.system().after("drawing_mouse_movement"));
-    app.add_system(
-        draw_net_ripping
-            .system()
-            .after("net_ripping_mouse_movement"),
-    );
-    app.add_system(button_system.system());
-    app.add_system(
-        tool_button_display_system
-            .system()
-            .label("tool_button_display_system")
-            .after("radio_button_group_system"),
-    );
-    app.add_system(tool_button_system.system().after("mouse"));
-    app.add_system(
-        drawing_mode_change
-            .system()
-            .after("radio_button_group_system"),
-    );
-    app.add_system(pixie_button_system.system());
-    app.add_system(reset_button_system.system());
+    app.add_state(GameState::Playing);
 
     app.add_stage_after(CoreStage::Update, "after_update", SystemStage::parallel());
-    app.add_stage_after(
-        bevy_prototype_lyon::plugin::Stage::Shape,
-        "after_shape",
-        SystemStage::parallel(),
-    );
+    app.add_state_to_stage("after_update", GameState::Playing);
 
+    app.add_system_set(SystemSet::on_enter(GameState::Playing).with_system(setup.system()));
+    app.add_system_set(
+        SystemSet::on_update(GameState::Playing)
+            .label("drawing_input")
+            .with_system(keyboard_system.system().before("mouse"))
+            .with_system(mouse_movement.system().label("mouse")),
+    );
+    app.add_system_set(
+        SystemSet::on_update(GameState::Playing)
+            .after("drawing_input")
+            .label("drawing_mouse_movement")
+            .with_system(net_ripping_mouse_movement.system())
+            .with_system(not_drawing_mouse_movement.system())
+            .with_system(drawing_mouse_movement.system()),
+    );
+    app.add_system_set(
+        SystemSet::on_update(GameState::Playing)
+            .before("drawing_interaction")
+            .before("radio_button_group_system")
+            .with_system(tool_button_system.system())
+            .with_system(tool_button_display_system.system())
+            .with_system(drawing_mode_change.system()),
+    );
+    app.add_system_set(
+        SystemSet::on_update(GameState::Playing)
+            .after("drawing_mouse_movement")
+            .label("drawing_interaction")
+            .with_system(drawing_mouse_click.system())
+            .with_system(net_ripping_mouse_click.system())
+            .with_system(draw_mouse.system())
+            .with_system(draw_net_ripping.system())
+            .with_system(button_system.system()),
+    );
+    // whenever
+    app.add_system_set(
+        SystemSet::on_update(GameState::Playing)
+            .with_system(pixie_button_system.system())
+            .with_system(reset_button_system.system()),
+    );
     app.add_system_set_to_stage(
         "after_update",
-        SystemSet::new()
-            .label("score_a")
+        SystemSet::on_update(GameState::Playing)
+            .label("score_calc")
             .with_system(pathfinding_system.system())
             .with_system(update_cost.system())
             .with_system(update_test_state.system()),
     );
-    app.add_system_to_stage(
-        "after_update",
-        update_test_state
-            .system()
-            .label("update_efficiency")
-            .after("score_a"),
-    );
     app.add_system_set_to_stage(
         "after_update",
-        SystemSet::new()
+        SystemSet::on_update(GameState::Playing)
             .label("score_ui")
-            .after("update_efficiency")
+            .after("score_calc")
             .with_system(pixie_button_text_system.system())
             .with_system(update_score_text.system())
             .with_system(update_elapsed_text.system())
             .with_system(update_efficiency_text.system()),
     );
 
+    app.add_stage_after(
+        bevy_prototype_lyon::plugin::Stage::Shape,
+        "after_shape",
+        SystemStage::parallel(),
+    );
     app.add_system_to_stage("after_shape", shape_visibility_fix.system());
 
     app.init_resource::<DrawingState>();
@@ -132,6 +117,12 @@ fn main() {
     app.init_resource::<Cost>();
     app.init_resource::<Efficiency>();
     app.run();
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+enum GameState {
+    Playing,
+    Loading,
 }
 
 struct MainCamera;
