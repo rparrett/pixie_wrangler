@@ -1015,7 +1015,7 @@ fn drawing_mouse_click_system(
                                     commands.entity(*entity).despawn_recursive();
 
                                     // create a new segment on (entity start, this_point)
-                                    let (start_node, end_node) = spawn_road_segment(
+                                    let (start_node_a, end_node_a) = spawn_road_segment(
                                         &mut commands,
                                         &mut graph,
                                         (segment.points.0, *point),
@@ -1024,12 +1024,12 @@ fn drawing_mouse_click_system(
 
                                     // reconnect new segment to split line's old start node neighbors
                                     for neighbor in start_neighbors {
-                                        graph.graph.add_edge(neighbor, start_node, 0.0);
+                                        graph.graph.add_edge(neighbor, start_node_a, 0.0);
                                     }
-                                    graph.graph.add_edge(end_node, *node, 0.0);
+                                    graph.graph.add_edge(end_node_a, *node, 0.0);
 
                                     // create a new segment on (entity end, this_point)
-                                    let (start_node, end_node) = spawn_road_segment(
+                                    let (start_node_b, end_node_b) = spawn_road_segment(
                                         &mut commands,
                                         &mut graph,
                                         (*point, segment.points.1),
@@ -1038,9 +1038,12 @@ fn drawing_mouse_click_system(
 
                                     // reconnect new segment to split line's old end node neighbors
                                     for neighbor in end_neighbors {
-                                        graph.graph.add_edge(end_node, neighbor, 0.0);
+                                        graph.graph.add_edge(end_node_b, neighbor, 0.0);
                                     }
-                                    graph.graph.add_edge(*node, start_node, 0.0);
+                                    graph.graph.add_edge(*node, start_node_b, 0.0);
+
+                                    // connect the two new segments together
+                                    graph.graph.add_edge(end_node_a, start_node_b, 0.0);
 
                                     // remove all graph edges and nodes associated with the split line
                                     graph.graph.remove_node(s_nodes.0);
