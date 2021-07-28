@@ -47,15 +47,15 @@ fn main() {
         SystemSet::on_update(GameState::Playing)
             .label("drawing_input")
             .with_system(keyboard_system.system().before("mouse"))
-            .with_system(mouse_movement.system().label("mouse")),
+            .with_system(mouse_movement_system.system().label("mouse")),
     );
     app.add_system_set(
         SystemSet::on_update(GameState::Playing)
             .after("drawing_input")
             .label("drawing_mouse_movement")
-            .with_system(net_ripping_mouse_movement.system())
-            .with_system(not_drawing_mouse_movement.system())
-            .with_system(drawing_mouse_movement.system()),
+            .with_system(net_ripping_mouse_movement_system.system())
+            .with_system(not_drawing_mouse_movement_system.system())
+            .with_system(drawing_mouse_movement_system.system()),
     );
     app.add_system_set(
         SystemSet::on_update(GameState::Playing)
@@ -63,17 +63,17 @@ fn main() {
             .before("radio_button_group_system")
             .with_system(tool_button_system.system())
             .with_system(tool_button_display_system.system())
-            .with_system(drawing_mode_change.system()),
+            .with_system(drawing_mode_change_system.system()),
     );
     app.add_system_set(
         SystemSet::on_update(GameState::Playing)
             .after("drawing_mouse_movement")
             .label("drawing_interaction")
-            .with_system(drawing_mouse_click.system())
-            .with_system(net_ripping_mouse_click.system())
-            .with_system(draw_mouse.system())
-            .with_system(draw_net_ripping.system())
-            .with_system(button_system.system()),
+            .with_system(drawing_mouse_click_system.system())
+            .with_system(net_ripping_mouse_click_system.system())
+            .with_system(draw_mouse_system.system())
+            .with_system(draw_net_ripping_system.system())
+            .with_system(button_system_system.system()),
     );
     // whenever
     app.add_system_set(
@@ -86,8 +86,8 @@ fn main() {
         SystemSet::on_update(GameState::Playing)
             .label("score_calc")
             .with_system(pathfinding_system.system())
-            .with_system(update_cost.system())
-            .with_system(update_test_state.system()),
+            .with_system(update_cost_system.system())
+            .with_system(update_test_state_system.system()),
     );
     app.add_system_set_to_stage(
         "after_update",
@@ -95,9 +95,9 @@ fn main() {
             .label("score_ui")
             .after("score_calc")
             .with_system(pixie_button_text_system.system())
-            .with_system(update_score_text.system())
-            .with_system(update_elapsed_text.system())
-            .with_system(update_efficiency_text.system()),
+            .with_system(update_score_text_system.system())
+            .with_system(update_elapsed_text_system.system())
+            .with_system(update_efficiency_text_system.system()),
     );
 
     app.add_stage_after(
@@ -105,7 +105,7 @@ fn main() {
         "after_shape",
         SystemStage::parallel(),
     );
-    app.add_system_to_stage("after_shape", shape_visibility_fix.system());
+    app.add_system_to_stage("after_shape", shape_visibility_fix_system.system());
 
     app.init_resource::<DrawingState>();
     app.init_resource::<LineDrawingState>();
@@ -356,7 +356,7 @@ fn tool_button_system(
     }
 }
 
-fn button_system(
+fn button_system_system(
     button_materials: Res<ButtonMaterials>,
     mut q_interaction: Query<
         (&Interaction, &mut Handle<ColorMaterial>),
@@ -631,7 +631,7 @@ fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {
     (position / grid_size).round() * grid_size
 }
 
-fn draw_mouse(
+fn draw_mouse_system(
     mut commands: Commands,
     line_drawing: Res<LineDrawingState>,
     mouse: Res<MouseState>,
@@ -693,7 +693,7 @@ fn draw_mouse(
     }
 }
 
-fn draw_net_ripping(
+fn draw_net_ripping_system(
     mut commands: Commands,
     ripping_state: Res<NetRippingState>,
     q_ripping: Query<Entity, With<RippingLine>>,
@@ -718,7 +718,7 @@ fn draw_net_ripping(
     }
 }
 
-fn drawing_mode_change(
+fn drawing_mode_change_system(
     drawing_state: Res<DrawingState>,
     mut line_state: ResMut<LineDrawingState>,
     mut ripping_state: ResMut<NetRippingState>,
@@ -786,7 +786,7 @@ fn keyboard_system(
     }
 }
 
-fn net_ripping_mouse_click(
+fn net_ripping_mouse_click_system(
     mut commands: Commands,
     mut mouse_button_input_events: EventReader<MouseButtonInput>,
     mut ripping_state: ResMut<NetRippingState>,
@@ -814,7 +814,7 @@ fn net_ripping_mouse_click(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn drawing_mouse_click(
+fn drawing_mouse_click_system(
     mut commands: Commands,
     mut mouse_button_input_events: EventReader<MouseButtonInput>,
     mouse: Res<MouseState>,
@@ -1064,7 +1064,7 @@ fn drawing_mouse_click(
     }
 }
 
-fn mouse_movement(
+fn mouse_movement_system(
     mut cursor_moved_events: EventReader<CursorMoved>,
     mut mouse: ResMut<MouseState>,
     windows: Res<Windows>,
@@ -1089,7 +1089,7 @@ fn mouse_movement(
     }
 }
 
-fn net_ripping_mouse_movement(
+fn net_ripping_mouse_movement_system(
     drawing_state: Res<DrawingState>,
     mouse: Res<MouseState>,
     mut ripping_state: ResMut<NetRippingState>,
@@ -1157,7 +1157,7 @@ fn net_ripping_mouse_movement(
     }
 }
 
-fn not_drawing_mouse_movement(
+fn not_drawing_mouse_movement_system(
     mut line_state: ResMut<LineDrawingState>,
     drawing_state: Res<DrawingState>,
     mouse: Res<MouseState>,
@@ -1194,7 +1194,7 @@ fn not_drawing_mouse_movement(
     }
 }
 
-fn drawing_mouse_movement(
+fn drawing_mouse_movement_system(
     mut line_state: ResMut<LineDrawingState>,
     mouse: Res<MouseState>,
     q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
@@ -1440,7 +1440,7 @@ fn drawing_mouse_movement(
     }
 }
 
-fn update_score_text(score: Res<Score>, mut q_score: Query<&mut Text, With<ScoreText>>) {
+fn update_score_text_system(score: Res<Score>, mut q_score: Query<&mut Text, With<ScoreText>>) {
     if !score.is_changed() {
         return;
     }
@@ -1451,7 +1451,7 @@ fn update_score_text(score: Res<Score>, mut q_score: Query<&mut Text, With<Score
 
 /// Workaround for bevy_prototype_lyon always setting `is_visible = true` after it builds a mesh.
 /// We'll just swoop in right afterwards and change it back.
-fn shape_visibility_fix(
+fn shape_visibility_fix_system(
     mut invis: Query<&mut Visible, (Changed<Handle<Mesh>>, With<ShapeStartsInvisible>)>,
 ) {
     for mut visible in invis.iter_mut() {
@@ -1653,7 +1653,7 @@ fn spawn_terminus(
     commands.entity(ent).insert(PointGraphNode(node));
 }
 
-fn update_cost(
+fn update_cost_system(
     graph: Res<RoadGraph>,
     line_draw: Res<LineDrawingState>,
     mut r_cost: ResMut<Cost>,
@@ -1714,7 +1714,7 @@ fn update_cost(
     }
 }
 
-fn update_test_state(
+fn update_test_state_system(
     mut testing_state: ResMut<TestingState>,
     time: Res<Time>,
     q_emitter: Query<&PixieEmitter>,
@@ -1745,7 +1745,7 @@ fn update_test_state(
     testing_state.done = true;
 }
 
-fn update_efficiency_text(
+fn update_efficiency_text_system(
     testing_state: Res<TestingState>,
     score: Res<Score>,
     cost: Res<Cost>,
@@ -1768,7 +1768,7 @@ fn update_efficiency_text(
     }
 }
 
-fn update_elapsed_text(
+fn update_elapsed_text_system(
     testing_state: Res<TestingState>,
     mut q_text: Query<&mut Text, With<ElapsedText>>,
 ) {

@@ -9,8 +9,8 @@ impl Plugin for PixiePlugin {
         app.add_system_set(
             SystemSet::on_update(GameState::Playing)
                 .label("pixies")
-                .with_system(move_pixies.system())
-                .with_system(emit_pixies.system()),
+                .with_system(move_pixies_system.system())
+                .with_system(emit_pixies_system.system()),
         );
     }
 }
@@ -56,7 +56,7 @@ pub const PIXIE_COLORS: [Color; 6] = [
     Color::YELLOW,
 ];
 
-fn move_pixies(
+fn move_pixies_system(
     mut commands: Commands,
     time: Res<Time>,
     mut score: ResMut<Score>,
@@ -132,7 +132,11 @@ fn move_pixies(
     }
 }
 
-fn emit_pixies(time: Res<Time>, mut q_emitters: Query<&mut PixieEmitter>, mut commands: Commands) {
+fn emit_pixies_system(
+    time: Res<Time>,
+    mut q_emitters: Query<&mut PixieEmitter>,
+    mut commands: Commands,
+) {
     for mut emitter in q_emitters.iter_mut() {
         if emitter.remaining == 0 {
             continue;
