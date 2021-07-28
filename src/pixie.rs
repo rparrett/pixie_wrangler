@@ -143,7 +143,7 @@ fn move_pixies_system(
             pixie.path_index += 1;
         }
 
-        if !pixie.next_corner_angle.is_some() || step > dist {
+        if pixie.next_corner_angle.is_none() || step > dist {
             if let (Some(current_waypoint), Some(next_waypoint)) = (
                 pixie.path.get(pixie.path_index),
                 pixie.path.get(pixie.path_index + 1),

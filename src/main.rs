@@ -327,36 +327,31 @@ fn tool_button_system(
     q_interaction_two: Query<&Interaction, (Changed<Interaction>, With<LayerTwoButton>)>,
     q_interaction_rip: Query<&Interaction, (Changed<Interaction>, With<NetRippingButton>)>,
 ) {
-    for interaction in q_interaction_one.iter() {
-        match *interaction {
-            Interaction::Clicked => {
-                line_state.layer = 1;
-                if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
-                    drawing_state.mode = DrawingMode::LineDrawing;
-                }
-            }
-            _ => {}
+    for _ in q_interaction_one
+        .iter()
+        .filter(|i| **i == Interaction::Clicked)
+    {
+        line_state.layer = 1;
+        if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
+            drawing_state.mode = DrawingMode::LineDrawing;
         }
     }
-    for interaction in q_interaction_two.iter() {
-        match *interaction {
-            Interaction::Clicked => {
-                line_state.layer = 2;
-                if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
-                    drawing_state.mode = DrawingMode::LineDrawing;
-                }
-            }
-            _ => {}
+    for _ in q_interaction_two
+        .iter()
+        .filter(|i| **i == Interaction::Clicked)
+    {
+        line_state.layer = 2;
+        if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
+            drawing_state.mode = DrawingMode::LineDrawing;
         }
     }
-    for interaction in q_interaction_rip.iter() {
-        match *interaction {
-            Interaction::Clicked => {
-                if !matches!(drawing_state.mode, DrawingMode::NetRipping) {
-                    drawing_state.mode = DrawingMode::NetRipping;
-                }
-            }
-            _ => {}
+
+    for _ in q_interaction_rip
+        .iter()
+        .filter(|i| **i == Interaction::Clicked)
+    {
+        if !matches!(drawing_state.mode, DrawingMode::NetRipping) {
+            drawing_state.mode = DrawingMode::NetRipping;
         }
     }
 }
@@ -512,55 +507,48 @@ fn pixie_button_system(
     q_pixies: Query<Entity, With<Pixie>>,
     mut q_indicator: Query<(&mut Visible, &Parent), With<TerminusIssueIndicator>>,
 ) {
-    for interaction in q_interaction.iter() {
-        match *interaction {
-            Interaction::Clicked => {
-                line_state.drawing = false;
-                line_state.segments = vec![];
+    for _ in q_interaction.iter().filter(|i| **i == Interaction::Clicked) {
+        line_state.drawing = false;
+        line_state.segments = vec![];
 
-                if testing_state.started.is_some() && !testing_state.done {
-                    for entity in q_emitters.iter().chain(q_pixies.iter()) {
-                        commands.entity(entity).despawn();
-                    }
-
-                    testing_state.started = None;
-                    testing_state.elapsed = 0.0;
-                    testing_state.done = false;
-                    score.0 = 0;
-                } else {
-                    if !pathfinding.valid {
-                        for (mut visible, parent) in q_indicator.iter_mut() {
-                            visible.is_visible = pathfinding.invalid_nodes.contains(&parent.0);
-                        }
-
-                        return;
-                    }
-
-                    for entity in q_emitters.iter() {
-                        commands.entity(entity).despawn();
-                    }
-
-                    for (mut visible, _) in q_indicator.iter_mut() {
-                        visible.is_visible = false;
-                    }
-
-                    for (flavor, world_path) in pathfinding.paths.iter() {
-                        commands.spawn().insert(PixieEmitter {
-                            flavor: *flavor,
-                            path: world_path.clone(),
-                            remaining: 50,
-                            timer: Timer::from_seconds(0.4, true),
-                        });
-                    }
-
-                    testing_state.started = Some(time.seconds_since_startup());
-                    testing_state.elapsed = 0.0;
-                    testing_state.done = false;
-                    score.0 = 0;
-                }
+        if testing_state.started.is_some() && !testing_state.done {
+            for entity in q_emitters.iter().chain(q_pixies.iter()) {
+                commands.entity(entity).despawn();
             }
-            _ => {}
+
+            testing_state.started = None;
+        } else {
+            if !pathfinding.valid {
+                for (mut visible, parent) in q_indicator.iter_mut() {
+                    visible.is_visible = pathfinding.invalid_nodes.contains(&parent.0);
+                }
+
+                return;
+            }
+
+            for entity in q_emitters.iter() {
+                commands.entity(entity).despawn();
+            }
+
+            for (mut visible, _) in q_indicator.iter_mut() {
+                visible.is_visible = false;
+            }
+
+            for (flavor, world_path) in pathfinding.paths.iter() {
+                commands.spawn().insert(PixieEmitter {
+                    flavor: *flavor,
+                    path: world_path.clone(),
+                    remaining: 50,
+                    timer: Timer::from_seconds(0.4, true),
+                });
+            }
+
+            testing_state.started = Some(time.seconds_since_startup());
         }
+
+        testing_state.elapsed = 0.0;
+        testing_state.done = false;
+        score.0 = 0;
     }
 }
 
@@ -577,45 +565,40 @@ fn reset_button_system(
     q_terminuses: Query<Entity, With<Terminus>>,
     mut q_indicator: Query<&mut Visible, With<TerminusIssueIndicator>>,
 ) {
-    for interaction in q_interaction.iter() {
-        match *interaction {
-            Interaction::Clicked => {
-                for chunk in q_road_chunks
-                    .iter()
-                    .chain(q_pixies.iter())
-                    .chain(q_emitters.iter())
-                {
-                    commands.entity(chunk).despawn_recursive();
-                }
-
-                for mut visible in q_indicator.iter_mut() {
-                    visible.is_visible = false;
-                }
-
-                graph.graph.clear();
-
-                // we just nuked the graph, but left the start/end points
-                // so we need to overwrite their old nodes with new ones.
-                for entity in q_terminuses.iter() {
-                    let node = graph.graph.add_node(entity);
-                    commands.entity(entity).insert(PointGraphNode(node));
-                }
-
-                line_state.drawing = false;
-                line_state.segments = vec![];
-
-                testing_state.started = None;
-                testing_state.done = false;
-                testing_state.elapsed = 0.0;
-
-                score.0 = 0;
-            }
-            _ => {}
+    for _ in q_interaction.iter().filter(|i| **i == Interaction::Clicked) {
+        for chunk in q_road_chunks
+            .iter()
+            .chain(q_pixies.iter())
+            .chain(q_emitters.iter())
+        {
+            commands.entity(chunk).despawn_recursive();
         }
+
+        for mut visible in q_indicator.iter_mut() {
+            visible.is_visible = false;
+        }
+
+        graph.graph.clear();
+
+        // we just nuked the graph, but left the start/end points
+        // so we need to overwrite their old nodes with new ones.
+        for entity in q_terminuses.iter() {
+            let node = graph.graph.add_node(entity);
+            commands.entity(entity).insert(PointGraphNode(node));
+        }
+
+        line_state.drawing = false;
+        line_state.segments = vec![];
+
+        testing_state.started = None;
+        testing_state.done = false;
+        testing_state.elapsed = 0.0;
+
+        score.0 = 0;
     }
 }
 
-fn is_boring(in_flavors: &Vec<u32>, out_flavors: &Vec<u32>) -> bool {
+fn is_boring(in_flavors: &[u32], out_flavors: &[u32]) -> bool {
     if in_flavors.windows(2).any(|v| v[0] == v[1]) {
         return true;
     }
@@ -1333,7 +1316,7 @@ fn drawing_mouse_movement_system(
 
                                 if start_touching
                                     && !split_layers.0.contains(&layer.0)
-                                    && split_layers.0.len() >= 1
+                                    && !split_layers.0.is_empty()
                                 {
                                     ok = false;
                                     break;
@@ -1341,7 +1324,7 @@ fn drawing_mouse_movement_system(
 
                                 if end_touching
                                     && !split_layers.1.contains(&layer.0)
-                                    && split_layers.1.len() >= 1
+                                    && !split_layers.1.is_empty()
                                 {
                                     ok = false;
                                     break;
