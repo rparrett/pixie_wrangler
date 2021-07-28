@@ -419,9 +419,6 @@ fn pathfinding_system(
                         .filter_map(|node| graph.graph.node_weight(*node).map(|ent| (node, ent)));
 
                     for (node, ent) in with_ents {
-                        if let Ok((_, t, _)) = q_terminuses.get(*ent) {
-                            world_path.push(t.point);
-                        }
                         if let Ok((s, n)) = q_road_chunks.get(*ent) {
                             if n.0 == *node {
                                 world_path.push(s.points.0)
