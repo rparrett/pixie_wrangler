@@ -570,6 +570,7 @@ fn reset_button_system(
     q_pixies: Query<Entity, With<Pixie>>,
     q_emitters: Query<Entity, With<PixieEmitter>>,
     q_terminuses: Query<Entity, With<Terminus>>,
+    mut q_indicator: Query<&mut Visible, With<TerminusIssueIndicator>>,
 ) {
     for interaction in q_interaction.iter() {
         match *interaction {
@@ -580,6 +581,10 @@ fn reset_button_system(
                     .chain(q_emitters.iter())
                 {
                     commands.entity(chunk).despawn_recursive();
+                }
+
+                for mut visible in q_indicator.iter_mut() {
+                    visible.is_visible = false;
                 }
 
                 graph.graph.clear();
