@@ -79,6 +79,7 @@ fn main() {
     // whenever
     app.add_system_set(
         SystemSet::on_update(GameState::Playing)
+            .label("test_buttons")
             .with_system(pixie_button_system.system())
             .with_system(reset_button_system.system()),
     );

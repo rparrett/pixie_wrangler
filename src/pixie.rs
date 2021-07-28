@@ -1,4 +1,4 @@
-use crate::{lines::corner_angle, GameState, RoadSegment, Score, GRID_SIZE};
+use crate::{lines::corner_angle, GameState, RoadSegment, Score, TestingState, GRID_SIZE};
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 
@@ -9,6 +9,7 @@ impl Plugin for PixiePlugin {
         app.add_system_set(
             SystemSet::on_update(GameState::Playing)
                 .label("pixies")
+                .after("test_buttons")
                 .with_system(move_pixies_system.system())
                 .with_system(emit_pixies_system.system()),
         );
@@ -137,9 +138,14 @@ fn move_pixies_system(
 
 fn emit_pixies_system(
     time: Res<Time>,
+    testing_state: Res<TestingState>,
     mut q_emitters: Query<&mut PixieEmitter>,
     mut commands: Commands,
 ) {
+    if testing_state.started.is_none() {
+        return;
+    }
+
     for mut emitter in q_emitters.iter_mut() {
         if emitter.remaining == 0 {
             continue;

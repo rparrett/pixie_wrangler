@@ -12,8 +12,6 @@ An exciting blend of traffic simulation games and printed circuit board design.
 - [ ] It would be nice if pixies could darken when traveling on lower layers
 - [ ] Maybe line drawing should automatically stop when drawing to an intersection
 - [ ] Randomize obstacles?
-- [ ] It's possible to stop testing at just the right time for an extra round of
-      Pixies to be emitted before the emitters are despawned
 
 ## Prerequisites
 
