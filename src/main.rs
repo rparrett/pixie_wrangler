@@ -498,6 +498,7 @@ fn pixie_button_system(
     mut score: ResMut<Score>,
     mut efficiency: ResMut<Efficiency>,
     mut testing_state: ResMut<TestingState>,
+    mut line_state: ResMut<LineDrawingState>,
     pathfinding: Res<PathfindingState>,
     q_interaction: Query<&Interaction, (Changed<Interaction>, With<Button>, With<PixieButton>)>,
     q_emitters: Query<Entity, With<PixieEmitter>>,
@@ -507,6 +508,9 @@ fn pixie_button_system(
     for interaction in q_interaction.iter() {
         match *interaction {
             Interaction::Clicked => {
+                line_state.drawing = false;
+                line_state.segments = vec![];
+
                 if testing_state.started.is_some() && !testing_state.done {
                     for entity in q_emitters.iter().chain(q_pixies.iter()) {
                         commands.entity(entity).despawn();
@@ -561,6 +565,7 @@ fn reset_button_system(
     mut score: ResMut<Score>,
     mut efficiency: ResMut<Efficiency>,
     mut testing_state: ResMut<TestingState>,
+    mut line_state: ResMut<LineDrawingState>,
     q_road_chunks: Query<Entity, With<RoadSegment>>,
     q_pixies: Query<Entity, With<Pixie>>,
     q_emitters: Query<Entity, With<PixieEmitter>>,
@@ -586,9 +591,13 @@ fn reset_button_system(
                     commands.entity(entity).insert(PointGraphNode(node));
                 }
 
+                line_state.drawing = false;
+                line_state.segments = vec![];
+
                 testing_state.started = None;
                 testing_state.done = false;
                 testing_state.elapsed = 0.0;
+
                 score.0 = 0;
                 efficiency.0 = None;
             }
