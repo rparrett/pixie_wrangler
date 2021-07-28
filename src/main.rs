@@ -10,6 +10,7 @@ use bevy::{
     window::CursorMoved,
 };
 use bevy_prototype_lyon::prelude::*;
+use itertools::Itertools;
 use petgraph::algo::astar;
 use petgraph::dot::{Config, Dot};
 use petgraph::stable_graph::{NodeIndex, StableUnGraph};
@@ -150,8 +151,8 @@ struct Score(u32);
 struct Cost(u32);
 #[derive(Default)]
 struct Efficiency(Option<u32>);
-#[derive(Debug)]
-struct RoadSegment {
+#[derive(Debug, Clone)]
+pub struct RoadSegment {
     points: (Vec2, Vec2),
     layer: u32,
 }
@@ -220,7 +221,7 @@ struct TestingState {
 #[derive(Default)]
 struct PathfindingState {
     valid: bool,
-    paths: Vec<(u32, Vec<Vec2>)>,
+    paths: Vec<(u32, Vec<RoadSegment>)>,
     invalid_nodes: Vec<Entity>,
 }
 
@@ -382,7 +383,7 @@ fn pathfinding_system(
     graph: Res<RoadGraph>,
     mut pathfinding: ResMut<PathfindingState>,
     q_terminuses: Query<(Entity, &Terminus, &PointGraphNode)>,
-    q_road_chunks: Query<(&RoadSegment, &SegmentGraphNodes)>,
+    q_road_chunks: Query<&RoadSegment>,
 ) {
     if !graph.is_changed() {
         return;
@@ -411,27 +412,37 @@ fn pathfinding_system(
                 );
 
                 if let Some(path) = path {
-                    let mut world_path = vec![];
+                    let mut prev_end = graph
+                        .graph
+                        .node_weight(*path.1.first().unwrap())
+                        .and_then(|ent| q_terminuses.get(*ent).ok())
+                        .unwrap()
+                        .1
+                        .point;
 
-                    let with_ents = path
+                    let segments = path
                         .1
                         .iter()
-                        .filter_map(|node| graph.graph.node_weight(*node).map(|ent| (node, ent)));
+                        .filter_map(|node| graph.graph.node_weight(*node))
+                        .dedup()
+                        .filter_map(|ent| q_road_chunks.get(*ent).ok());
 
-                    for (node, ent) in with_ents {
-                        if let Ok((s, n)) = q_road_chunks.get(*ent) {
-                            if n.0 == *node {
-                                world_path.push(s.points.0)
-                            } else if n.1 == *node {
-                                world_path.push(s.points.1);
-                            } else {
-                                info!("pretty sure this shouldn't happen {:?}", s.points);
+                    let mut world_path = vec![];
+
+                    for seg in segments {
+                        let flipped_seg = if seg.points.0 != prev_end {
+                            RoadSegment {
+                                points: (seg.points.1, seg.points.0),
+                                layer: seg.layer,
                             }
-                        }
-                    }
+                        } else {
+                            seg.clone()
+                        };
 
-                    // would it be faster to avoid this duplication above?
-                    world_path.dedup();
+                        prev_end = flipped_seg.points.1;
+
+                        world_path.push(flipped_seg);
+                    }
 
                     if world_path.is_empty() {
                         ok = false;

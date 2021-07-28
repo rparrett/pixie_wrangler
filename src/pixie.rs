@@ -1,4 +1,4 @@
-use crate::{lines::corner_angle, GameState, Score, GRID_SIZE};
+use crate::{lines::corner_angle, GameState, RoadSegment, Score, GRID_SIZE};
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 
@@ -16,7 +16,7 @@ impl Plugin for PixiePlugin {
 }
 
 pub struct Pixie {
-    pub path: Vec<Vec2>,
+    pub path: Vec<RoadSegment>,
     pub path_index: usize,
     pub next_corner_angle: Option<f32>,
     pub max_speed: f32,
@@ -42,7 +42,7 @@ impl Default for Pixie {
 
 pub struct PixieEmitter {
     pub flavor: u32,
-    pub path: Vec<Vec2>,
+    pub path: Vec<RoadSegment>,
     pub remaining: u32,
     pub timer: Timer,
 }
@@ -63,13 +63,13 @@ fn move_pixies_system(
     mut query: Query<(Entity, &mut Pixie, &mut Transform)>,
 ) {
     for (entity, mut pixie, mut transform) in query.iter_mut() {
-        if pixie.path_index >= pixie.path.len() - 1 {
+        if pixie.path_index > pixie.path.len() - 1 {
             commands.entity(entity).despawn_recursive();
             score.0 += 1;
             continue;
         }
 
-        let next_waypoint = pixie.path[pixie.path_index + 1];
+        let next_waypoint = pixie.path[pixie.path_index].points.1;
         let dist = transform.translation.truncate().distance(next_waypoint);
 
         if dist < GRID_SIZE {
@@ -116,14 +116,17 @@ fn move_pixies_system(
         }
 
         if !pixie.next_corner_angle.is_some() || step > dist {
-            if let (Some(current_waypoint), Some(next_waypoint), Some(next_next_waypoint)) = (
+            if let (Some(current_waypoint), Some(next_waypoint)) = (
                 pixie.path.get(pixie.path_index),
                 pixie.path.get(pixie.path_index + 1),
-                pixie.path.get(pixie.path_index + 2),
             ) {
                 pixie.next_corner_angle = Some(
-                    corner_angle(*current_waypoint, *next_waypoint, *next_next_waypoint)
-                        .to_degrees(),
+                    corner_angle(
+                        current_waypoint.points.0,
+                        next_waypoint.points.0,
+                        next_waypoint.points.1,
+                    )
+                    .to_degrees(),
                 );
             } else {
                 pixie.next_corner_angle = Some(180.0);
@@ -154,12 +157,14 @@ fn emit_pixies_system(
             ..shapes::RegularPolygon::default()
         };
 
+        let first_segment = emitter.path.first().unwrap();
+
         commands
             .spawn_bundle(GeometryBuilder::build_as(
                 &shape,
                 ShapeColors::new(PIXIE_COLORS[(emitter.flavor) as usize].as_rgba_linear()),
                 DrawMode::Fill(FillOptions::default()),
-                Transform::from_translation(emitter.path.first().unwrap().extend(1.0)),
+                Transform::from_translation(first_segment.points.0.extend(1.0)),
             ))
             .insert(Pixie {
                 path: emitter.path.clone(),
