@@ -7,7 +7,6 @@ An exciting blend of traffic simulation games and printed circuit board design.
 ## TODO
 
 - [ ] Traffic congestion between differently flavored pixies
-- [ ] A test in progress should prevent line drawing / ripping
 - [ ] I would like to know my previous best score for a particular level
 - [ ] Pixies should move to lower z values when traveling on lower layers
 - [ ] It would be nice if pixies could darken when traveling on lower layers

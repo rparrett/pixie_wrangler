@@ -790,10 +790,15 @@ fn net_ripping_mouse_click_system(
     mut commands: Commands,
     mut mouse_button_input_events: EventReader<MouseButtonInput>,
     mut ripping_state: ResMut<NetRippingState>,
+    testing_state: Res<TestingState>,
     drawing_state: Res<DrawingState>,
     mut graph: ResMut<RoadGraph>,
 ) {
     if !matches!(drawing_state.mode, DrawingMode::NetRipping) {
+        return;
+    }
+
+    if testing_state.started.is_some() && !testing_state.done {
         return;
     }
 
@@ -820,6 +825,7 @@ fn drawing_mouse_click_system(
     mouse: Res<MouseState>,
     drawing_state: ResMut<DrawingState>,
     mut line_state: ResMut<LineDrawingState>,
+    testing_state: Res<TestingState>,
     mut graph: ResMut<RoadGraph>,
     q_point_nodes: Query<&PointGraphNode>,
     q_segment_nodes: Query<&SegmentGraphNodes>,
@@ -830,6 +836,10 @@ fn drawing_mouse_click_system(
     }
 
     if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
+        return;
+    }
+
+    if testing_state.started.is_some() && !testing_state.done {
         return;
     }
 
@@ -1093,12 +1103,17 @@ fn net_ripping_mouse_movement_system(
     drawing_state: Res<DrawingState>,
     mouse: Res<MouseState>,
     mut ripping_state: ResMut<NetRippingState>,
+    testing_state: Res<TestingState>,
     graph: Res<RoadGraph>,
     q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
     q_road_segments: Query<&RoadSegment>,
     q_segment_nodes: Query<&SegmentGraphNodes>,
 ) {
     if !matches!(drawing_state.mode, DrawingMode::NetRipping) {
+        return;
+    }
+
+    if testing_state.started.is_some() && !testing_state.done {
         return;
     }
 
@@ -1196,10 +1211,15 @@ fn not_drawing_mouse_movement_system(
 
 fn drawing_mouse_movement_system(
     mut line_state: ResMut<LineDrawingState>,
+    testing_state: Res<TestingState>,
     mouse: Res<MouseState>,
     q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
 ) {
     if !line_state.drawing {
+        return;
+    }
+
+    if testing_state.started.is_some() && !testing_state.done {
         return;
     }
 
