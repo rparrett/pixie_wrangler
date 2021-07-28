@@ -1,4 +1,4 @@
-use crate::{corner_angle, GameState, Score, GRID_SIZE};
+use crate::{lines::corner_angle, GameState, Score, GRID_SIZE};
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 
