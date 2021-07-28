@@ -120,7 +120,7 @@ fn main() {
     app.init_resource::<ButtonMaterials>();
     app.init_resource::<Score>();
     app.init_resource::<Cost>();
-    app.init_resource::<Efficiency>();
+    app.init_resource::<BestEfficiency>();
     app.run();
 }
 
@@ -153,6 +153,8 @@ struct Score(u32);
 struct Cost(u32);
 #[derive(Default)]
 struct Efficiency(Option<u32>);
+#[derive(Default)]
+struct BestEfficiency(Option<u32>);
 #[derive(Debug, Clone)]
 pub struct RoadSegment {
     points: (Vec2, Vec2),
@@ -502,7 +504,6 @@ fn pixie_button_system(
     mut commands: Commands,
     time: Res<Time>,
     mut score: ResMut<Score>,
-    mut efficiency: ResMut<Efficiency>,
     mut testing_state: ResMut<TestingState>,
     mut line_state: ResMut<LineDrawingState>,
     pathfinding: Res<PathfindingState>,
@@ -556,7 +557,6 @@ fn pixie_button_system(
                     testing_state.elapsed = 0.0;
                     testing_state.done = false;
                     score.0 = 0;
-                    efficiency.0 = None;
                 }
             }
             _ => {}
@@ -569,7 +569,6 @@ fn reset_button_system(
     q_interaction: Query<&Interaction, (Changed<Interaction>, With<Button>, With<ResetButton>)>,
     mut graph: ResMut<RoadGraph>,
     mut score: ResMut<Score>,
-    mut efficiency: ResMut<Efficiency>,
     mut testing_state: ResMut<TestingState>,
     mut line_state: ResMut<LineDrawingState>,
     q_road_chunks: Query<Entity, With<RoadSegment>>,
@@ -610,7 +609,6 @@ fn reset_button_system(
                 testing_state.elapsed = 0.0;
 
                 score.0 = 0;
-                efficiency.0 = None;
             }
             _ => {}
         }
@@ -1782,6 +1780,7 @@ fn update_efficiency_text_system(
     testing_state: Res<TestingState>,
     score: Res<Score>,
     cost: Res<Cost>,
+    mut best_efficiency: ResMut<BestEfficiency>,
     mut q_efficiency_text: Query<&mut Text, With<EfficiencyText>>,
 ) {
     if !testing_state.is_changed() {
@@ -1791,9 +1790,25 @@ fn update_efficiency_text_system(
     let eff_text = if testing_state.done {
         let val = ((score.0 as f32 / cost.0 as f32 / testing_state.elapsed as f32) * 10000.0).ceil()
             as u32;
-        format!("Æ{}", val)
+
+        match best_efficiency.0 {
+            Some(best) if best < val => {
+                best_efficiency.0 = Some(val);
+                format!("Æ{}", val)
+            }
+            Some(best) => {
+                format!("Æ{} ({})", val, best)
+            }
+            None => {
+                best_efficiency.0 = Some(val);
+                format!("Æ{}", val)
+            }
+        }
     } else {
-        "Æ?".to_string()
+        match best_efficiency.0 {
+            Some(best) => format!("Æ? ({})", best),
+            _ => "Æ?".to_string(),
+        }
     };
 
     if let Some(mut text) = q_efficiency_text.iter_mut().next() {
@@ -2259,7 +2274,7 @@ fn setup(
                             parent
                                 .spawn_bundle(TextBundle {
                                     style: Style {
-                                        size: Size::new(Val::Px(100.0), Val::Px(30.0)),
+                                        size: Size::new(Val::Px(150.0), Val::Px(30.0)),
                                         ..Default::default()
                                     },
                                     text: Text {
