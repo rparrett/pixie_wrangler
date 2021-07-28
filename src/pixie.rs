@@ -121,8 +121,7 @@ fn move_pixies_system(
 
         let step = pixie.current_speed * delta;
 
-        // five radians per second, clockwise
-        transform.rotate(Quat::from_rotation_z(-5.0 * delta));
+        transform.rotate(Quat::from_rotation_z(pixie.current_speed * -0.08 * delta));
 
         if step < dist {
             transform.translation.x += step / dist * (next_waypoint.x - transform.translation.x);
