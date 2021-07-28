@@ -18,6 +18,7 @@ use petgraph::visit::{DfsPostOrder, Walker};
 use rand::seq::SliceRandom;
 
 mod collision;
+mod layer;
 mod lines;
 mod pixie;
 mod radio_button;
@@ -655,7 +656,7 @@ fn draw_mouse_system(
         }
         let shape = shapes::Circle {
             radius: 5.5,
-            center: snapped,
+            ..Default::default()
         };
         let color = if line_drawing.drawing && line_drawing.valid {
             DRAWING_ROAD_COLORS[line_drawing.layer as usize - 1]
@@ -669,7 +670,7 @@ fn draw_mouse_system(
                 &shape,
                 ShapeColors::new(color.as_rgba_linear()),
                 DrawMode::Stroke(StrokeOptions::default().with_line_width(2.0)),
-                Transform::default(),
+                Transform::from_translation(snapped.extend(layer::CURSOR)),
             ))
             .insert(Cursor);
     }
@@ -695,7 +696,7 @@ fn draw_mouse_system(
                     &shapes::Line(*a, *b),
                     ShapeColors::new(color.as_rgba_linear()),
                     DrawMode::Stroke(StrokeOptions::default().with_line_width(2.0)),
-                    Transform::from_xyz(0.0, 0.0, 2.0),
+                    Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
                 ))
                 .insert(DrawingLine);
         }
@@ -721,7 +722,7 @@ fn draw_net_ripping_system(
                 &shapes::Line(*a, *b),
                 ShapeColors::new(Color::RED),
                 DrawMode::Stroke(StrokeOptions::default().with_line_width(2.0)),
-                Transform::from_xyz(0.0, 0.0, 2.0),
+                Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
             ))
             .insert(RippingLine);
     }
@@ -1503,7 +1504,7 @@ fn spawn_road_segment(
             &shapes::Line(points.0, points.1),
             ShapeColors::new(color.as_rgba_linear()),
             DrawMode::Stroke(StrokeOptions::default().with_line_width(2.0)),
-            Transform::default(),
+            Transform::from_xyz(0.0, 0.0, layer::ROAD - layer as f32),
         ))
         .insert(RoadSegment { points, layer })
         .with_children(|parent| {
@@ -1540,7 +1541,7 @@ fn spawn_obstacle(commands: &mut Commands, top_left: Vec2, bottom_right: Vec2) {
             },
             ShapeColors::new(Color::GRAY),
             DrawMode::Fill(FillOptions::default()),
-            Transform::from_translation(origin.extend(0.0)),
+            Transform::from_translation(origin.extend(layer::OBSTACLE)),
         ))
         .with_children(|parent| {
             parent
@@ -1599,7 +1600,7 @@ fn spawn_terminus(
                 fill_options: FillOptions::default(),
                 outline_options: StrokeOptions::default().with_line_width(2.0),
             },
-            Transform::from_translation(pos.extend(0.0)),
+            Transform::from_translation(pos.extend(layer::TERMINUS)),
         ))
         .insert(Terminus {
             point: pos,
@@ -1631,7 +1632,7 @@ fn spawn_terminus(
                             horizontal: HorizontalAlign::Center,
                         },
                     ),
-                    transform: Transform::from_translation(label_pos.extend(0.0)),
+                    transform: Transform::from_translation(label_pos.extend(layer::TERMINUS)),
                     ..Default::default()
                 });
 
@@ -1655,7 +1656,7 @@ fn spawn_terminus(
                             horizontal: HorizontalAlign::Center,
                         },
                     ),
-                    transform: Transform::from_translation(label_pos.extend(0.0)),
+                    transform: Transform::from_translation(label_pos.extend(layer::TERMINUS)),
                     ..Default::default()
                 });
 
@@ -1673,7 +1674,7 @@ fn spawn_terminus(
                     },
                     ShapeColors::new(Color::RED),
                     DrawMode::Fill(FillOptions::default()),
-                    Transform::from_xyz(-30.0, -1.0 * label_offset, 0.0),
+                    Transform::from_xyz(-30.0, -1.0 * label_offset, layer::TERMINUS),
                 ))
                 .insert(TerminusIssueIndicator)
                 .insert(ShapeStartsInvisible);
@@ -1833,11 +1834,11 @@ fn setup(
                 .spawn_bundle(GeometryBuilder::build_as(
                     &shapes::Circle {
                         radius: 2.5,
-                        center: Vec2::new(x as f32, y as f32),
+                        ..Default::default()
                     },
                     ShapeColors::new(GRID_COLOR.as_rgba_linear()),
                     DrawMode::Fill(FillOptions::default()),
-                    Transform::default(),
+                    Transform::from_xyz(x as f32, y as f32, layer::GRID),
                 ))
                 .insert(GridPoint);
         }

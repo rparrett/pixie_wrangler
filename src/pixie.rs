@@ -1,6 +1,9 @@
+use crate::layer;
 use crate::{lines::corner_angle, GameState, RoadSegment, Score, TestingState, GRID_SIZE};
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
+
+pub const PIXIE_RADIUS: f32 = 6.0;
 
 pub struct PixiePlugin;
 impl Plugin for PixiePlugin {
@@ -70,9 +73,25 @@ fn move_pixies_system(
             continue;
         }
 
-        let next_waypoint = pixie.path[pixie.path_index].points.1;
-        let dist = transform.translation.truncate().distance(next_waypoint);
+        let delta = time.delta_seconds();
 
+        let next_waypoint = pixie.path[pixie.path_index].points.1;
+        let prev_waypoint = pixie.path[pixie.path_index].points.0;
+        let current_layer = pixie.path[pixie.path_index].layer;
+        let next_layer = if let Some(seg) = pixie.path.get(pixie.path_index + 1) {
+            seg.layer
+        } else {
+            current_layer
+        };
+        let prev_layer = if let Some(seg) = pixie.path.get(pixie.path_index - 1) {
+            seg.layer
+        } else {
+            current_layer
+        };
+        let dist = transform.translation.truncate().distance(next_waypoint);
+        let last_dist = transform.translation.truncate().distance(prev_waypoint);
+
+        // pixies must slow down as they approach sharp corners
         if dist < GRID_SIZE {
             if let Some(angle) = pixie.next_corner_angle {
                 if angle <= 45.0 {
@@ -86,8 +105,6 @@ fn move_pixies_system(
         } else {
             pixie.current_speed_limit = pixie.max_speed;
         }
-
-        let delta = time.delta_seconds();
 
         let speed_diff = pixie.current_speed_limit - pixie.current_speed;
         if speed_diff > f32::EPSILON {
@@ -110,9 +127,20 @@ fn move_pixies_system(
         if step < dist {
             transform.translation.x += step / dist * (next_waypoint.x - transform.translation.x);
             transform.translation.y += step / dist * (next_waypoint.y - transform.translation.y);
+
+            // pixies travelling uphill should stay above the next road as they approach it.
+            // pixies travelling downhill should stay above the previous road as they leave it.
+            if next_layer < current_layer && dist < PIXIE_RADIUS {
+                transform.translation.z = layer::PIXIE - next_layer as f32;
+            } else if prev_layer < current_layer && last_dist < PIXIE_RADIUS {
+                transform.translation.z = layer::PIXIE - prev_layer as f32;
+            } else {
+                transform.translation.z = layer::PIXIE - current_layer as f32
+            }
         } else {
             transform.translation.x = next_waypoint.x;
             transform.translation.y = next_waypoint.y;
+
             pixie.path_index += 1;
         }
 
@@ -159,7 +187,7 @@ fn emit_pixies_system(
 
         let shape = shapes::RegularPolygon {
             sides: 6,
-            feature: shapes::RegularPolygonFeature::Radius(6.0),
+            feature: shapes::RegularPolygonFeature::Radius(PIXIE_RADIUS),
             ..shapes::RegularPolygon::default()
         };
 
@@ -170,7 +198,12 @@ fn emit_pixies_system(
                 &shape,
                 ShapeColors::new(PIXIE_COLORS[(emitter.flavor) as usize].as_rgba_linear()),
                 DrawMode::Fill(FillOptions::default()),
-                Transform::from_translation(first_segment.points.0.extend(1.0)),
+                Transform::from_translation(
+                    first_segment
+                        .points
+                        .0
+                        .extend(layer::PIXIE - first_segment.layer as f32),
+                ),
             ))
             .insert(Pixie {
                 path: emitter.path.clone(),
