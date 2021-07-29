@@ -27,7 +27,7 @@ bevy = {version="0.5.0", default-features=false}
 bevy_webgl2 = {version="0.5.2", optional=true}
 
 winit = {version = "0.24.0"}
-rand = "0.7"
+rand = "0.8"
 getrandom = {version="0.1", features=["wasm-bindgen"]}
 petgraph = "0.6"
 itertools = "0.10"

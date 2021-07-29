@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::RoadSegment;
+
 #[derive(Clone, Copy, Debug)]
 pub enum Axis {
     X,
@@ -67,4 +69,38 @@ pub fn possible_lines(
     }
 
     return vec![vec![(from, b), (b, to)], vec![(from, a), (a, to)]];
+}
+
+/// * `start` The starting point, which should be on the first segment
+pub fn travel_on_segments(
+    start: Vec2,
+    distance: f32,
+    segments: &[RoadSegment],
+) -> Vec<(Vec2, Vec2)> {
+    let mut to_go = distance;
+    let mut i = 0;
+    let mut path = vec![];
+    let mut current = start;
+
+    while i < segments.len() {
+        let next = segments[i].points.1;
+        let to_next = current.distance(next);
+
+        if to_next < to_go {
+            path.push((current, next));
+            current = next;
+            to_go -= to_next;
+            i += 1;
+        } else {
+            let diff = next - current;
+            let theta = diff.y.atan2(diff.x);
+
+            let projected = current + Vec2::new(to_go * theta.cos(), to_go * theta.sin());
+            path.push((current, projected));
+
+            return path;
+        }
+    }
+
+    path
 }

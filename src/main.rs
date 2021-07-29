@@ -1,14 +1,17 @@
 use crate::collision::{point_segment_collision, segment_collision, SegmentCollision};
+use crate::debug::DebugLinesPlugin;
 use crate::lines::{possible_lines, Axis};
 use crate::pixie::{Pixie, PixieEmitter, PixiePlugin, PIXIE_COLORS};
 use crate::radio_button::{
     RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonPlugin,
 };
 
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::{
     input::mouse::MouseButtonInput, input::ElementState::Released, prelude::*, utils::HashSet,
     window::CursorMoved,
 };
+
 use bevy_prototype_lyon::prelude::*;
 use itertools::Itertools;
 use petgraph::algo::astar;
@@ -18,6 +21,7 @@ use petgraph::visit::{DfsPostOrder, Walker};
 use rand::seq::SliceRandom;
 
 mod collision;
+mod debug;
 mod layer;
 mod lines;
 mod pixie;
@@ -39,6 +43,7 @@ fn main() {
     app.add_plugin(ShapePlugin);
     app.add_plugin(RadioButtonPlugin);
     app.add_plugin(PixiePlugin);
+    app.add_plugin(DebugLinesPlugin);
     app.add_state(GameState::Playing);
 
     app.add_stage_after(CoreStage::Update, "after_update", SystemStage::parallel());
@@ -121,6 +126,8 @@ fn main() {
     app.init_resource::<Score>();
     app.init_resource::<Cost>();
     app.init_resource::<BestEfficiency>();
+    app.add_plugin(LogDiagnosticsPlugin::default());
+    app.add_plugin(FrameTimeDiagnosticsPlugin::default());
     app.run();
 }
 

@@ -1,7 +1,10 @@
+use crate::collision::point_segment_collision;
 use crate::layer;
+use crate::lines::travel_on_segments;
 use crate::{lines::corner_angle, GameState, RoadSegment, Score, TestingState, GRID_SIZE};
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
+use rand::Rng;
 
 pub const PIXIE_RADIUS: f32 = 6.0;
 
@@ -13,13 +16,35 @@ impl Plugin for PixiePlugin {
             SystemSet::on_update(GameState::Playing)
                 .label("pixies")
                 .after("test_buttons")
-                .with_system(move_pixies_system.system())
+                .with_system(
+                    collide_pixies_system
+                        .system()
+                        .label("collide_pixies")
+                        .before("move_pixies"),
+                )
+                .with_system(explode_pixies_system.system().after("collide_pixies"))
+                .with_system(move_pixies_system.system().label("move_pixies"))
+                .with_system(move_fragments_system.system())
                 .with_system(emit_pixies_system.system()),
         );
     }
 }
 
+struct PixieFragment {
+    direction: Vec2,
+    life_remaining: f32,
+}
+impl Default for PixieFragment {
+    fn default() -> Self {
+        Self {
+            direction: Vec2::splat(0.0),
+            life_remaining: 5.0,
+        }
+    }
+}
+
 pub struct Pixie {
+    pub flavor: u32,
     pub path: Vec<RoadSegment>,
     pub path_index: usize,
     pub next_corner_angle: Option<f32>,
@@ -28,10 +53,13 @@ pub struct Pixie {
     pub current_speed_limit: f32,
     pub acceleration: f32,
     pub deceleration: f32,
+    pub attracted: bool,
+    pub exploding: bool,
 }
 impl Default for Pixie {
     fn default() -> Self {
         Self {
+            flavor: 0,
             path: vec![],
             path_index: 0,
             next_corner_angle: None,
@@ -40,6 +68,8 @@ impl Default for Pixie {
             current_speed_limit: 60.0,
             acceleration: 10.0,
             deceleration: 50.0,
+            attracted: false,
+            exploding: false,
         }
     }
 }
@@ -60,20 +90,165 @@ pub const PIXIE_COLORS: [Color; 6] = [
     Color::YELLOW,
 ];
 
+fn move_fragments_system(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut PixieFragment, &mut Transform)>,
+) {
+    let delta = time.delta_seconds();
+
+    for (entity, mut frag, mut transform) in query.iter_mut() {
+        frag.life_remaining -= delta;
+        if frag.life_remaining <= 0.0 {
+            commands.entity(entity).despawn();
+            return;
+        }
+
+        transform.rotate(Quat::from_rotation_z(5.0 * delta));
+
+        transform.translation += Vec3::new(
+            delta * 100.0 * frag.direction.x,
+            delta * 100.0 * frag.direction.y,
+            0.0,
+        );
+    }
+}
+
+fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixie, &Transform)>) {
+    let mut rng = rand::thread_rng();
+
+    let shape = shapes::RegularPolygon {
+        sides: 3,
+        feature: shapes::RegularPolygonFeature::Radius(PIXIE_RADIUS / 2.0),
+        ..shapes::RegularPolygon::default()
+    };
+
+    for (entity, pixie, transform) in query.iter().filter(|(_, p, _)| p.exploding) {
+        commands.entity(entity).despawn();
+
+        // ideally we would have just stored a list of annihilating pairs so we can fling
+        // pixie fragments in opposite directions, and then we wouldn't have to iter
+        // every pixie again
+
+        for _ in 0..2 {
+            let theta = rng.gen_range(0.0..std::f32::consts::TAU);
+
+            commands
+                .spawn_bundle(GeometryBuilder::build_as(
+                    &shape,
+                    ShapeColors::new(PIXIE_COLORS[(pixie.flavor) as usize].as_rgba_linear()),
+                    DrawMode::Fill(FillOptions::default()),
+                    transform.clone(),
+                ))
+                .insert(PixieFragment {
+                    direction: Vec2::new(theta.cos(), theta.sin()),
+                    ..Default::default()
+                });
+        }
+    }
+}
+
+fn collide_pixies_system(
+    mut queries: QuerySet<(Query<(Entity, &Pixie, &Transform)>, Query<&mut Pixie>)>,
+) {
+    let mut collisions = vec![];
+
+    // TODO if this is set too high, there may be some mutual attraction and pixies will just
+    // speed up and never actually annihilate. Maybe we should prevent attractors from getting
+    // into the attracting state.
+    let project_dist = PIXIE_RADIUS * 3.0;
+    let explosion_dist = PIXIE_RADIUS * 0.5;
+
+    for (e1, p1, t1) in queries
+        .q0()
+        .iter()
+        .filter(|(_, p, _)| p.path_index <= p.path.len() - 1)
+    {
+        // we are going to project forward along the pixie's travel path and check for collisions
+        // with other pixies of different flavors.
+        // if we find one, we'll put this pixie into an "attracted" state which should drive it
+        // faster towards its ultimate annihilation.
+
+        let layer = p1.path[p1.path_index].layer;
+
+        // colliding from a slightly forward point to we don't get attracted to a pixie behind us
+
+        let just_forward_segs =
+            travel_on_segments(t1.translation.truncate(), 0.01, &p1.path[p1.path_index..]);
+        let just_forward = if let Some(seg) = just_forward_segs.first() {
+            seg.1
+        } else {
+            break;
+        };
+
+        let travel_segs = travel_on_segments(just_forward, project_dist, &p1.path[p1.path_index..]);
+
+        for (e2, _, t2) in queries
+            .q0()
+            .iter()
+            .filter(|(_, p2, _)| p2.path_index <= p2.path.len() - 1)
+            .filter(|(_, p2, _)| p2.path[p2.path_index].layer == layer)
+            .filter(|(_, p2, _)| p2.flavor != p1.flavor)
+            .filter(|(e2, _, _)| *e2 != e1)
+        {
+            for seg in travel_segs.iter() {
+                let annihilating = t2
+                    .translation
+                    .truncate()
+                    .distance(t1.translation.truncate())
+                    < explosion_dist;
+
+                if annihilating {
+                    collisions.push((e1, e2, true));
+                    break;
+                }
+
+                let col = point_segment_collision(t2.translation.truncate(), seg.0, seg.1);
+
+                match col {
+                    crate::collision::SegmentCollision::None => {}
+                    _ => {
+                        collisions.push((e1, e2, false));
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    for mut pixie in queries.q1_mut().iter_mut() {
+        pixie.attracted = false;
+    }
+
+    for (e1, e2, explode) in collisions.iter() {
+        if let Ok(mut pixie) = queries.q1_mut().get_mut(*e1) {
+            pixie.attracted = true;
+            if *explode {
+                pixie.exploding = *explode;
+            }
+        }
+        if let Ok(mut pixie) = queries.q1_mut().get_mut(*e2) {
+            if *explode {
+                pixie.exploding = *explode;
+            }
+        }
+    }
+}
+
 fn move_pixies_system(
     mut commands: Commands,
     time: Res<Time>,
     mut score: ResMut<Score>,
     mut query: Query<(Entity, &mut Pixie, &mut Transform)>,
 ) {
+    let delta = time.delta_seconds();
+
     for (entity, mut pixie, mut transform) in query.iter_mut() {
         if pixie.path_index > pixie.path.len() - 1 {
             commands.entity(entity).despawn_recursive();
             score.0 += 1;
             continue;
         }
-
-        let delta = time.delta_seconds();
 
         let next_waypoint = pixie.path[pixie.path_index].points.1;
         let prev_waypoint = pixie.path[pixie.path_index].points.0;
@@ -91,32 +266,34 @@ fn move_pixies_system(
         let dist = transform.translation.truncate().distance(next_waypoint);
         let last_dist = transform.translation.truncate().distance(prev_waypoint);
 
-        // pixies must slow down as they approach sharp corners
-        if dist < GRID_SIZE {
-            if let Some(angle) = pixie.next_corner_angle {
-                if angle <= 45.0 {
-                    pixie.current_speed_limit = 10.0;
-                } else if angle <= 90.0 {
-                    pixie.current_speed_limit = 30.0;
+        if pixie.attracted {
+            // pixies will drive very recklessly towards a pixie of another
+            // flavor
+            pixie.current_speed_limit = 100.0;
+        } else {
+            // pixies must otherwise slow down as they approach sharp corners
+            if dist < GRID_SIZE {
+                if let Some(angle) = pixie.next_corner_angle {
+                    if angle <= 45.0 {
+                        pixie.current_speed_limit = 10.0;
+                    } else if angle <= 90.0 {
+                        pixie.current_speed_limit = 30.0;
+                    }
+                } else {
+                    pixie.current_speed_limit = pixie.max_speed;
                 }
             } else {
                 pixie.current_speed_limit = pixie.max_speed;
             }
-        } else {
-            pixie.current_speed_limit = pixie.max_speed;
         }
 
         let speed_diff = pixie.current_speed_limit - pixie.current_speed;
         if speed_diff > f32::EPSILON {
             pixie.current_speed += pixie.acceleration * delta;
-            if pixie.current_speed > pixie.current_speed_limit {
-                pixie.current_speed = pixie.current_speed_limit;
-            }
+            pixie.current_speed = pixie.current_speed.min(pixie.current_speed_limit);
         } else if speed_diff < f32::EPSILON {
             pixie.current_speed -= pixie.deceleration * delta;
-            if pixie.current_speed < pixie.current_speed_limit {
-                pixie.current_speed = pixie.current_speed_limit;
-            }
+            pixie.current_speed = pixie.current_speed.max(pixie.current_speed_limit);
         }
 
         let step = pixie.current_speed * delta;
@@ -137,6 +314,8 @@ fn move_pixies_system(
                 transform.translation.z = layer::PIXIE - current_layer as f32
             }
         } else {
+            // TODO we should really move past this next waypoint the remaining distance
+
             transform.translation.x = next_waypoint.x;
             transform.translation.y = next_waypoint.y;
 
@@ -205,6 +384,7 @@ fn emit_pixies_system(
                 ),
             ))
             .insert(Pixie {
+                flavor: emitter.flavor,
                 path: emitter.path.clone(),
                 path_index: 0,
                 ..Default::default()
