@@ -6,7 +6,6 @@ An exciting blend of traffic simulation games and printed circuit board design.
 
 ## TODO
 
-- [ ] Traffic congestion between differently flavored pixies
 - [ ] It would be nice if pixies could darken when traveling on lower layers
 - [ ] Maybe line drawing should automatically stop when drawing to an intersection
       Should it just always stop unless there are no collisions at the endpoint
