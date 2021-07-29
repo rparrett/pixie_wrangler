@@ -2,6 +2,7 @@ use crate::collision::point_segment_collision;
 use crate::layer;
 use crate::lines::travel_on_segments;
 use crate::{lines::corner_angle, GameState, RoadSegment, Score, TestingState, GRID_SIZE};
+
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use rand::Rng;
@@ -130,21 +131,27 @@ fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixie, &
         // pixie fragments in opposite directions, and then we wouldn't have to iter
         // every pixie again
 
-        for _ in 0..2 {
-            let theta = rng.gen_range(0.0..std::f32::consts::TAU);
+        // after doing some profiling though, compared to the effort of actually rendering
+        // "lots of things," that's probably a micro-optimization.
 
-            commands
-                .spawn_bundle(GeometryBuilder::build_as(
-                    &shape,
-                    ShapeColors::new(PIXIE_COLORS[(pixie.flavor) as usize].as_rgba_linear()),
-                    DrawMode::Fill(FillOptions::default()),
-                    transform.clone(),
-                ))
-                .insert(PixieFragment {
-                    direction: Vec2::new(theta.cos(), theta.sin()),
-                    ..Default::default()
-                });
-        }
+        // I really liked each pixie exploding into two triangles, but bevy seemingly just
+        // cannot handle this.
+
+        //for _ in 0..2 {
+        let theta = rng.gen_range(0.0..std::f32::consts::TAU);
+
+        commands
+            .spawn_bundle(GeometryBuilder::build_as(
+                &shape,
+                ShapeColors::new(PIXIE_COLORS[(pixie.flavor) as usize].as_rgba_linear()),
+                DrawMode::Fill(FillOptions::default()),
+                transform.clone(),
+            ))
+            .insert(PixieFragment {
+                direction: Vec2::new(theta.cos(), theta.sin()),
+                ..Default::default()
+            });
+        //}
     }
 }
 

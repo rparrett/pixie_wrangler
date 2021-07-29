@@ -16,6 +16,8 @@ default = [
 
 native = [
   "bevy/bevy_wgpu",
+#  "bevy/trace",
+#  "bevy/trace_chrome"
 ]
 
 web = [
@@ -24,6 +26,7 @@ web = [
 
 [dependencies]
 bevy = {version="0.5.0", default-features=false}
+#bevy = {path = "../bevy", default-features=false}
 bevy_webgl2 = {version="0.5.2", optional=true}
 
 winit = {version = "0.24.0"}
@@ -35,8 +38,12 @@ itertools = "0.10"
 bevy_prototype_lyon = "0.3.1"
 #bevy_prototype_lyon = { path = "../bevy_prototype_lyon" }
 
-# [patch.'https://github.com/bevyengine/bevy']
+#[patch.crates-io]
+#bevy = {path = "../bevy", default-features=false}
+
+#[patch.'https://github.com/bevyengine/bevy']
 # bevy = {git = "https://github.com/bevyengine/bevy//", rev="841755aaf23acfd55b375c37390daeb302c5b30b", default-features=false}
+#bevy = {path = "../bevy", default-features=false}
 
 # [patch.'https://github.com/mrk-its/bevy_webgl2']
 # bevy_webgl2 = {git = "https://github.com/mrk-its/bevy_webgl2//", rev="035236b8d7ec52b8e9e20399662e89c73e4521f6", default-features=false}
