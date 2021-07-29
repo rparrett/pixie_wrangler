@@ -6,7 +6,7 @@ use crate::radio_button::{
     RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonPlugin,
 };
 
-use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+//use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::{
     input::mouse::MouseButtonInput, input::ElementState::Released, prelude::*, utils::HashSet,
     window::CursorMoved,
@@ -126,8 +126,8 @@ fn main() {
     app.init_resource::<Score>();
     app.init_resource::<Cost>();
     app.init_resource::<BestEfficiency>();
-    app.add_plugin(LogDiagnosticsPlugin::default());
-    app.add_plugin(FrameTimeDiagnosticsPlugin::default());
+    //app.add_plugin(LogDiagnosticsPlugin::default());
+    //app.add_plugin(FrameTimeDiagnosticsPlugin::default());
     app.run();
 }
 
