@@ -134,9 +134,6 @@ fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixie, &
         // after doing some profiling though, compared to the effort of actually rendering
         // "lots of things," that's probably a micro-optimization.
 
-        // I really liked each pixie exploding into two triangles, but bevy seemingly just
-        // cannot handle this.
-
         for _ in 0..2 {
             let theta = rng.gen_range(0.0..std::f32::consts::TAU);
 
