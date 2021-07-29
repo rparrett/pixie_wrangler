@@ -102,7 +102,7 @@ fn move_fragments_system(
         frag.life_remaining -= delta;
         if frag.life_remaining <= 0.0 {
             commands.entity(entity).despawn();
-            return;
+            continue;
         }
 
         transform.rotate(Quat::from_rotation_z(5.0 * delta));
@@ -137,21 +137,21 @@ fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixie, &
         // I really liked each pixie exploding into two triangles, but bevy seemingly just
         // cannot handle this.
 
-        //for _ in 0..2 {
-        let theta = rng.gen_range(0.0..std::f32::consts::TAU);
+        for _ in 0..2 {
+            let theta = rng.gen_range(0.0..std::f32::consts::TAU);
 
-        commands
-            .spawn_bundle(GeometryBuilder::build_as(
-                &shape,
-                ShapeColors::new(PIXIE_COLORS[(pixie.flavor) as usize].as_rgba_linear()),
-                DrawMode::Fill(FillOptions::default()),
-                transform.clone(),
-            ))
-            .insert(PixieFragment {
-                direction: Vec2::new(theta.cos(), theta.sin()),
-                ..Default::default()
-            });
-        //}
+            commands
+                .spawn_bundle(GeometryBuilder::build_as(
+                    &shape,
+                    ShapeColors::new(PIXIE_COLORS[(pixie.flavor) as usize].as_rgba_linear()),
+                    DrawMode::Fill(FillOptions::default()),
+                    transform.clone(),
+                ))
+                .insert(PixieFragment {
+                    direction: Vec2::new(theta.cos(), theta.sin()),
+                    ..Default::default()
+                });
+        }
     }
 }
 
