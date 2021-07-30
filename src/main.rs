@@ -725,12 +725,17 @@ fn drawing_mode_change_system(
         return;
     }
 
-    line_state.drawing = false;
-    line_state.segments = vec![];
-
-    ripping_state.entities = vec![];
-    ripping_state.nodes = vec![];
-    ripping_state.segments = vec![];
+    match drawing_state.mode {
+        DrawingMode::LineDrawing => {
+            ripping_state.entities = vec![];
+            ripping_state.nodes = vec![];
+            ripping_state.segments = vec![];
+        }
+        DrawingMode::NetRipping => {
+            line_state.drawing = false;
+            line_state.segments = vec![];
+        }
+    }
 }
 
 fn keyboard_system(
