@@ -1,0 +1,37 @@
+Level(
+    terminuses: [
+        // left
+        Terminus(
+            point:    Vec2(-240.0, 144.0),
+            emits:    [0],
+            collects: [],
+        ),
+        Terminus(
+            point:    Vec2(-240.0, 48.0),
+            emits:    [1],
+            collects: [],
+        ),
+        Terminus(
+            point:    Vec2(-240.0, -48.0),
+            emits:    [2],
+            collects: [],
+        ),
+        // right
+        Terminus(
+            point:    Vec2(240.0, 144.0),
+            emits:    [],
+            collects: [2],
+        ),
+        Terminus(
+            point:    Vec2(240.0, 48.0),
+            emits:    [],
+            collects: [1],
+        ),
+        Terminus(
+            point:    Vec2(240.0, -48.0),
+            emits:    [],
+            collects: [0],
+        ),
+    ],
+    obstacles: []
+)

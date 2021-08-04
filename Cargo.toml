@@ -34,9 +34,12 @@ rand = "0.8"
 getrandom = {version="0.1", features=["wasm-bindgen"]}
 petgraph = "0.6"
 itertools = "0.10"
+serde = {version = "1", features = ["derive"]}
 
 bevy_prototype_lyon = "0.3.1"
 #bevy_prototype_lyon = { path = "../bevy_prototype_lyon" }
+
+bevy_asset_ron = "0.2"
 
 #[patch.crates-io]
 #bevy = {path = "../bevy", default-features=false}

@@ -1,29 +1,33 @@
 use crate::collision::{point_segment_collision, segment_collision, SegmentCollision};
 use crate::debug::DebugLinesPlugin;
+use crate::level::Level;
+use crate::level_select::LevelSelectPlugin;
 use crate::lines::{possible_lines, Axis};
+use crate::loading::LoadingPlugin;
 use crate::pixie::{Pixie, PixieEmitter, PixiePlugin, PIXIE_COLORS};
 use crate::radio_button::{
     RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonPlugin,
 };
 
 //use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
-use bevy::{
-    input::mouse::MouseButtonInput, input::ElementState::Released, prelude::*, utils::HashSet,
-    window::CursorMoved,
-};
+use bevy::{prelude::*, utils::HashSet, window::CursorMoved};
 
+use bevy_asset_ron::*;
 use bevy_prototype_lyon::prelude::*;
 use itertools::Itertools;
 use petgraph::algo::astar;
 use petgraph::dot::{Config, Dot};
 use petgraph::stable_graph::{NodeIndex, StableUnGraph};
 use petgraph::visit::{DfsPostOrder, Walker};
-use rand::seq::SliceRandom;
+use serde::Deserialize;
 
 mod collision;
 mod debug;
 mod layer;
+mod level;
+mod level_select;
 mod lines;
+mod loading;
 mod pixie;
 mod radio_button;
 
@@ -43,11 +47,14 @@ fn main() {
     app.add_plugin(ShapePlugin);
     app.add_plugin(RadioButtonPlugin);
     app.add_plugin(PixiePlugin);
+    app.add_plugin(LoadingPlugin);
+    app.add_plugin(LevelSelectPlugin);
     app.add_plugin(DebugLinesPlugin);
-    app.add_state(GameState::Playing);
+    app.add_plugin(RonAssetPlugin::<Level>::new(&["level.ron"]));
+    app.add_state(GameState::Loading);
 
     app.add_stage_after(CoreStage::Update, "after_update", SystemStage::parallel());
-    app.add_state_to_stage("after_update", GameState::Playing);
+    app.add_state_to_stage("after_update", GameState::Loading);
 
     app.add_system_set(SystemSet::on_enter(GameState::Playing).with_system(setup.system()));
     app.add_system_set(
@@ -115,6 +122,8 @@ fn main() {
     );
     app.add_system_to_stage("after_shape", shape_visibility_fix_system.system());
 
+    app.init_resource::<Handles>();
+    app.init_resource::<SelectedLevel>();
     app.init_resource::<DrawingState>();
     app.init_resource::<LineDrawingState>();
     app.init_resource::<NetRippingState>();
@@ -133,10 +142,16 @@ fn main() {
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 enum GameState {
-    Playing,
     Loading,
+    LevelSelect,
+    Playing,
 }
 
+#[derive(Default)]
+struct Handles {
+    levels: Vec<Handle<Level>>,
+    fonts: Vec<Handle<Font>>,
+}
 struct MainCamera;
 struct Cursor;
 struct DrawingLine;
@@ -154,6 +169,8 @@ struct NetRippingButton;
 struct PixieButton;
 struct ResetButton;
 
+#[derive(Default)]
+struct SelectedLevel(u32);
 #[derive(Default)]
 struct Score(u32);
 #[derive(Default)]
@@ -236,12 +253,13 @@ struct PathfindingState {
     invalid_nodes: Vec<Entity>,
 }
 
-#[derive(Default, Debug)]
-struct Terminus {
+#[derive(Default, Debug, Deserialize, Clone)]
+pub struct Terminus {
     point: Vec2,
     emits: HashSet<u32>,
     collects: HashSet<u32>,
 }
+
 struct TerminusIssueIndicator;
 struct ShapeStartsInvisible;
 
@@ -605,26 +623,6 @@ fn reset_button_system(
     }
 }
 
-fn is_boring(in_flavors: &[u32], out_flavors: &[u32]) -> bool {
-    if in_flavors.windows(2).any(|v| v[0] == v[1]) {
-        return true;
-    }
-
-    if out_flavors.windows(2).any(|v| v[0] == v[1]) {
-        return true;
-    }
-
-    if in_flavors.first().unwrap() == out_flavors.first().unwrap() {
-        return true;
-    }
-
-    if in_flavors.last().unwrap() == out_flavors.last().unwrap() {
-        return true;
-    }
-
-    false
-}
-
 fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {
     (position / grid_size).round() * grid_size
 }
@@ -791,7 +789,7 @@ fn keyboard_system(
 
 fn net_ripping_mouse_click_system(
     mut commands: Commands,
-    mut mouse_button_input_events: EventReader<MouseButtonInput>,
+    mouse_input: ResMut<Input<MouseButton>>,
     mut ripping_state: ResMut<NetRippingState>,
     testing_state: Res<TestingState>,
     drawing_state: Res<DrawingState>,
@@ -805,26 +803,24 @@ fn net_ripping_mouse_click_system(
         return;
     }
 
-    for event in mouse_button_input_events.iter() {
-        if event.button == MouseButton::Left && event.state == Released {
-            for entity in ripping_state.entities.iter() {
-                commands.entity(*entity).despawn_recursive();
-            }
-            for node in ripping_state.nodes.iter() {
-                graph.graph.remove_node(*node);
-            }
-
-            ripping_state.entities = vec![];
-            ripping_state.nodes = vec![];
-            ripping_state.segments = vec![];
+    if mouse_input.just_pressed(MouseButton::Left) {
+        for entity in ripping_state.entities.iter() {
+            commands.entity(*entity).despawn_recursive();
         }
+        for node in ripping_state.nodes.iter() {
+            graph.graph.remove_node(*node);
+        }
+
+        ripping_state.entities = vec![];
+        ripping_state.nodes = vec![];
+        ripping_state.segments = vec![];
     }
 }
 
 #[allow(clippy::too_many_arguments)]
 fn drawing_mouse_click_system(
     mut commands: Commands,
-    mut mouse_button_input_events: EventReader<MouseButtonInput>,
+    mouse_input: ResMut<Input<MouseButton>>,
     mouse: Res<MouseState>,
     drawing_state: ResMut<DrawingState>,
     mut line_state: ResMut<LineDrawingState>,
@@ -846,236 +842,233 @@ fn drawing_mouse_click_system(
         return;
     }
 
-    for event in mouse_button_input_events.iter() {
-        if event.button == MouseButton::Left && event.state == Released {
-            if !line_state.drawing {
-                if line_state.valid {
-                    line_state.drawing = true;
-                    line_state.start = mouse.snapped;
-                    line_state.end = line_state.start;
-                }
-            } else {
-                if line_state.end == line_state.start {
-                    line_state.drawing = false;
-                }
-
-                if !line_state.valid {
-                    continue;
-                }
-
-                if line_state.adds.is_empty() {
-                    continue;
-                }
-
-                let mut previous_end: Option<NodeIndex> = None;
-
-                for add in line_state.adds.iter() {
-                    info!("Add: {:?}", add);
-
-                    // SegmentConnection::TryExtend is only valid if extending the
-                    // target segment would not break any existing connections.
-
-                    let valid_extension_a = add.connections.0.len() == 1
-                        && add
-                            .connections
-                            .0
-                            .iter()
-                            .all(|c| matches!(c, SegmentConnection::TryExtend(_)));
-                    let valid_extension_b = add.connections.1.len() == 1
-                        && add
-                            .connections
-                            .1
-                            .iter()
-                            .all(|c| matches!(c, SegmentConnection::TryExtend(_)));
-
-                    info!(
-                        "valid_extension_a {:?} valid_extension_b {:?}",
-                        valid_extension_a, valid_extension_b
-                    );
-
-                    let mut points = add.points;
-
-                    info!("before: {:?}", points);
-
-                    if valid_extension_a {
-                        if let SegmentConnection::TryExtend(entity) =
-                            add.connections.0.get(0).unwrap()
-                        {
-                            let segment = q_road_segments.get(*entity).unwrap();
-
-                            if add.points.0 == segment.points.0 {
-                                points.0 = segment.points.1;
-                            } else {
-                                points.0 = segment.points.0;
-                            }
-                        }
-                    }
-                    if valid_extension_b {
-                        if let SegmentConnection::TryExtend(entity) =
-                            add.connections.1.get(0).unwrap()
-                        {
-                            let segment = q_road_segments.get(*entity).unwrap();
-
-                            if add.points.1 == segment.points.1 {
-                                points.1 = segment.points.0;
-                            } else {
-                                points.1 = segment.points.1;
-                            }
-                        }
-                    }
-
-                    info!("after: {:?}", points);
-
-                    let (start_node, end_node) =
-                        spawn_road_segment(&mut commands, &mut graph, points, line_state.layer);
-
-                    for (node, is_start, connections, point) in [
-                        (start_node, true, &add.connections.0, add.points.0),
-                        (end_node, false, &add.connections.1, add.points.1),
-                    ]
-                    .iter()
-                    {
-                        for connection in connections.iter() {
-                            match connection {
-                                SegmentConnection::Add(entity) => {
-                                    // seems like I should really just store whether the entity is a
-                                    // segment or point in SegmentConnection::Add
-
-                                    let s_nodes = q_segment_nodes.get(*entity);
-                                    let segment = q_road_segments.get(*entity);
-                                    let p_nodes = q_point_nodes.get(*entity);
-
-                                    match (s_nodes, segment, p_nodes) {
-                                        (Ok(segment_nodes), Ok(segment), Err(_)) => {
-                                            if segment.points.0 == *point {
-                                                graph.graph.add_edge(*node, segment_nodes.0, 0.0);
-                                            }
-                                            if segment.points.1 == *point {
-                                                graph.graph.add_edge(*node, segment_nodes.1, 0.0);
-                                            }
-                                        }
-                                        (Err(_), Err(_), Ok(p_nodes)) => {
-                                            graph.graph.add_edge(*node, p_nodes.0, 0.0);
-                                        }
-                                        _ => {
-                                            info!("encountered a thing that should not happen");
-                                        }
-                                    }
-                                }
-                                SegmentConnection::TryExtend(entity) => {
-                                    let t_segment = q_road_segments.get(*entity);
-                                    let t_nodes = q_segment_nodes.get(*entity);
-
-                                    if let (Ok(t_nodes), Ok(t_segment)) = (t_nodes, t_segment) {
-                                        if (*is_start && valid_extension_a)
-                                            || (!is_start && valid_extension_b)
-                                        {
-                                            let neighbors = if t_segment.points.0 == *point {
-                                                graph.graph.neighbors(t_nodes.1).collect::<Vec<_>>()
-                                            } else {
-                                                graph.graph.neighbors(t_nodes.0).collect::<Vec<_>>()
-                                            };
-
-                                            for neighbor in neighbors {
-                                                graph.graph.add_edge(
-                                                    neighbor,
-                                                    if *is_start { start_node } else { end_node },
-                                                    0.0,
-                                                );
-                                            }
-
-                                            commands.entity(*entity).despawn_recursive();
-                                            graph.graph.remove_node(t_nodes.0);
-                                            graph.graph.remove_node(t_nodes.1);
-                                        } else {
-                                            // normal add
-                                            if t_segment.points.0 == *point {
-                                                graph.graph.add_edge(*node, t_nodes.0, 0.0);
-                                            }
-                                            if t_segment.points.1 == *point {
-                                                graph.graph.add_edge(*node, t_nodes.1, 0.0);
-                                            }
-                                        }
-                                    }
-                                }
-                                SegmentConnection::Previous => {
-                                    if *is_start {
-                                        if let Some(previous_end) = previous_end {
-                                            graph.graph.add_edge(*node, previous_end, 0.0);
-                                        }
-                                    }
-                                }
-                                SegmentConnection::Split(entity) => {
-                                    let s_nodes = q_segment_nodes.get(*entity).unwrap();
-                                    let segment = q_road_segments.get(*entity).unwrap();
-
-                                    // get neighboring NodeIndex from split line's start node
-                                    let start_neighbors =
-                                        graph.graph.neighbors(s_nodes.0).collect::<Vec<_>>();
-
-                                    // get neighboring NodeIndex from split line's end node
-                                    let end_neighbors =
-                                        graph.graph.neighbors(s_nodes.1).collect::<Vec<_>>();
-
-                                    // despawn split line
-                                    commands.entity(*entity).despawn_recursive();
-
-                                    // create a new segment on (entity start, this_point)
-                                    let (start_node_a, end_node_a) = spawn_road_segment(
-                                        &mut commands,
-                                        &mut graph,
-                                        (segment.points.0, *point),
-                                        segment.layer,
-                                    );
-
-                                    // reconnect new segment to split line's old start node neighbors
-                                    for neighbor in start_neighbors {
-                                        graph.graph.add_edge(neighbor, start_node_a, 0.0);
-                                    }
-                                    graph.graph.add_edge(end_node_a, *node, 0.0);
-
-                                    // create a new segment on (entity end, this_point)
-                                    let (start_node_b, end_node_b) = spawn_road_segment(
-                                        &mut commands,
-                                        &mut graph,
-                                        (*point, segment.points.1),
-                                        segment.layer,
-                                    );
-
-                                    // reconnect new segment to split line's old end node neighbors
-                                    for neighbor in end_neighbors {
-                                        graph.graph.add_edge(end_node_b, neighbor, 0.0);
-                                    }
-                                    graph.graph.add_edge(*node, start_node_b, 0.0);
-
-                                    // connect the two new segments together
-                                    graph.graph.add_edge(end_node_a, start_node_b, 0.0);
-
-                                    // remove all graph edges and nodes associated with the split line
-                                    graph.graph.remove_node(s_nodes.0);
-                                    graph.graph.remove_node(s_nodes.1);
-                                }
-                            };
-                        }
-                    }
-
-                    previous_end = Some(end_node);
-                }
-
-                if line_state.stop {
-                    line_state.drawing = false;
-                    line_state.stop = false;
-                }
-
-                line_state.start = line_state.end;
-                line_state.adds = vec![];
-                line_state.segments = vec![];
-
-                println!(
-                    "{:?}",
-                    Dot::with_config(&graph.graph, &[Config::EdgeNoLabel, Config::NodeIndexLabel])
-                );
+    if mouse_input.just_pressed(MouseButton::Left) {
+        if !line_state.drawing {
+            if line_state.valid {
+                info!("{:?}", mouse.snapped);
+                line_state.drawing = true;
+                line_state.start = mouse.snapped;
+                line_state.end = line_state.start;
             }
+        } else {
+            if line_state.end == line_state.start {
+                line_state.drawing = false;
+            }
+
+            if !line_state.valid {
+                return;
+            }
+
+            if line_state.adds.is_empty() {
+                return;
+            }
+
+            let mut previous_end: Option<NodeIndex> = None;
+
+            for add in line_state.adds.iter() {
+                info!("Add: {:?}", add);
+
+                // SegmentConnection::TryExtend is only valid if extending the
+                // target segment would not break any existing connections.
+
+                let valid_extension_a = add.connections.0.len() == 1
+                    && add
+                        .connections
+                        .0
+                        .iter()
+                        .all(|c| matches!(c, SegmentConnection::TryExtend(_)));
+                let valid_extension_b = add.connections.1.len() == 1
+                    && add
+                        .connections
+                        .1
+                        .iter()
+                        .all(|c| matches!(c, SegmentConnection::TryExtend(_)));
+
+                info!(
+                    "valid_extension_a {:?} valid_extension_b {:?}",
+                    valid_extension_a, valid_extension_b
+                );
+
+                let mut points = add.points;
+
+                info!("before: {:?}", points);
+
+                if valid_extension_a {
+                    if let SegmentConnection::TryExtend(entity) = add.connections.0.get(0).unwrap()
+                    {
+                        let segment = q_road_segments.get(*entity).unwrap();
+
+                        if add.points.0 == segment.points.0 {
+                            points.0 = segment.points.1;
+                        } else {
+                            points.0 = segment.points.0;
+                        }
+                    }
+                }
+                if valid_extension_b {
+                    if let SegmentConnection::TryExtend(entity) = add.connections.1.get(0).unwrap()
+                    {
+                        let segment = q_road_segments.get(*entity).unwrap();
+
+                        if add.points.1 == segment.points.1 {
+                            points.1 = segment.points.0;
+                        } else {
+                            points.1 = segment.points.1;
+                        }
+                    }
+                }
+
+                info!("after: {:?}", points);
+
+                let (start_node, end_node) =
+                    spawn_road_segment(&mut commands, &mut graph, points, line_state.layer);
+
+                for (node, is_start, connections, point) in [
+                    (start_node, true, &add.connections.0, add.points.0),
+                    (end_node, false, &add.connections.1, add.points.1),
+                ]
+                .iter()
+                {
+                    for connection in connections.iter() {
+                        match connection {
+                            SegmentConnection::Add(entity) => {
+                                // seems like I should really just store whether the entity is a
+                                // segment or point in SegmentConnection::Add
+
+                                let s_nodes = q_segment_nodes.get(*entity);
+                                let segment = q_road_segments.get(*entity);
+                                let p_nodes = q_point_nodes.get(*entity);
+
+                                match (s_nodes, segment, p_nodes) {
+                                    (Ok(segment_nodes), Ok(segment), Err(_)) => {
+                                        if segment.points.0 == *point {
+                                            graph.graph.add_edge(*node, segment_nodes.0, 0.0);
+                                        }
+                                        if segment.points.1 == *point {
+                                            graph.graph.add_edge(*node, segment_nodes.1, 0.0);
+                                        }
+                                    }
+                                    (Err(_), Err(_), Ok(p_nodes)) => {
+                                        graph.graph.add_edge(*node, p_nodes.0, 0.0);
+                                    }
+                                    _ => {
+                                        info!("encountered a thing that should not happen");
+                                    }
+                                }
+                            }
+                            SegmentConnection::TryExtend(entity) => {
+                                let t_segment = q_road_segments.get(*entity);
+                                let t_nodes = q_segment_nodes.get(*entity);
+
+                                if let (Ok(t_nodes), Ok(t_segment)) = (t_nodes, t_segment) {
+                                    if (*is_start && valid_extension_a)
+                                        || (!is_start && valid_extension_b)
+                                    {
+                                        let neighbors = if t_segment.points.0 == *point {
+                                            graph.graph.neighbors(t_nodes.1).collect::<Vec<_>>()
+                                        } else {
+                                            graph.graph.neighbors(t_nodes.0).collect::<Vec<_>>()
+                                        };
+
+                                        for neighbor in neighbors {
+                                            graph.graph.add_edge(
+                                                neighbor,
+                                                if *is_start { start_node } else { end_node },
+                                                0.0,
+                                            );
+                                        }
+
+                                        commands.entity(*entity).despawn_recursive();
+                                        graph.graph.remove_node(t_nodes.0);
+                                        graph.graph.remove_node(t_nodes.1);
+                                    } else {
+                                        // normal add
+                                        if t_segment.points.0 == *point {
+                                            graph.graph.add_edge(*node, t_nodes.0, 0.0);
+                                        }
+                                        if t_segment.points.1 == *point {
+                                            graph.graph.add_edge(*node, t_nodes.1, 0.0);
+                                        }
+                                    }
+                                }
+                            }
+                            SegmentConnection::Previous => {
+                                if *is_start {
+                                    if let Some(previous_end) = previous_end {
+                                        graph.graph.add_edge(*node, previous_end, 0.0);
+                                    }
+                                }
+                            }
+                            SegmentConnection::Split(entity) => {
+                                let s_nodes = q_segment_nodes.get(*entity).unwrap();
+                                let segment = q_road_segments.get(*entity).unwrap();
+
+                                // get neighboring NodeIndex from split line's start node
+                                let start_neighbors =
+                                    graph.graph.neighbors(s_nodes.0).collect::<Vec<_>>();
+
+                                // get neighboring NodeIndex from split line's end node
+                                let end_neighbors =
+                                    graph.graph.neighbors(s_nodes.1).collect::<Vec<_>>();
+
+                                // despawn split line
+                                commands.entity(*entity).despawn_recursive();
+
+                                // create a new segment on (entity start, this_point)
+                                let (start_node_a, end_node_a) = spawn_road_segment(
+                                    &mut commands,
+                                    &mut graph,
+                                    (segment.points.0, *point),
+                                    segment.layer,
+                                );
+
+                                // reconnect new segment to split line's old start node neighbors
+                                for neighbor in start_neighbors {
+                                    graph.graph.add_edge(neighbor, start_node_a, 0.0);
+                                }
+                                graph.graph.add_edge(end_node_a, *node, 0.0);
+
+                                // create a new segment on (entity end, this_point)
+                                let (start_node_b, end_node_b) = spawn_road_segment(
+                                    &mut commands,
+                                    &mut graph,
+                                    (*point, segment.points.1),
+                                    segment.layer,
+                                );
+
+                                // reconnect new segment to split line's old end node neighbors
+                                for neighbor in end_neighbors {
+                                    graph.graph.add_edge(end_node_b, neighbor, 0.0);
+                                }
+                                graph.graph.add_edge(*node, start_node_b, 0.0);
+
+                                // connect the two new segments together
+                                graph.graph.add_edge(end_node_a, start_node_b, 0.0);
+
+                                // remove all graph edges and nodes associated with the split line
+                                graph.graph.remove_node(s_nodes.0);
+                                graph.graph.remove_node(s_nodes.1);
+                            }
+                        };
+                    }
+                }
+
+                previous_end = Some(end_node);
+            }
+
+            if line_state.stop {
+                line_state.drawing = false;
+                line_state.stop = false;
+            }
+
+            line_state.start = line_state.end;
+            line_state.adds = vec![];
+            line_state.segments = vec![];
+
+            println!(
+                "{:?}",
+                Dot::with_config(&graph.graph, &[Config::EdgeNoLabel, Config::NodeIndexLabel])
+            );
         }
     }
 }
@@ -1521,60 +1514,63 @@ fn spawn_road_segment(
     (start_node, end_node)
 }
 
-fn spawn_obstacle(commands: &mut Commands, top_left: Vec2, bottom_right: Vec2) {
-    let diff = bottom_right - top_left;
-    let origin = (top_left + bottom_right) / 2.0;
+fn spawn_obstacle(commands: &mut Commands, obstacle: &level::Obstacle) {
+    match obstacle {
+        level::Obstacle::Rect(top_left, bottom_right) => {
+            let diff = *bottom_right - *top_left;
+            let origin = (*top_left + *bottom_right) / 2.0;
 
-    commands
-        .spawn_bundle(GeometryBuilder::build_as(
-            &shapes::Rectangle {
-                width: diff.x.abs(),
-                height: diff.y.abs(),
-                ..Default::default()
-            },
-            ShapeColors::new(Color::GRAY),
-            DrawMode::Fill(FillOptions::default()),
-            Transform::from_translation(origin.extend(layer::OBSTACLE)),
-        ))
-        .with_children(|parent| {
-            parent
-                .spawn()
-                .insert(Collider::Segment((
-                    Vec2::new(top_left.x, top_left.y),
-                    Vec2::new(bottom_right.x, top_left.y),
-                )))
-                .insert(ColliderLayer(0));
-            parent
-                .spawn()
-                .insert(Collider::Segment((
-                    Vec2::new(bottom_right.x, top_left.y),
-                    Vec2::new(bottom_right.x, bottom_right.y),
-                )))
-                .insert(ColliderLayer(0));
-            parent
-                .spawn()
-                .insert(Collider::Segment((
-                    Vec2::new(bottom_right.x, bottom_right.y),
-                    Vec2::new(top_left.x, bottom_right.y),
-                )))
-                .insert(ColliderLayer(0));
-            parent
-                .spawn()
-                .insert(Collider::Segment((
-                    Vec2::new(top_left.x, bottom_right.y),
-                    Vec2::new(top_left.x, top_left.y),
-                )))
-                .insert(ColliderLayer(0));
-        });
+            commands
+                .spawn_bundle(GeometryBuilder::build_as(
+                    &shapes::Rectangle {
+                        width: diff.x.abs(),
+                        height: diff.y.abs(),
+                        ..Default::default()
+                    },
+                    ShapeColors::new(Color::GRAY),
+                    DrawMode::Fill(FillOptions::default()),
+                    Transform::from_translation(origin.extend(layer::OBSTACLE)),
+                ))
+                .with_children(|parent| {
+                    parent
+                        .spawn()
+                        .insert(Collider::Segment((
+                            Vec2::new(top_left.x, top_left.y),
+                            Vec2::new(bottom_right.x, top_left.y),
+                        )))
+                        .insert(ColliderLayer(0));
+                    parent
+                        .spawn()
+                        .insert(Collider::Segment((
+                            Vec2::new(bottom_right.x, top_left.y),
+                            Vec2::new(bottom_right.x, bottom_right.y),
+                        )))
+                        .insert(ColliderLayer(0));
+                    parent
+                        .spawn()
+                        .insert(Collider::Segment((
+                            Vec2::new(bottom_right.x, bottom_right.y),
+                            Vec2::new(top_left.x, bottom_right.y),
+                        )))
+                        .insert(ColliderLayer(0));
+                    parent
+                        .spawn()
+                        .insert(Collider::Segment((
+                            Vec2::new(top_left.x, bottom_right.y),
+                            Vec2::new(top_left.x, top_left.y),
+                        )))
+                        .insert(ColliderLayer(0));
+                });
+        }
+        _ => {}
+    }
 }
 
 fn spawn_terminus(
     commands: &mut Commands,
     graph: &mut ResMut<RoadGraph>,
-    asset_server: &Res<AssetServer>,
-    pos: Vec2,
-    emits: HashSet<u32>,
-    collects: HashSet<u32>,
+    handles: &Res<Handles>,
+    terminus: &Terminus,
 ) {
     let label_offset = 22.0;
     let label_spacing = 22.0;
@@ -1593,22 +1589,18 @@ fn spawn_terminus(
                 fill_options: FillOptions::default(),
                 outline_options: StrokeOptions::default().with_line_width(2.0),
             },
-            Transform::from_translation(pos.extend(layer::TERMINUS)),
+            Transform::from_translation(terminus.point.extend(layer::TERMINUS)),
         ))
-        .insert(Terminus {
-            point: pos,
-            emits: emits.clone(),
-            collects: collects.clone(),
-        })
+        .insert(terminus.clone())
         .with_children(|parent| {
             parent
                 .spawn()
-                .insert(Collider::Point(pos))
+                .insert(Collider::Point(terminus.point))
                 .insert(ColliderLayer(1));
 
             let mut i = 0;
 
-            for flavor in emits {
+            for flavor in terminus.emits.iter() {
                 let label_pos =
                     Vec2::new(0.0, -1.0 * label_offset + -1.0 * i as f32 * label_spacing);
 
@@ -1616,9 +1608,9 @@ fn spawn_terminus(
                     text: Text::with_section(
                         "OUT",
                         TextStyle {
-                            font: asset_server.load("fonts/CooperHewitt-Medium.ttf"),
+                            font: handles.fonts[0].clone(),
                             font_size: 30.0,
-                            color: PIXIE_COLORS[flavor as usize],
+                            color: PIXIE_COLORS[*flavor as usize],
                         },
                         TextAlignment {
                             vertical: VerticalAlign::Center,
@@ -1632,7 +1624,7 @@ fn spawn_terminus(
                 i += 1;
             }
 
-            for flavor in collects {
+            for flavor in terminus.collects.iter() {
                 let label_pos =
                     Vec2::new(0.0, -1.0 * label_offset + -1.0 * i as f32 * label_spacing);
 
@@ -1640,9 +1632,9 @@ fn spawn_terminus(
                     text: Text::with_section(
                         "IN",
                         TextStyle {
-                            font: asset_server.load("fonts/CooperHewitt-Medium.ttf"),
+                            font: handles.fonts[0].clone(),
                             font_size: 30.0,
-                            color: PIXIE_COLORS[flavor as usize],
+                            color: PIXIE_COLORS[*flavor as usize],
                         },
                         TextAlignment {
                             vertical: VerticalAlign::Center,
@@ -1831,12 +1823,19 @@ fn setup(
     asset_server: Res<AssetServer>,
     button_materials: Res<ButtonMaterials>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    levels: Res<Assets<Level>>,
+    level: Res<SelectedLevel>,
+    handles: Res<Handles>,
 ) {
+    let level = levels
+        .get(handles.levels[level.0 as usize - 1].clone())
+        .unwrap();
+
+    info!("setup");
     let mut camera = OrthographicCameraBundle::new_2d();
     camera.transform.translation.y -= 10.0;
 
     commands.spawn_bundle(camera).insert(MainCamera);
-    commands.spawn_bundle(UiCameraBundle::default());
 
     for x in ((-25 * (GRID_SIZE as i32))..=25 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
         for y in (-15 * (GRID_SIZE as i32)..=15 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
@@ -1854,155 +1853,13 @@ fn setup(
         }
     }
 
-    let mut points = [
-        // left
-        (
-            snap_to_grid(Vec2::new(-576.0, -192.0), GRID_SIZE),
-            vec![],
-            vec![],
-        ),
-        (
-            snap_to_grid(Vec2::new(-576.0, -96.0), GRID_SIZE),
-            vec![],
-            vec![],
-        ),
-        (
-            snap_to_grid(Vec2::new(-576.0, 0.0), GRID_SIZE),
-            vec![],
-            vec![],
-        ),
-        (
-            snap_to_grid(Vec2::new(-576.0, 96.0), GRID_SIZE),
-            vec![],
-            vec![],
-        ),
-        (
-            snap_to_grid(Vec2::new(-576.0, 192.0), GRID_SIZE),
-            vec![],
-            vec![],
-        ),
-        (
-            snap_to_grid(Vec2::new(-576.0, 288.0), GRID_SIZE),
-            vec![],
-            vec![],
-        ),
-        // top
-        (
-            snap_to_grid(Vec2::new(-192.0, 336.0), GRID_SIZE),
-            vec![],
-            vec![],
-        ),
-        (
-            snap_to_grid(Vec2::new(0.0, 336.0), GRID_SIZE),
-            vec![],
-            vec![],
-        ),
-        (
-            snap_to_grid(Vec2::new(192.0, 336.0), GRID_SIZE),
-            vec![],
-            vec![],
-        ),
-        // bottom
-        (
-            snap_to_grid(Vec2::new(-192.0, -240.0), GRID_SIZE),
-            vec![],
-            vec![],
-        ),
-        (
-            snap_to_grid(Vec2::new(0.0, -240.0), GRID_SIZE),
-            vec![],
-            vec![],
-        ),
-        (
-            snap_to_grid(Vec2::new(192.0, -240.0), GRID_SIZE),
-            vec![],
-            vec![],
-        ),
-        // right
-        (
-            snap_to_grid(Vec2::new(576.0, -192.0), GRID_SIZE),
-            vec![],
-            vec![],
-        ),
-        (
-            snap_to_grid(Vec2::new(576.0, -96.0), GRID_SIZE),
-            vec![],
-            vec![],
-        ),
-        (
-            snap_to_grid(Vec2::new(576.0, 0.0), GRID_SIZE),
-            vec![],
-            vec![],
-        ),
-        (
-            snap_to_grid(Vec2::new(576.0, 96.0), GRID_SIZE),
-            vec![],
-            vec![],
-        ),
-        (
-            snap_to_grid(Vec2::new(576.0, 192.0), GRID_SIZE),
-            vec![],
-            vec![],
-        ),
-        (
-            snap_to_grid(Vec2::new(576.0, 288.0), GRID_SIZE),
-            vec![],
-            vec![],
-        ),
-    ];
-
-    let mut rng = rand::thread_rng();
-    let mut in_flavors = vec![0, 1, 2, 3, 4, 5];
-    let mut out_flavors = vec![0, 1, 2, 3, 4, 5];
-
-    let multiples: Vec<u32> = in_flavors.choose_multiple(&mut rng, 6).cloned().collect();
-    in_flavors.extend(multiples.iter().take(3));
-    out_flavors.extend(multiples.iter().skip(3).take(3));
-
-    while is_boring(&in_flavors, &out_flavors) {
-        in_flavors.shuffle(&mut rng);
-        out_flavors.shuffle(&mut rng);
+    for t in level.terminuses.iter() {
+        spawn_terminus(&mut commands, &mut graph, &handles, t);
     }
 
-    for (i, flavor) in in_flavors.iter().enumerate() {
-        points[i].1 = vec![*flavor];
+    for o in level.obstacles.iter() {
+        spawn_obstacle(&mut commands, o);
     }
-
-    for (i, flavor) in out_flavors.iter().enumerate() {
-        points[i + points.len() / 2].2 = vec![*flavor];
-    }
-
-    for (p, emits, collects) in points.iter().cloned() {
-        spawn_terminus(
-            &mut commands,
-            &mut graph,
-            &asset_server,
-            p,
-            emits.iter().cloned().collect::<HashSet<_>>(),
-            collects.iter().cloned().collect::<HashSet<_>>(),
-        );
-    }
-
-    spawn_obstacle(
-        &mut commands,
-        Vec2::new(-336.0, 240.0),
-        Vec2::new(-288.0, 96.0),
-    );
-    spawn_obstacle(
-        &mut commands,
-        Vec2::new(-288.0, 240.0),
-        Vec2::new(-192.0, 192.0),
-    );
-    spawn_obstacle(
-        &mut commands,
-        Vec2::new(288.0, 0.0),
-        Vec2::new(336.0, -144.0),
-    );
-    spawn_obstacle(
-        &mut commands,
-        Vec2::new(192.0, -96.0),
-        Vec2::new(288.0, -144.0),
-    );
 
     println!(
         "{:?}",
@@ -2072,8 +1929,7 @@ fn setup(
                                         text: Text::with_section(
                                             "1",
                                             TextStyle {
-                                                font: asset_server
-                                                    .load("fonts/CooperHewitt-Medium.ttf"),
+                                                font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
                                                 color: Color::rgb(0.9, 0.9, 0.9),
                                             },
@@ -2109,8 +1965,7 @@ fn setup(
                                         text: Text::with_section(
                                             "2",
                                             TextStyle {
-                                                font: asset_server
-                                                    .load("fonts/CooperHewitt-Medium.ttf"),
+                                                font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
                                                 color: Color::rgb(0.9, 0.9, 0.9),
                                             },
@@ -2146,8 +2001,7 @@ fn setup(
                                         text: Text::with_section(
                                             "R",
                                             TextStyle {
-                                                font: asset_server
-                                                    .load("fonts/CooperHewitt-Medium.ttf"),
+                                                font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
                                                 color: Color::rgb(0.9, 0.9, 0.9),
                                             },
@@ -2202,8 +2056,7 @@ fn setup(
                                             TextSection {
                                                 value: "0".to_string(),
                                                 style: TextStyle {
-                                                    font: asset_server
-                                                        .load("fonts/CooperHewitt-Medium.ttf"),
+                                                    font: handles.fonts[0].clone(),
                                                     font_size: 30.0,
                                                     color: UI_WHITE_COLOR,
                                                 },
@@ -2211,8 +2064,7 @@ fn setup(
                                             TextSection {
                                                 value: "".to_string(),
                                                 style: TextStyle {
-                                                    font: asset_server
-                                                        .load("fonts/CooperHewitt-Medium.ttf"),
+                                                    font: handles.fonts[0].clone(),
                                                     font_size: 30.0,
                                                     color: PIXIE_COLORS[0],
                                                 },
@@ -2233,8 +2085,7 @@ fn setup(
                                     text: Text::with_section(
                                         "0",
                                         TextStyle {
-                                            font: asset_server
-                                                .load("fonts/CooperHewitt-Medium.ttf"),
+                                            font: handles.fonts[0].clone(),
                                             font_size: 30.0,
                                             color: PIXIE_COLORS[1],
                                         },
@@ -2254,8 +2105,7 @@ fn setup(
                                         sections: vec![TextSection {
                                             value: "0".to_string(),
                                             style: TextStyle {
-                                                font: asset_server
-                                                    .load("fonts/CooperHewitt-Medium.ttf"),
+                                                font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
                                                 color: PIXIE_COLORS[2],
                                             },
@@ -2276,8 +2126,7 @@ fn setup(
                                         sections: vec![TextSection {
                                             value: "0".to_string(),
                                             style: TextStyle {
-                                                font: asset_server
-                                                    .load("fonts/CooperHewitt-Medium.ttf"),
+                                                font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
                                                 color: FINISHED_ROAD_COLORS[1],
                                             },
@@ -2323,8 +2172,7 @@ fn setup(
                                         text: Text::with_section(
                                             "RESET",
                                             TextStyle {
-                                                font: asset_server
-                                                    .load("fonts/CooperHewitt-Medium.ttf"),
+                                                font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
                                                 color: Color::rgb(0.9, 0.9, 0.9),
                                             },
@@ -2356,8 +2204,7 @@ fn setup(
                                         text: Text::with_section(
                                             "RELEASE THE PIXIES",
                                             TextStyle {
-                                                font: asset_server
-                                                    .load("fonts/CooperHewitt-Medium.ttf"),
+                                                font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
                                                 color: Color::rgb(0.9, 0.9, 0.9),
                                             },
