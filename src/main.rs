@@ -1847,10 +1847,7 @@ fn update_elapsed_text_system(
     }
 }
 
-fn playing_exit_system(
-    mut commands: Commands,
-    query: Query<Entity, (Without<MainCamera>, Without<UiCamera>)>,
-) {
+fn playing_exit_system(mut commands: Commands, query: Query<Entity, Without<UiCamera>>) {
     for entity in query.iter() {
         commands.entity(entity).despawn();
     }
@@ -1866,14 +1863,21 @@ fn playing_enter_system(
     level: Res<SelectedLevel>,
     handles: Res<Handles>,
 ) {
-    // TODO reset various resources in case we enter after having been playing
-    // another level
+    // Reset
+    commands.insert_resource(Efficiency::default());
+    // TODO maybe we should initially load this from BestEfficiencies?
+    commands.insert_resource(BestEfficiency::default());
+    commands.insert_resource(Score::default());
+    commands.insert_resource(Cost::default());
+    commands.insert_resource(DrawingState::default());
+    commands.insert_resource(LineDrawingState::default());
+    commands.insert_resource(NetRippingState::default());
+    commands.insert_resource(TestingState::default());
+    commands.insert_resource(PathfindingState::default());
+    graph.graph.clear();
 
-    let level = levels
-        .get(handles.levels[level.0 as usize - 1].clone())
-        .unwrap();
+    // Build arena
 
-    info!("setup");
     let mut camera = OrthographicCameraBundle::new_2d();
     camera.transform.translation.y -= 10.0;
 
@@ -1895,6 +1899,12 @@ fn playing_enter_system(
         }
     }
 
+    // Build level
+
+    let level = levels
+        .get(handles.levels[level.0 as usize - 1].clone())
+        .unwrap();
+
     for t in level.terminuses.iter() {
         spawn_terminus(&mut commands, &mut graph, &handles, t);
     }
@@ -1907,6 +1917,8 @@ fn playing_enter_system(
         "{:?}",
         Dot::with_config(&graph.graph, &[Config::EdgeNoLabel])
     );
+
+    // Build UI
 
     commands
         .spawn_bundle(NodeBundle {
