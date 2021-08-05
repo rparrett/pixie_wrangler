@@ -8,7 +8,7 @@ Level(
         ),
         Terminus(
             point:    Vec2(-96.0, 48.0),
-            emits:    [1],
+            emits:    [3],
             collects: [],
         ),
         Terminus(
@@ -18,7 +18,7 @@ Level(
         ),
         Terminus(
             point:    Vec2(-0.0, -48.0),
-            emits:    [3],
+            emits:    [1],
             collects: [],
         ),
         Terminus(
@@ -41,49 +41,43 @@ Level(
             emits:    [3],
             collects: [],
         ),
-        // outside
+        // outside left
         Terminus(
-            point:    Vec2(576.0, -240.0),
-            emits:    [],
-            collects: [0],
-        ),
-        Terminus(
-            point:    Vec2(0.0, -240.0),
-            emits:    [],
-            collects: [1],
-        ),
-        Terminus(
-            point:    Vec2(-576.0, -240.0),
-            emits:    [],
-            collects: [5],
-        ),
-        Terminus(
-            point:    Vec2(-576.0, 48.0),
-            emits:    [],
-            collects: [3],
-        ),
-        Terminus(
-            point:    Vec2(-576.0, 288.0),
+            point:    Vec2(-480.0, 144.0),
             emits:    [],
             collects: [4],
         ),
         Terminus(
-            point:    Vec2(-0.0, 288.0),
+            point:    Vec2(-480.0, 48.0),
             emits:    [],
             collects: [1],
         ),
         Terminus(
-            point:    Vec2(576.0, 288.0),
+            point:    Vec2(-480.0, -48.0),
+            emits:    [],
+            collects: [5],
+        ),
+        // outside right
+        Terminus(
+            point:    Vec2(480.0, 144.0),
             emits:    [],
             collects: [2],
         ),
         Terminus(
-            point:    Vec2(576.0, 48.0),
+            point:    Vec2(480.0, 48.0),
             emits:    [],
             collects: [3],
         ),
+        Terminus(
+            point:    Vec2(480.0, -48.0),
+            emits:    [],
+            collects: [0],
+        ),
+
     ],
     obstacles: [
         Rect(Vec2(-48.0, 96.0), Vec2(48.0, 0.0)),
+        Rect(Vec2(-672.0, 192.0),Vec2(-528.0, -96.0)),
+        Rect(Vec2(528.0, 192.0), Vec2(672.0, -96.0))
     ]
 )
