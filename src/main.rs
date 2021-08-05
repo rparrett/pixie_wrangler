@@ -1820,7 +1820,6 @@ fn setup(
     mut commands: Commands,
     mut more_commands: Commands,
     mut graph: ResMut<RoadGraph>,
-    asset_server: Res<AssetServer>,
     button_materials: Res<ButtonMaterials>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     levels: Res<Assets<Level>>,

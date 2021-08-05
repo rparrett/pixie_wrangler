@@ -142,7 +142,7 @@ fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixie, &
                     &shape,
                     ShapeColors::new(PIXIE_COLORS[(pixie.flavor) as usize].as_rgba_linear()),
                     DrawMode::Fill(FillOptions::default()),
-                    transform.clone(),
+                    *transform,
                 ))
                 .insert(PixieFragment {
                     direction: Vec2::new(theta.cos(), theta.sin()),
@@ -166,7 +166,7 @@ fn collide_pixies_system(
     for (e1, p1, t1) in queries
         .q0()
         .iter()
-        .filter(|(_, p, _)| p.path_index <= p.path.len() - 1)
+        .filter(|(_, p, _)| p.path_index < p.path.len())
     {
         // we are going to project forward along the pixie's travel path and check for collisions
         // with other pixies of different flavors.
@@ -190,7 +190,7 @@ fn collide_pixies_system(
         for (e2, _, t2) in queries
             .q0()
             .iter()
-            .filter(|(_, p2, _)| p2.path_index <= p2.path.len() - 1)
+            .filter(|(_, p2, _)| p2.path_index < p2.path.len())
             .filter(|(_, p2, _)| p2.path[p2.path_index].layer == layer)
             .filter(|(_, p2, _)| p2.flavor != p1.flavor)
             .filter(|(e2, _, _)| *e2 != e1)
