@@ -9,6 +9,7 @@ use crate::radio_button::{
     RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonPlugin,
 };
 
+use bevy::utils::HashMap;
 //use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::{prelude::*, utils::HashSet, window::CursorMoved};
 
@@ -56,7 +57,12 @@ fn main() {
     app.add_stage_after(CoreStage::Update, "after_update", SystemStage::parallel());
     app.add_state_to_stage("after_update", GameState::Loading);
 
-    app.add_system_set(SystemSet::on_enter(GameState::Playing).with_system(setup.system()));
+    app.add_system_set(
+        SystemSet::on_enter(GameState::Playing).with_system(playing_enter_system.system()),
+    );
+    app.add_system_set(
+        SystemSet::on_exit(GameState::Playing).with_system(playing_exit_system.system()),
+    );
     app.add_system_set(
         SystemSet::on_update(GameState::Playing)
             .label("drawing_input")
@@ -94,7 +100,8 @@ fn main() {
         SystemSet::on_update(GameState::Playing)
             .label("test_buttons")
             .with_system(pixie_button_system.system())
-            .with_system(reset_button_system.system()),
+            .with_system(reset_button_system.system())
+            .with_system(back_button_system.system()),
     );
     app.add_system_set_to_stage(
         "after_update",
@@ -135,6 +142,7 @@ fn main() {
     app.init_resource::<Score>();
     app.init_resource::<Cost>();
     app.init_resource::<BestEfficiency>();
+    app.init_resource::<BestEfficiencies>();
     //app.add_plugin(LogDiagnosticsPlugin::default());
     //app.add_plugin(FrameTimeDiagnosticsPlugin::default());
     app.run();
@@ -152,6 +160,7 @@ struct Handles {
     levels: Vec<Handle<Level>>,
     fonts: Vec<Handle<Font>>,
 }
+struct UiCamera;
 struct MainCamera;
 struct Cursor;
 struct DrawingLine;
@@ -168,6 +177,7 @@ struct LayerTwoButton;
 struct NetRippingButton;
 struct PixieButton;
 struct ResetButton;
+struct BackButton;
 
 #[derive(Default)]
 struct SelectedLevel(u32);
@@ -179,6 +189,8 @@ struct Cost(u32);
 struct Efficiency(Option<u32>);
 #[derive(Default)]
 struct BestEfficiency(Option<u32>);
+#[derive(Default)]
+struct BestEfficiencies(HashMap<u32, u32>);
 #[derive(Debug, Clone)]
 pub struct RoadSegment {
     points: (Vec2, Vec2),
@@ -517,6 +529,15 @@ fn pixie_button_text_system(
                 }
             }
         }
+    }
+}
+
+fn back_button_system(
+    q_interaction: Query<&Interaction, (Changed<Interaction>, With<Button>, With<BackButton>)>,
+    mut state: ResMut<State<GameState>>,
+) {
+    for _ in q_interaction.iter().filter(|i| **i == Interaction::Clicked) {
+        state.replace(GameState::LevelSelect).unwrap();
     }
 }
 
@@ -1767,7 +1788,9 @@ fn update_efficiency_text_system(
     testing_state: Res<TestingState>,
     score: Res<Score>,
     cost: Res<Cost>,
+    selected_level: Res<SelectedLevel>,
     mut best_efficiency: ResMut<BestEfficiency>,
+    mut best_efficiencies: ResMut<BestEfficiencies>,
     mut q_efficiency_text: Query<&mut Text, With<EfficiencyText>>,
 ) {
     if !testing_state.is_changed() {
@@ -1777,6 +1800,14 @@ fn update_efficiency_text_system(
     let eff_text = if testing_state.done {
         let val = ((score.0 as f32 / cost.0 as f32 / testing_state.elapsed as f32) * 10000.0).ceil()
             as u32;
+
+        if let Some(best) = best_efficiencies.0.get_mut(&selected_level.0) {
+            if *best < val {
+                *best = val;
+            }
+        } else {
+            best_efficiencies.0.insert(selected_level.0, val);
+        }
 
         match best_efficiency.0 {
             Some(best) if best < val => {
@@ -1816,7 +1847,16 @@ fn update_elapsed_text_system(
     }
 }
 
-fn setup(
+fn playing_exit_system(
+    mut commands: Commands,
+    query: Query<Entity, (Without<MainCamera>, Without<UiCamera>)>,
+) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn();
+    }
+}
+
+fn playing_enter_system(
     mut commands: Commands,
     mut more_commands: Commands,
     mut graph: ResMut<RoadGraph>,
@@ -1826,6 +1866,9 @@ fn setup(
     level: Res<SelectedLevel>,
     handles: Res<Handles>,
 ) {
+    // TODO reset various resources in case we enter after having been playing
+    // another level
+
     let level = levels
         .get(handles.levels[level.0 as usize - 1].clone())
         .unwrap();
@@ -1893,7 +1936,6 @@ fn setup(
                     ..Default::default()
                 })
                 .with_children(|parent| {
-                    // Tool Buttons
                     parent
                         .spawn_bundle(NodeBundle {
                             style: Style {
@@ -1907,6 +1949,36 @@ fn setup(
                             ..Default::default()
                         })
                         .with_children(|parent| {
+                            // Back button
+                            parent
+                                .spawn_bundle(ButtonBundle {
+                                    style: Style {
+                                        size: Size::new(Val::Px(50.0), Val::Percent(100.0)),
+                                        // horizontally center child text
+                                        justify_content: JustifyContent::Center,
+                                        // vertically center child text
+                                        align_items: AlignItems::Center,
+                                        ..Default::default()
+                                    },
+                                    material: button_materials.normal.clone(),
+                                    ..Default::default()
+                                })
+                                .insert(BackButton)
+                                .with_children(|parent| {
+                                    parent.spawn_bundle(TextBundle {
+                                        text: Text::with_section(
+                                            "◄",
+                                            TextStyle {
+                                                font: handles.fonts[0].clone(),
+                                                font_size: 30.0,
+                                                color: Color::rgb(0.9, 0.9, 0.9),
+                                            },
+                                            Default::default(),
+                                        ),
+                                        ..Default::default()
+                                    });
+                                });
+                            // Tool Buttons
                             let layer_one_id = parent
                                 .spawn_bundle(ButtonBundle {
                                     style: Style {
@@ -1915,6 +1987,10 @@ fn setup(
                                         justify_content: JustifyContent::Center,
                                         // vertically center child text
                                         align_items: AlignItems::Center,
+                                        margin: Rect {
+                                            left: Val::Px(30.0),
+                                            ..Default::default()
+                                        },
                                         ..Default::default()
                                     },
                                     material: button_materials.normal.clone(),

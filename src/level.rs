@@ -9,6 +9,7 @@ use crate::Terminus;
 pub struct Level {
     pub terminuses: Vec<Terminus>,
     pub obstacles: Vec<Obstacle>,
+    pub star_thresholds: Vec<u32>,
 }
 
 #[derive(Deserialize, Debug)]

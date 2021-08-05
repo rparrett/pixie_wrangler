@@ -1,4 +1,4 @@
-use crate::{ButtonMaterials, GameState, Handles};
+use crate::{level::Level, BestEfficiencies, ButtonMaterials, GameState, Handles};
 use bevy::prelude::*;
 
 pub struct LevelSelectPlugin;
@@ -38,7 +38,9 @@ fn level_select_enter(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
     button_materials: Res<ButtonMaterials>,
+    best_efficiencies: Res<BestEfficiencies>,
     handles: Res<Handles>,
+    levels: Res<Assets<Level>>,
 ) {
     commands
         .spawn_bundle(NodeBundle {
@@ -122,6 +124,7 @@ fn level_select_enter(
                                         .spawn_bundle(ButtonBundle {
                                             style: Style {
                                                 size: Size::new(Val::Px(150.0), Val::Px(150.0)),
+                                                flex_direction: FlexDirection::ColumnReverse,
                                                 // horizontally center child text
                                                 justify_content: JustifyContent::Center,
                                                 // vertically center child text
@@ -143,13 +146,67 @@ fn level_select_enter(
                                                     format!("{}", i),
                                                     TextStyle {
                                                         font: handles.fonts[0].clone(),
-                                                        font_size: 30.0,
+                                                        font_size: 60.0,
                                                         color: Color::rgb(0.9, 0.9, 0.9),
                                                     },
                                                     Default::default(),
                                                 ),
                                                 ..Default::default()
                                             });
+
+                                            if let (Some(eff), Some(thresholds)) = (
+                                                best_efficiencies.0.get(&i),
+                                                handles
+                                                    .levels
+                                                    .get(i as usize - 1)
+                                                    .and_then(|h| levels.get(h.clone()))
+                                                    .map(|l| l.star_thresholds.clone()),
+                                            ) {
+                                                let stars = thresholds
+                                                    .iter()
+                                                    .filter(|t| **t < *eff)
+                                                    .count();
+
+                                                info!("{:?}", thresholds);
+
+                                                parent.spawn_bundle(TextBundle {
+                                                    text: Text::with_section(
+                                                        format!("{}", eff),
+                                                        TextStyle {
+                                                            font: handles.fonts[0].clone(),
+                                                            font_size: 30.0,
+                                                            color: crate::FINISHED_ROAD_COLORS[1],
+                                                        },
+                                                        Default::default(),
+                                                    ),
+                                                    ..Default::default()
+                                                });
+
+                                                parent.spawn_bundle(TextBundle {
+                                                    text: Text {
+                                                        sections: vec![
+                                                            TextSection {
+                                                                value: "★".repeat(stars),
+                                                                style: TextStyle {
+                                                                    font: handles.fonts[0].clone(),
+                                                                    font_size: 30.0,
+                                                                    color: crate::UI_WHITE_COLOR,
+                                                                },
+                                                            },
+                                                            TextSection {
+                                                                value: "★".repeat(3 - stars),
+                                                                style: TextStyle {
+                                                                    font: handles.fonts[0].clone(),
+                                                                    font_size: 30.0,
+                                                                    color: Color::DARK_GRAY,
+                                                                },
+                                                            },
+                                                        ],
+                                                        ..Default::default()
+                                                    },
+                                                    ..Default::default()
+                                                });
+                                            }
                                         });
                                 }
                             });

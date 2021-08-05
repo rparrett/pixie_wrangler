@@ -33,5 +33,6 @@ Level(
             collects: [0],
         ),
     ],
-    obstacles: []
+    obstacles: [],
+    star_thresholds: [0, 1, 2],
 )
