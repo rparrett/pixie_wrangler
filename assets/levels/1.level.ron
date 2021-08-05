@@ -34,5 +34,5 @@ Level(
         ),
     ],
     obstacles: [],
-    star_thresholds: [0, 1, 2],
+    star_thresholds: [1100, 1200, 1300],
 )
