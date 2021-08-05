@@ -141,6 +141,54 @@ fn level_select_enter(
                                         })
                                         .insert(LevelSelectButton(i))
                                         .with_children(|parent| {
+                                            let (eff_text, star_text_one, star_text_two) =
+                                                if let (Some(eff), Some(thresholds)) = (
+                                                    best_efficiencies.0.get(&i),
+                                                    handles
+                                                        .levels
+                                                        .get(i as usize - 1)
+                                                        .and_then(|h| levels.get(h.clone()))
+                                                        .map(|l| l.star_thresholds.clone()),
+                                                ) {
+                                                    let stars = thresholds
+                                                        .iter()
+                                                        .filter(|t| **t < *eff)
+                                                        .count();
+
+                                                    (
+                                                        format!("{}", eff),
+                                                        "★".repeat(stars),
+                                                        "★".repeat(3 - stars),
+                                                    )
+                                                } else {
+                                                    ("".to_string(), "".to_string(), "".to_string())
+                                                };
+
+                                            parent.spawn_bundle(TextBundle {
+                                                text: Text {
+                                                    sections: vec![
+                                                        TextSection {
+                                                            value: star_text_one,
+                                                            style: TextStyle {
+                                                                font: handles.fonts[0].clone(),
+                                                                font_size: 30.0,
+                                                                color: crate::UI_WHITE_COLOR,
+                                                            },
+                                                        },
+                                                        TextSection {
+                                                            value: star_text_two,
+                                                            style: TextStyle {
+                                                                font: handles.fonts[0].clone(),
+                                                                font_size: 30.0,
+                                                                color: Color::DARK_GRAY,
+                                                            },
+                                                        },
+                                                    ],
+                                                    ..Default::default()
+                                                },
+                                                ..Default::default()
+                                            });
+
                                             parent.spawn_bundle(TextBundle {
                                                 text: Text::with_section(
                                                     format!("{}", i),
@@ -154,59 +202,18 @@ fn level_select_enter(
                                                 ..Default::default()
                                             });
 
-                                            if let (Some(eff), Some(thresholds)) = (
-                                                best_efficiencies.0.get(&i),
-                                                handles
-                                                    .levels
-                                                    .get(i as usize - 1)
-                                                    .and_then(|h| levels.get(h.clone()))
-                                                    .map(|l| l.star_thresholds.clone()),
-                                            ) {
-                                                let stars = thresholds
-                                                    .iter()
-                                                    .filter(|t| **t < *eff)
-                                                    .count();
-
-                                                info!("{:?}", thresholds);
-
-                                                parent.spawn_bundle(TextBundle {
-                                                    text: Text::with_section(
-                                                        format!("{}", eff),
-                                                        TextStyle {
-                                                            font: handles.fonts[0].clone(),
-                                                            font_size: 30.0,
-                                                            color: crate::FINISHED_ROAD_COLORS[1],
-                                                        },
-                                                        Default::default(),
-                                                    ),
-                                                    ..Default::default()
-                                                });
-
-                                                parent.spawn_bundle(TextBundle {
-                                                    text: Text {
-                                                        sections: vec![
-                                                            TextSection {
-                                                                value: "★".repeat(stars),
-                                                                style: TextStyle {
-                                                                    font: handles.fonts[0].clone(),
-                                                                    font_size: 30.0,
-                                                                    color: crate::UI_WHITE_COLOR,
-                                                                },
-                                                            },
-                                                            TextSection {
-                                                                value: "★".repeat(3 - stars),
-                                                                style: TextStyle {
-                                                                    font: handles.fonts[0].clone(),
-                                                                    font_size: 30.0,
-                                                                    color: Color::DARK_GRAY,
-                                                                },
-                                                            },
-                                                        ],
-                                                        ..Default::default()
+                                            parent.spawn_bundle(TextBundle {
+                                                text: Text::with_section(
+                                                    eff_text,
+                                                    TextStyle {
+                                                        font: handles.fonts[0].clone(),
+                                                        font_size: 30.0,
+                                                        color: crate::FINISHED_ROAD_COLORS[1],
                                                     },
-                                                    ..Default::default()
-                                                });
-                                            }
+                                                    Default::default(),
+                                                ),
+                                                ..Default::default()
+                                            });
                                         });
                                 }
                             });
