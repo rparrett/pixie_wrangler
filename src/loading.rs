@@ -4,7 +4,6 @@ use bevy::{asset::LoadState, prelude::*};
 pub struct LoadingPlugin;
 
 impl Plugin for LoadingPlugin {
-    // this is where we set up our plugin
     fn build(&self, app: &mut AppBuilder) {
         app.add_system_set(
             SystemSet::on_enter(GameState::Loading).with_system(loading_setup.system()),

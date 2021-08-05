@@ -11,7 +11,6 @@ pub const PIXIE_RADIUS: f32 = 6.0;
 
 pub struct PixiePlugin;
 impl Plugin for PixiePlugin {
-    // this is where we set up our plugin
     fn build(&self, app: &mut AppBuilder) {
         app.add_system_set(
             SystemSet::on_update(GameState::Playing)

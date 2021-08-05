@@ -6,7 +6,6 @@ pub struct LevelSelectScreen;
 pub struct LevelSelectButton(u32);
 
 impl Plugin for LevelSelectPlugin {
-    // this is where we set up our plugin
     fn build(&self, app: &mut AppBuilder) {
         app.add_system_set(
             SystemSet::on_enter(GameState::LevelSelect).with_system(level_select_enter.system()),

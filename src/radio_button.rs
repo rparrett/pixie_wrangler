@@ -11,7 +11,6 @@ pub struct RadioButton {
 pub struct RadioButtonGroupRelation(pub Entity);
 
 impl Plugin for RadioButtonPlugin {
-    // this is where we set up our plugin
     fn build(&self, app: &mut AppBuilder) {
         app.add_system(radio_button_system.system().label("radio_button_system"));
         app.add_system(
