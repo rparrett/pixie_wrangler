@@ -7,7 +7,7 @@ Level(
         ),
         Terminus(
             point:    Vec2(-576.0, -96.0),
-            emits:    [1],
+            emits:    [5],
             collects: [],
         ),
         Terminus(
@@ -43,7 +43,7 @@ Level(
         ),
         Terminus(
             point:    Vec2(192.0, 336.0),
-            emits:    [5],
+            emits:    [1],
             collects: [],
         ),
         // bottom
