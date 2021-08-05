@@ -10,6 +10,8 @@ pub enum SegmentCollision {
     None,
 }
 
+// we should possibly also be using tolerances on the first two comparisons, but
+// things generally seem to be working as-is.
 pub fn point_segment_collision(p: Vec2, a: Vec2, b: Vec2) -> SegmentCollision {
     if p == a || p == b {
         return SegmentCollision::Connecting;
