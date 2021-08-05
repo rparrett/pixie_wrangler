@@ -10,31 +10,29 @@ pub enum SegmentCollision {
     None,
 }
 
-pub fn point_segment_collision(p: Vec2, l1: Vec2, l2: Vec2) -> SegmentCollision {
-    if p == l1 || p == l2 {
+pub fn point_segment_collision(p: Vec2, a: Vec2, b: Vec2) -> SegmentCollision {
+    if p == a || p == b {
         return SegmentCollision::Connecting;
     }
 
-    let d1 = l2 - l1;
-    let d2 = p - l1;
-
-    let cross = d1.perp_dot(d2);
-
-    if cross.abs() > std::f32::EPSILON {
-        return SegmentCollision::None;
+    let diff = b - a;
+    let len2 = diff.length_squared();
+    if len2 == 0.0 {
+        return SegmentCollision::Touching;
     }
 
-    let dot = d1.dot(d2);
+    let d1 = p - a;
+    let d2 = b - a;
 
-    if dot < 0.0 {
-        return SegmentCollision::None;
+    let t = (d1.dot(d2) / len2).clamp(0.0, 1.0);
+    let proj = a + t * diff;
+    let d = p.distance(proj);
+
+    if d <= 0.0001 {
+        SegmentCollision::Touching
+    } else {
+        SegmentCollision::None
     }
-
-    if dot > l1.distance_squared(l2) {
-        return SegmentCollision::None;
-    }
-
-    SegmentCollision::Touching
 }
 
 // for reference, this is helpful
