@@ -189,7 +189,7 @@ struct PixieCount(u32);
 #[derive(Default)]
 struct Cost(u32);
 #[derive(Default)]
-struct Efficiency(Option<u32>);
+struct Score(Option<u32>);
 #[derive(Default)]
 struct BestScore(Option<u32>);
 #[derive(Clone, Default, Serialize, Deserialize)]
@@ -1868,7 +1868,7 @@ fn playing_enter_system(
     handles: Res<Handles>,
 ) {
     // Reset
-    commands.insert_resource(Efficiency::default());
+    commands.insert_resource(Score::default());
     commands.insert_resource(PixieCount::default());
     commands.insert_resource(Cost::default());
     commands.insert_resource(DrawingState::default());
