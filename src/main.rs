@@ -1255,16 +1255,13 @@ fn drawing_mouse_movement_system(
     line_state.end = mouse.snapped;
     line_state.prev_layer = line_state.layer;
 
-    // when we begin drawing, set the "axis preference" corresponding to the
-    // direction the player initially moves the mouse.
+    // line drawing can be coerced to follow one axis or another by moving the mouse to a
+    // position that is a straight line from the starting point in that axis.
 
-    let diff = (mouse.snapped - line_state.start).abs() / GRID_SIZE;
-    if diff.x <= 1.0 && diff.y <= 1.0 && mouse.snapped != line_state.start {
-        if diff.x > diff.y {
-            line_state.axis_preference = Some(Axis::X);
-        } else if diff.y > diff.x {
-            line_state.axis_preference = Some(Axis::Y);
-        }
+    if line_state.start.x == mouse.snapped.x {
+        line_state.axis_preference = Some(Axis::Y);
+    } else if line_state.start.y == mouse.snapped.y {
+        line_state.axis_preference = Some(Axis::X);
     }
 
     if mouse.snapped == line_state.start {
