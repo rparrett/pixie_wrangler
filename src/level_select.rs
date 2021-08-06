@@ -58,7 +58,7 @@ fn level_select_enter(
                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                 flex_direction: FlexDirection::ColumnReverse,
                 align_items: AlignItems::FlexStart,
-                justify_content: JustifyContent::Center,
+                justify_content: JustifyContent::SpaceEvenly,
                 ..Default::default()
             },
             material: materials.add(Color::NONE.into()),
@@ -66,43 +66,30 @@ fn level_select_enter(
         })
         .insert(LevelSelectScreen)
         .with_children(|parent| {
-            parent
-                .spawn_bundle(NodeBundle {
-                    style: Style {
-                        size: Size::new(Val::Percent(100.0), Val::Px(100.0)),
-                        align_items: AlignItems::Center,
-                        justify_content: JustifyContent::Center,
-                        position: Rect {
-                            top: Val::Px(0.0),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                    material: materials.add(Color::NONE.into()),
+            parent.spawn_bundle(TextBundle {
+                style: Style {
+                    align_self: AlignSelf::Center,
                     ..Default::default()
-                })
-                .with_children(|parent| {
-                    parent.spawn_bundle(TextBundle {
-                        text: Text::with_section(
-                            "Pixie Wrangler",
-                            TextStyle {
-                                font: handles.fonts[0].clone(),
-                                font_size: 60.0,
-                                color: Color::rgb(0.9, 0.9, 0.9),
-                            },
-                            TextAlignment {
-                                vertical: VerticalAlign::Center,
-                                horizontal: HorizontalAlign::Center,
-                            },
-                        ),
-                        ..Default::default()
-                    });
-                });
+                },
+                text: Text::with_section(
+                    "Pixie Wrangler",
+                    TextStyle {
+                        font: handles.fonts[0].clone(),
+                        font_size: 60.0,
+                        color: Color::rgb(0.9, 0.9, 0.9),
+                    },
+                    TextAlignment {
+                        vertical: VerticalAlign::Center,
+                        horizontal: HorizontalAlign::Center,
+                    },
+                ),
+                ..Default::default()
+            });
+
             parent
                 .spawn_bundle(NodeBundle {
                     style: Style {
                         size: Size::new(Val::Percent(100.0), Val::Auto),
-                        flex_grow: 1.0,
                         flex_direction: FlexDirection::ColumnReverse,
                         align_items: AlignItems::Center,
                         justify_content: JustifyContent::Center,
