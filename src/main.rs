@@ -117,9 +117,9 @@ fn main() {
             .label("score_ui")
             .after("score_calc")
             .with_system(pixie_button_text_system.system())
-            .with_system(update_score_text_system.system())
+            .with_system(update_pixie_count_text_system.system())
             .with_system(update_elapsed_text_system.system())
-            .with_system(update_efficiency_text_system.system()),
+            .with_system(update_score_text_system.system()),
     );
 
     app.add_stage_after(
@@ -139,10 +139,10 @@ fn main() {
     app.init_resource::<MouseState>();
     app.init_resource::<RoadGraph>();
     app.init_resource::<ButtonMaterials>();
-    app.init_resource::<Score>();
+    app.init_resource::<PixieCount>();
     app.init_resource::<Cost>();
-    app.init_resource::<BestEfficiency>();
-    app.init_resource::<BestEfficiencies>();
+    app.init_resource::<BestScore>();
+    app.init_resource::<BestScores>();
     //app.add_plugin(LogDiagnosticsPlugin::default());
     //app.add_plugin(FrameTimeDiagnosticsPlugin::default());
     app.run();
@@ -166,9 +166,9 @@ struct Cursor;
 struct DrawingLine;
 struct RippingLine;
 struct GridPoint;
-struct ScoreText;
+struct PixieCountText;
 struct CostText;
-struct EfficiencyText;
+struct ScoreText;
 struct ElapsedText;
 
 struct ToolButton;
@@ -182,15 +182,15 @@ struct BackButton;
 #[derive(Default)]
 struct SelectedLevel(u32);
 #[derive(Default)]
-struct Score(u32);
+struct PixieCount(u32);
 #[derive(Default)]
 struct Cost(u32);
 #[derive(Default)]
 struct Efficiency(Option<u32>);
 #[derive(Default)]
-struct BestEfficiency(Option<u32>);
+struct BestScore(Option<u32>);
 #[derive(Default)]
-struct BestEfficiencies(HashMap<u32, u32>);
+struct BestScores(HashMap<u32, u32>);
 #[derive(Debug, Clone)]
 pub struct RoadSegment {
     points: (Vec2, Vec2),
@@ -544,7 +544,7 @@ fn back_button_system(
 fn pixie_button_system(
     mut commands: Commands,
     time: Res<Time>,
-    mut score: ResMut<Score>,
+    mut pixie_count: ResMut<PixieCount>,
     mut testing_state: ResMut<TestingState>,
     mut line_state: ResMut<LineDrawingState>,
     pathfinding: Res<PathfindingState>,
@@ -594,7 +594,7 @@ fn pixie_button_system(
 
         testing_state.elapsed = 0.0;
         testing_state.done = false;
-        score.0 = 0;
+        pixie_count.0 = 0;
     }
 }
 
@@ -602,7 +602,7 @@ fn reset_button_system(
     mut commands: Commands,
     q_interaction: Query<&Interaction, (Changed<Interaction>, With<Button>, With<ResetButton>)>,
     mut graph: ResMut<RoadGraph>,
-    mut score: ResMut<Score>,
+    mut pixie_count: ResMut<PixieCount>,
     mut testing_state: ResMut<TestingState>,
     mut line_state: ResMut<LineDrawingState>,
     q_road_chunks: Query<Entity, With<RoadSegment>>,
@@ -640,7 +640,7 @@ fn reset_button_system(
         testing_state.done = false;
         testing_state.elapsed = 0.0;
 
-        score.0 = 0;
+        pixie_count.0 = 0;
     }
 }
 
@@ -1480,13 +1480,16 @@ fn drawing_mouse_movement_system(
     }
 }
 
-fn update_score_text_system(score: Res<Score>, mut q_score: Query<&mut Text, With<ScoreText>>) {
-    if !score.is_changed() {
+fn update_pixie_count_text_system(
+    pixie_count: Res<PixieCount>,
+    mut query: Query<&mut Text, With<PixieCountText>>,
+) {
+    if !pixie_count.is_changed() {
         return;
     }
 
-    let mut text = q_score.single_mut().unwrap();
-    text.sections[0].value = format!("Þ{}", score.0);
+    let mut text = query.single_mut().unwrap();
+    text.sections[0].value = format!("Þ{}", pixie_count.0);
 }
 
 /// Workaround for bevy_prototype_lyon always setting `is_visible = true` after it builds a mesh.
@@ -1784,52 +1787,52 @@ fn update_test_state_system(
     testing_state.done = true;
 }
 
-fn update_efficiency_text_system(
+fn update_score_text_system(
     testing_state: Res<TestingState>,
-    score: Res<Score>,
+    pixie_count: Res<PixieCount>,
     cost: Res<Cost>,
     selected_level: Res<SelectedLevel>,
-    mut best_efficiency: ResMut<BestEfficiency>,
-    mut best_efficiencies: ResMut<BestEfficiencies>,
-    mut q_efficiency_text: Query<&mut Text, With<EfficiencyText>>,
+    mut best_score: ResMut<BestScore>,
+    mut best_scores: ResMut<BestScores>,
+    mut q_score_text: Query<&mut Text, With<ScoreText>>,
 ) {
     if !testing_state.is_changed() {
         return;
     }
 
     let eff_text = if testing_state.done {
-        let val = ((score.0 as f32 / cost.0 as f32 / testing_state.elapsed as f32) * 10000.0).ceil()
-            as u32;
+        let val = ((pixie_count.0 as f32 / cost.0 as f32 / testing_state.elapsed as f32) * 10000.0)
+            .ceil() as u32;
 
-        if let Some(best) = best_efficiencies.0.get_mut(&selected_level.0) {
+        if let Some(best) = best_scores.0.get_mut(&selected_level.0) {
             if *best < val {
                 *best = val;
             }
         } else {
-            best_efficiencies.0.insert(selected_level.0, val);
+            best_scores.0.insert(selected_level.0, val);
         }
 
-        match best_efficiency.0 {
+        match best_score.0 {
             Some(best) if best < val => {
-                best_efficiency.0 = Some(val);
+                best_score.0 = Some(val);
                 format!("Æ{}", val)
             }
             Some(best) => {
                 format!("Æ{} ({})", val, best)
             }
             None => {
-                best_efficiency.0 = Some(val);
+                best_score.0 = Some(val);
                 format!("Æ{}", val)
             }
         }
     } else {
-        match best_efficiency.0 {
+        match best_score.0 {
             Some(best) => format!("Æ? ({})", best),
             _ => "Æ?".to_string(),
         }
     };
 
-    if let Some(mut text) = q_efficiency_text.iter_mut().next() {
+    if let Some(mut text) = q_score_text.iter_mut().next() {
         text.sections[0].value = eff_text;
     }
 }
@@ -1866,8 +1869,8 @@ fn playing_enter_system(
     // Reset
     commands.insert_resource(Efficiency::default());
     // TODO maybe we should initially load this from BestEfficiencies?
-    commands.insert_resource(BestEfficiency::default());
-    commands.insert_resource(Score::default());
+    commands.insert_resource(BestScore::default());
+    commands.insert_resource(PixieCount::default());
     commands.insert_resource(Cost::default());
     commands.insert_resource(DrawingState::default());
     commands.insert_resource(LineDrawingState::default());
@@ -2180,7 +2183,7 @@ fn playing_enter_system(
                                     ),
                                     ..Default::default()
                                 })
-                                .insert(ScoreText);
+                                .insert(PixieCountText);
 
                             parent
                                 .spawn_bundle(TextBundle {
@@ -2222,7 +2225,7 @@ fn playing_enter_system(
                                     },
                                     ..Default::default()
                                 })
-                                .insert(EfficiencyText);
+                                .insert(ScoreText);
                         });
 
                     // right-aligned bar items

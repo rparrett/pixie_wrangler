@@ -1,7 +1,7 @@
 use crate::collision::point_segment_collision;
 use crate::layer;
 use crate::lines::travel_on_segments;
-use crate::{lines::corner_angle, GameState, RoadSegment, Score, TestingState, GRID_SIZE};
+use crate::{lines::corner_angle, GameState, PixieCount, RoadSegment, TestingState, GRID_SIZE};
 
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
@@ -241,7 +241,7 @@ fn collide_pixies_system(
 fn move_pixies_system(
     mut commands: Commands,
     time: Res<Time>,
-    mut score: ResMut<Score>,
+    mut score: ResMut<PixieCount>,
     mut query: Query<(Entity, &mut Pixie, &mut Transform)>,
 ) {
     let delta = time.delta_seconds();

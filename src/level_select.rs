@@ -1,6 +1,4 @@
-use crate::{
-    level::Level, BestEfficiencies, ButtonMaterials, GameState, Handles, UI_GREY_RED_COLOR,
-};
+use crate::{level::Level, BestScores, ButtonMaterials, GameState, Handles, UI_GREY_RED_COLOR};
 use bevy::prelude::*;
 
 pub struct LevelSelectPlugin;
@@ -50,7 +48,7 @@ fn level_select_enter(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
     button_materials: Res<ButtonMaterials>,
-    best_efficiencies: Res<BestEfficiencies>,
+    best_efficiencies: Res<BestScores>,
     handles: Res<Handles>,
     levels: Res<Assets<Level>>,
 ) {
