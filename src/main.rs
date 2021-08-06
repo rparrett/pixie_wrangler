@@ -1864,12 +1864,11 @@ fn playing_enter_system(
     mut materials: ResMut<Assets<ColorMaterial>>,
     levels: Res<Assets<Level>>,
     level: Res<SelectedLevel>,
+    best_scores: Res<BestScores>,
     handles: Res<Handles>,
 ) {
     // Reset
     commands.insert_resource(Efficiency::default());
-    // TODO maybe we should initially load this from BestEfficiencies?
-    commands.insert_resource(BestScore::default());
     commands.insert_resource(PixieCount::default());
     commands.insert_resource(Cost::default());
     commands.insert_resource(DrawingState::default());
@@ -1878,6 +1877,12 @@ fn playing_enter_system(
     commands.insert_resource(TestingState::default());
     commands.insert_resource(PathfindingState::default());
     graph.graph.clear();
+
+    if let Some(score) = best_scores.0.get(&level.0) {
+        commands.insert_resource(BestScore(Some(*score)));
+    } else {
+        commands.insert_resource(BestScore::default());
+    }
 
     // Build arena
 
