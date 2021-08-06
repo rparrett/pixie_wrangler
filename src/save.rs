@@ -1,8 +1,7 @@
 use crate::{BestScores, GameState};
 
 use bevy::prelude::*;
-use ron::de::{from_reader, from_str};
-use ron::ser::{to_string_pretty, to_writer_pretty, PrettyConfig};
+use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 
@@ -32,10 +31,10 @@ pub fn load_system(mut commands: Commands) {
         }
 
         let save_file: SaveFile =
-            from_reader(file.unwrap()).expect("Failed to deserialize save file");
+            ron::de::from_reader(file.unwrap()).expect("Failed to deserialize save file");
 
         commands.insert_resource(save_file.scores.clone());
-    };
+    }
     #[cfg(target_arch = "wasm32")]
     {
         let storage = web_sys::window()
@@ -54,7 +53,7 @@ pub fn load_system(mut commands: Commands) {
         }
 
         let save_file: SaveFile =
-            from_str(&maybe_item.unwrap()).expect("Failed to deserialize save file");
+            ron::de::from_str(&maybe_item.unwrap()).expect("Failed to deserialize save file");
 
         commands.insert_resource(save_file.scores.clone());
     }
@@ -74,11 +73,13 @@ pub fn save_system(scores: Res<BestScores>) {
     #[cfg(not(target_arch = "wasm32"))]
     {
         let file = File::create(SAVE_FILE).expect("couldn't create save file");
-        let _ = to_writer_pretty(file, &save_file, pretty).expect("failed to serialize save file");
+        let _ = ron::ser::to_writer_pretty(file, &save_file, pretty)
+            .expect("failed to serialize save file");
     }
     #[cfg(target_arch = "wasm32")]
     {
-        let data = to_string_pretty(&save_file, pretty).expect("failed to serialize save file");
+        let data =
+            ron::ser::to_string_pretty(&save_file, pretty).expect("failed to serialize save file");
 
         let storage = web_sys::window()
             .expect("should have a Window")
