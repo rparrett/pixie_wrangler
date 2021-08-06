@@ -8,6 +8,7 @@ use crate::pixie::{Pixie, PixieEmitter, PixiePlugin, PIXIE_COLORS};
 use crate::radio_button::{
     RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonPlugin,
 };
+use crate::save::SavePlugin;
 
 use bevy::utils::HashMap;
 //use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
@@ -20,7 +21,7 @@ use petgraph::algo::astar;
 use petgraph::dot::{Config, Dot};
 use petgraph::stable_graph::{NodeIndex, StableUnGraph};
 use petgraph::visit::{DfsPostOrder, Walker};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 mod collision;
 mod debug;
@@ -31,6 +32,7 @@ mod lines;
 mod loading;
 mod pixie;
 mod radio_button;
+mod save;
 
 fn main() {
     let mut app = App::build();
@@ -50,6 +52,7 @@ fn main() {
     app.add_plugin(PixiePlugin);
     app.add_plugin(LoadingPlugin);
     app.add_plugin(LevelSelectPlugin);
+    app.add_plugin(SavePlugin);
     app.add_plugin(DebugLinesPlugin);
     app.add_plugin(RonAssetPlugin::<Level>::new(&["level.ron"]));
     app.add_state(GameState::Loading);
@@ -189,8 +192,8 @@ struct Cost(u32);
 struct Efficiency(Option<u32>);
 #[derive(Default)]
 struct BestScore(Option<u32>);
-#[derive(Default)]
-struct BestScores(HashMap<u32, u32>);
+#[derive(Clone, Default, Serialize, Deserialize)]
+pub struct BestScores(HashMap<u32, u32>);
 #[derive(Debug, Clone)]
 pub struct RoadSegment {
     points: (Vec2, Vec2),

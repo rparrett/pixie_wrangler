@@ -2276,7 +2276,9 @@ dependencies = [
  "itertools",
  "petgraph 0.6.0",
  "rand",
+ "ron",
  "serde",
+ "web-sys",
  "winit",
 ]
 

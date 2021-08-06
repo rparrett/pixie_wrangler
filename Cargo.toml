@@ -21,7 +21,8 @@ native = [
 ]
 
 web = [
-  "bevy_webgl2"
+  "bevy_webgl2",
+  "web-sys"
 ]
 
 [dependencies]
@@ -40,6 +41,9 @@ bevy_prototype_lyon = "0.3.1"
 #bevy_prototype_lyon = { path = "../bevy_prototype_lyon" }
 
 bevy_asset_ron = "0.2"
+ron = "*"
+
+web-sys = {version="0.3", optional=true, features = ["console", "Window", "Storage"]}
 
 #[patch.crates-io]
 #bevy = {path = "../bevy", default-features=false}
