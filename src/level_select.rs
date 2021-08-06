@@ -1,4 +1,6 @@
-use crate::{level::Level, BestEfficiencies, ButtonMaterials, GameState, Handles};
+use crate::{
+    level::Level, BestEfficiencies, ButtonMaterials, GameState, Handles, UI_GREY_RED_COLOR,
+};
 use bevy::prelude::*;
 
 pub struct LevelSelectPlugin;
@@ -26,8 +28,19 @@ fn level_select_button_system(
     query: Query<(&Interaction, &LevelSelectButton), Changed<Interaction>>,
     mut state: ResMut<State<GameState>>,
     mut level: ResMut<crate::SelectedLevel>,
+    handles: Res<Handles>,
+    levels: Res<Assets<Level>>,
 ) {
     for (_, button) in query.iter().filter(|(i, _)| **i == Interaction::Clicked) {
+        if handles
+            .levels
+            .get(button.0 as usize - 1)
+            .and_then(|h| levels.get(h.clone()))
+            .is_none()
+        {
+            continue;
+        };
+
         level.0 = button.0;
         state.replace(GameState::Playing).unwrap();
     }
@@ -140,16 +153,22 @@ fn level_select_enter(
                                         })
                                         .insert(LevelSelectButton(i))
                                         .with_children(|parent| {
+                                            let level = handles
+                                                .levels
+                                                .get(i as usize - 1)
+                                                .and_then(|h| levels.get(h.clone()));
+
+                                            let level_color = match level {
+                                                Some(_) => crate::UI_WHITE_COLOR,
+                                                None => UI_GREY_RED_COLOR,
+                                            };
+
                                             let (eff_text, star_text_one, star_text_two) =
-                                                if let (Some(eff), Some(thresholds)) = (
-                                                    best_efficiencies.0.get(&i),
-                                                    handles
-                                                        .levels
-                                                        .get(i as usize - 1)
-                                                        .and_then(|h| levels.get(h.clone()))
-                                                        .map(|l| l.star_thresholds.clone()),
-                                                ) {
-                                                    let stars = thresholds
+                                                if let (Some(eff), Some(level)) =
+                                                    (best_efficiencies.0.get(&i), level)
+                                                {
+                                                    let stars = level
+                                                        .star_thresholds
                                                         .iter()
                                                         .filter(|t| **t < *eff)
                                                         .count();
@@ -194,7 +213,7 @@ fn level_select_enter(
                                                     TextStyle {
                                                         font: handles.fonts[0].clone(),
                                                         font_size: 60.0,
-                                                        color: Color::rgb(0.9, 0.9, 0.9),
+                                                        color: level_color,
                                                     },
                                                     Default::default(),
                                                 ),
