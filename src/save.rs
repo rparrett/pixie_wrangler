@@ -25,35 +25,45 @@ impl Plugin for SavePlugin {
 pub fn load_system(mut commands: Commands) {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let file = File::open(SAVE_FILE);
-        if file.is_err() {
-            return;
-        }
+        let file = match File::open(SAVE_FILE) {
+            Ok(f) => f,
+            Err(_) => return,
+        };
 
-        let save_file: SaveFile =
-            ron::de::from_reader(file.unwrap()).expect("Failed to deserialize save file");
+        let save_file: SaveFile = match ron::de::from_reader(file) {
+            Ok(s) => s,
+            Err(e) => {
+                warn!("Failed to deserialize save file: {:?}", e);
+                return;
+            }
+        };
 
         commands.insert_resource(save_file.scores.clone());
     }
     #[cfg(target_arch = "wasm32")]
     {
-        let storage = web_sys::window()
-            .expect("should have a Window")
-            .local_storage()
-            .expect("should have a Storage")
-            .expect("should have a Storage");
-        let maybe_item = storage.get_item(SAVE_FILE);
-        if maybe_item.is_err() {
-            return;
-        }
-        let maybe_item = maybe_item.unwrap();
+        let window = match web_sys::window() {
+            Some(w) => w,
+            None => return,
+        };
 
-        if maybe_item.is_none() {
-            return;
-        }
+        let storage = match window.local_storage() {
+            Ok(Some(s)) => s,
+            _ => return,
+        };
 
-        let save_file: SaveFile =
-            ron::de::from_str(&maybe_item.unwrap()).expect("Failed to deserialize save file");
+        let item = match storage.get_item(SAVE_FILE) {
+            Ok(Some(i)) => i,
+            _ => return,
+        };
+
+        let save_file: SaveFile = match ron::de::from_str(&item) {
+            Ok(s) => s,
+            Err(e) => {
+                warn!("Failed to serialize save file: {:?}", e);
+                return;
+            }
+        };
 
         commands.insert_resource(save_file.scores.clone());
     }
@@ -72,23 +82,47 @@ pub fn save_system(scores: Res<BestScores>) {
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let file = File::create(SAVE_FILE).expect("couldn't create save file");
-        let _ = ron::ser::to_writer_pretty(file, &save_file, pretty)
-            .expect("failed to serialize save file");
+        let file = match File::create(SAVE_FILE) {
+            Ok(f) => f,
+            Err(e) => {
+                warn!("Failed to create save file: {:?}", e);
+                return;
+            }
+        };
+
+        match ron::ser::to_writer_pretty(file, &save_file, pretty) {
+            Err(e) => {
+                warn!("Failed to serialize save data: {:?}", e);
+                return;
+            }
+            _ => {}
+        }
     }
     #[cfg(target_arch = "wasm32")]
     {
-        let data =
-            ron::ser::to_string_pretty(&save_file, pretty).expect("failed to serialize save file");
+        let data = match ron::ser::to_string_pretty(&save_file, pretty) {
+            Ok(d) => d,
+            Err(e) => {
+                warn!("Failed to serialize save data: {:?}", e);
+                return;
+            }
+        };
 
-        let storage = web_sys::window()
-            .expect("should have a Window")
-            .local_storage()
-            .expect("should have a Storage")
-            .expect("should have a Storage");
+        let window = match web_sys::window() {
+            Some(w) => w,
+            None => return,
+        };
 
-        storage
-            .set_item(SAVE_FILE, data.as_str())
-            .expect("failed to store save file");
+        let storage = match window.local_storage() {
+            Ok(Some(s)) => s,
+            _ => return,
+        };
+
+        match storage.set_item(SAVE_FILE, data.as_str()) {
+            Err(e) => {
+                warn!("Failed to store save file: {:?}", e);
+            }
+            _ => {}
+        }
     }
 }
