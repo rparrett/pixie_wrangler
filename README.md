@@ -6,11 +6,16 @@ An exciting blend of traffic simulation games and printed circuit board design.
 
 ## TODO
 
+- [ ] At least three more levels
+- [ ] Pixie "flavor" should be a color and a number, so we can have multiple
+      separate paths for one colored path.
+- [ ] We should save the player's solution to each level
+- [ ] Audio
 - [ ] It would be nice if pixies could darken when traveling on lower layers
 - [ ] Maybe line drawing should automatically stop when drawing to an intersection
       Should it just always stop unless there are no collisions at the endpoint
       At all?
-- [ ] Randomize obstacles?
+- [ ] Randomizer mode?
 
 ## Prerequisites
 
