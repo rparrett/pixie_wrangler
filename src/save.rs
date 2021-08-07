@@ -3,7 +3,6 @@ use crate::{BestScores, GameState};
 use bevy::prelude::*;
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
-use std::fs::File;
 
 const SAVE_FILE: &str = "save.ron";
 
@@ -25,7 +24,7 @@ impl Plugin for SavePlugin {
 pub fn load_system(mut commands: Commands) {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let file = match File::open(SAVE_FILE) {
+        let file = match std::fs::File::open(SAVE_FILE) {
             Ok(f) => f,
             Err(_) => return,
         };
@@ -82,7 +81,7 @@ pub fn save_system(scores: Res<BestScores>) {
 
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let file = match File::create(SAVE_FILE) {
+        let file = match std::fs::File::create(SAVE_FILE) {
             Ok(f) => f,
             Err(e) => {
                 warn!("Failed to create save file: {:?}", e);
