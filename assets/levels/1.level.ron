@@ -3,34 +3,34 @@ Level(
         // left
         Terminus(
             point:    Vec2(-240.0, 144.0),
-            emits:    [0],
+            emits:    [PixieFlavor(color: 0, net: 0)],
             collects: [],
         ),
         Terminus(
             point:    Vec2(-240.0, 48.0),
-            emits:    [1],
+            emits:    [PixieFlavor(color: 1, net: 0)],
             collects: [],
         ),
         Terminus(
             point:    Vec2(-240.0, -48.0),
-            emits:    [2],
+            emits:    [PixieFlavor(color: 2, net: 0)],
             collects: [],
         ),
         // right
         Terminus(
             point:    Vec2(240.0, 144.0),
             emits:    [],
-            collects: [2],
+            collects: [PixieFlavor(color: 2, net: 0)],
         ),
         Terminus(
             point:    Vec2(240.0, 48.0),
             emits:    [],
-            collects: [1],
+            collects: [PixieFlavor(color: 1, net: 0)],
         ),
         Terminus(
             point:    Vec2(240.0, -48.0),
             emits:    [],
-            collects: [0],
+            collects: [PixieFlavor(color: 0, net: 0)],
         ),
     ],
     obstacles: [],

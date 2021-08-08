@@ -6,6 +6,7 @@ use crate::{lines::corner_angle, GameState, PixieCount, RoadSegment, TestingStat
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use rand::Rng;
+use serde::Deserialize;
 
 pub const PIXIE_RADIUS: f32 = 6.0;
 
@@ -44,7 +45,7 @@ impl Default for PixieFragment {
 }
 
 pub struct Pixie {
-    pub flavor: u32,
+    pub flavor: PixieFlavor,
     pub path: Vec<RoadSegment>,
     pub path_index: usize,
     pub next_corner_angle: Option<f32>,
@@ -59,7 +60,7 @@ pub struct Pixie {
 impl Default for Pixie {
     fn default() -> Self {
         Self {
-            flavor: 0,
+            flavor: PixieFlavor::default(),
             path: vec![],
             path_index: 0,
             next_corner_angle: None,
@@ -75,10 +76,16 @@ impl Default for Pixie {
 }
 
 pub struct PixieEmitter {
-    pub flavor: u32,
+    pub flavor: PixieFlavor,
     pub path: Vec<RoadSegment>,
     pub remaining: u32,
     pub timer: Timer,
+}
+
+#[derive(Copy, Clone, Default, Debug, Deserialize, PartialEq, Eq, Hash)]
+pub struct PixieFlavor {
+    pub color: u32,
+    pub net: u32,
 }
 
 pub const PIXIE_COLORS: [Color; 6] = [
@@ -139,7 +146,7 @@ fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixie, &
             commands
                 .spawn_bundle(GeometryBuilder::build_as(
                     &shape,
-                    ShapeColors::new(PIXIE_COLORS[(pixie.flavor) as usize].as_rgba_linear()),
+                    ShapeColors::new(PIXIE_COLORS[(pixie.flavor.color) as usize].as_rgba_linear()),
                     DrawMode::Fill(FillOptions::default()),
                     *transform,
                 ))
@@ -191,7 +198,7 @@ fn collide_pixies_system(
             .iter()
             .filter(|(_, p2, _)| p2.path_index < p2.path.len())
             .filter(|(_, p2, _)| p2.path[p2.path_index].layer == layer)
-            .filter(|(_, p2, _)| p2.flavor != p1.flavor)
+            .filter(|(_, p2, _)| p2.flavor.color != p1.flavor.color)
             .filter(|(e2, _, _)| *e2 != e1)
         {
             for seg in travel_segs.iter() {
@@ -377,7 +384,7 @@ fn emit_pixies_system(
         commands
             .spawn_bundle(GeometryBuilder::build_as(
                 &shape,
-                ShapeColors::new(PIXIE_COLORS[(emitter.flavor) as usize].as_rgba_linear()),
+                ShapeColors::new(PIXIE_COLORS[(emitter.flavor.color) as usize].as_rgba_linear()),
                 DrawMode::Fill(FillOptions::default()),
                 Transform::from_translation(
                     first_segment

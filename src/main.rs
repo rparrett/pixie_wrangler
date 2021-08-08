@@ -4,7 +4,7 @@ use crate::level::Level;
 use crate::level_select::LevelSelectPlugin;
 use crate::lines::{possible_lines, Axis};
 use crate::loading::LoadingPlugin;
-use crate::pixie::{Pixie, PixieEmitter, PixiePlugin, PIXIE_COLORS};
+use crate::pixie::{Pixie, PixieEmitter, PixieFlavor, PixiePlugin, PIXIE_COLORS};
 use crate::radio_button::{
     RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonPlugin,
 };
@@ -264,15 +264,15 @@ struct TestingState {
 #[derive(Default)]
 struct PathfindingState {
     valid: bool,
-    paths: Vec<(u32, Vec<RoadSegment>)>,
+    paths: Vec<(PixieFlavor, Vec<RoadSegment>)>,
     invalid_nodes: Vec<Entity>,
 }
 
 #[derive(Default, Debug, Deserialize, Clone)]
 pub struct Terminus {
     point: Vec2,
-    emits: HashSet<u32>,
-    collects: HashSet<u32>,
+    emits: HashSet<PixieFlavor>,
+    collects: HashSet<PixieFlavor>,
 }
 
 struct TerminusIssueIndicator;
@@ -438,7 +438,7 @@ fn pathfinding_system(
         for (_, b, b_node) in q_terminuses.iter() {
             for flavor in a.emits.intersection(&b.collects) {
                 info!(
-                    "Pixie (flavor {}) wants to go from {:?} to {:?}",
+                    "Pixie (flavor {:?}) wants to go from {:?} to {:?}",
                     flavor, a_node, b_node
                 );
 
@@ -1628,13 +1628,19 @@ fn spawn_terminus(
                 let label_pos =
                     Vec2::new(0.0, -1.0 * label_offset + -1.0 * i as f32 * label_spacing);
 
+                let label = if flavor.net > 0 {
+                    format!("OUT.{}", flavor.net + 1)
+                } else {
+                    "OUT".to_string()
+                };
+
                 parent.spawn_bundle(Text2dBundle {
                     text: Text::with_section(
-                        "OUT",
+                        label,
                         TextStyle {
                             font: handles.fonts[0].clone(),
                             font_size: 30.0,
-                            color: PIXIE_COLORS[*flavor as usize],
+                            color: PIXIE_COLORS[flavor.color as usize],
                         },
                         TextAlignment {
                             vertical: VerticalAlign::Center,
@@ -1652,13 +1658,19 @@ fn spawn_terminus(
                 let label_pos =
                     Vec2::new(0.0, -1.0 * label_offset + -1.0 * i as f32 * label_spacing);
 
+                let label = if flavor.net > 0 {
+                    format!("IN.{}", flavor.net + 1)
+                } else {
+                    "IN".to_string()
+                };
+
                 parent.spawn_bundle(Text2dBundle {
                     text: Text::with_section(
-                        "IN",
+                        label,
                         TextStyle {
                             font: handles.fonts[0].clone(),
                             font_size: 30.0,
-                            color: PIXIE_COLORS[*flavor as usize],
+                            color: PIXIE_COLORS[flavor.color as usize],
                         },
                         TextAlignment {
                             vertical: VerticalAlign::Center,

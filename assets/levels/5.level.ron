@@ -3,75 +3,75 @@ Level(
         // inside
         Terminus(
             point:    Vec2(-96.0, 144.0),
-            emits:    [0],
+            emits:    [PixieFlavor(color: 0, net: 0)],
             collects: [],
         ),
         Terminus(
             point:    Vec2(-96.0, 48.0),
-            emits:    [3],
+            emits:    [PixieFlavor(color: 3, net: 0)],
             collects: [],
         ),
         Terminus(
             point:    Vec2(-96.0, -48.0),
-            emits:    [2],
+            emits:    [PixieFlavor(color: 2, net: 0)],
             collects: [],
         ),
         Terminus(
             point:    Vec2(-0.0, -48.0),
-            emits:    [1],
+            emits:    [PixieFlavor(color: 1, net: 0)],
             collects: [],
         ),
         Terminus(
             point:    Vec2(96.0, -48.0),
-            emits:    [4],
+            emits:    [PixieFlavor(color: 4, net: 0)],
             collects: [],
         ),
         Terminus(
             point:    Vec2(96.0, 48.0),
-            emits:    [1],
+            emits:    [PixieFlavor(color: 1, net: 0)],
             collects: [],
         ),
         Terminus(
             point:    Vec2(96.0, 144.0),
-            emits:    [5],
+            emits:    [PixieFlavor(color: 5, net: 0)],
             collects: [],
         ),
         Terminus(
             point:    Vec2(-0.0, 144.0),
-            emits:    [3],
+            emits:    [PixieFlavor(color: 3, net: 0)],
             collects: [],
         ),
         // outside left
         Terminus(
             point:    Vec2(-480.0, 144.0),
             emits:    [],
-            collects: [4],
+            collects: [PixieFlavor(color: 4, net: 0)],
         ),
         Terminus(
             point:    Vec2(-480.0, 48.0),
             emits:    [],
-            collects: [1],
+            collects: [PixieFlavor(color: 1, net: 0)],
         ),
         Terminus(
             point:    Vec2(-480.0, -48.0),
             emits:    [],
-            collects: [5],
+            collects: [PixieFlavor(color: 5, net: 0)],
         ),
         // outside right
         Terminus(
             point:    Vec2(480.0, 144.0),
             emits:    [],
-            collects: [2],
+            collects: [PixieFlavor(color: 2, net: 0)],
         ),
         Terminus(
             point:    Vec2(480.0, 48.0),
             emits:    [],
-            collects: [3],
+            collects: [PixieFlavor(color: 3, net: 0)],
         ),
         Terminus(
             point:    Vec2(480.0, -48.0),
             emits:    [],
-            collects: [0],
+            collects: [PixieFlavor(color: 0, net: 0)],
         ),
 
     ],

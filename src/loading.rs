@@ -23,7 +23,7 @@ fn loading_setup(
         .spawn_bundle(UiCameraBundle::default())
         .insert(UiCamera);
 
-    for i in 1..=6 {
+    for i in 1..=7 {
         handles
             .levels
             .push(asset_server.load(format!("levels/{}.level.ron", i).as_str()));
