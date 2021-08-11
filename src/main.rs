@@ -2226,7 +2226,7 @@ fn playing_enter_system(
                             parent
                                 .spawn_bundle(TextBundle {
                                     style: Style {
-                                        size: Size::new(Val::Px(150.0), Val::Px(30.0)),
+                                        size: Size::new(Val::Px(200.0), Val::Px(30.0)),
                                         ..Default::default()
                                     },
                                     text: Text {
