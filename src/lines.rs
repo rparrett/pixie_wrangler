@@ -1,6 +1,9 @@
 use bevy::prelude::*;
 
-use crate::RoadSegment;
+use crate::{
+    collision::{point_segment_collision, SegmentCollision},
+    RoadSegment,
+};
 
 #[derive(Clone, Copy, Debug)]
 pub enum Axis {
@@ -71,6 +74,25 @@ pub fn possible_lines(
     return vec![vec![(from, b), (b, to)], vec![(from, a), (a, to)]];
 }
 
+pub fn distance_on_path(start: Vec2, point: Vec2, segments: &[(Vec2, Vec2)]) -> Option<f32> {
+    let mut total_dist = 0.0;
+    let mut starting_point = start;
+
+    for segment in segments.iter() {
+        match point_segment_collision(point, segment.0, segment.1) {
+            SegmentCollision::None => {
+                total_dist += starting_point.distance(segment.1);
+                starting_point = segment.0;
+            }
+            _ => {
+                return Some(total_dist + starting_point.distance(point));
+            }
+        }
+    }
+
+    None
+}
+
 /// * `start` The starting point, which should be on the first segment
 pub fn travel_on_segments(
     start: Vec2,
@@ -93,6 +115,7 @@ pub fn travel_on_segments(
             i += 1;
         } else {
             let diff = next - current;
+
             let theta = diff.y.atan2(diff.x);
 
             let projected = current + Vec2::new(to_go * theta.cos(), to_go * theta.sin());

@@ -1,6 +1,6 @@
 use crate::collision::point_segment_collision;
 use crate::layer;
-use crate::lines::travel_on_segments;
+use crate::lines::{distance_on_path, travel_on_segments};
 use crate::{lines::corner_angle, GameState, PixieCount, RoadSegment, TestingState, GRID_SIZE};
 
 use bevy::prelude::*;
@@ -163,10 +163,7 @@ fn collide_pixies_system(
 ) {
     let mut collisions = vec![];
 
-    // TODO if this is set too high, there may be some mutual attraction and pixies will just
-    // speed up and never actually annihilate. Maybe we should prevent attractors from getting
-    // into the attracting state.
-    let project_dist = PIXIE_RADIUS * 3.0;
+    let vision_dist = PIXIE_RADIUS * 3.0;
     let explosion_dist = PIXIE_RADIUS * 0.5;
 
     for (e1, p1, t1) in queries
@@ -174,54 +171,48 @@ fn collide_pixies_system(
         .iter()
         .filter(|(_, p, _)| p.path_index < p.path.len())
     {
-        // we are going to project forward along the pixie's travel path and check for collisions
-        // with other pixies of different flavors.
-        // if we find one, we'll put this pixie into an "attracted" state which should drive it
-        // faster towards its ultimate annihilation.
+        // we are going to project a point forward along the pixie's travel path
+        // and grab the pixies between this pixie and that point
 
         let layer = p1.path[p1.path_index].layer;
 
-        // colliding from a slightly forward point to we don't get attracted to a pixie behind us
+        let travel_segs = travel_on_segments(
+            t1.translation.truncate(),
+            vision_dist,
+            &p1.path[p1.path_index..],
+        );
 
-        let just_forward_segs =
-            travel_on_segments(t1.translation.truncate(), 0.01, &p1.path[p1.path_index..]);
-        let just_forward = if let Some(seg) = just_forward_segs.first() {
-            seg.1
-        } else {
-            break;
-        };
+        let mut potential_cols = vec![];
 
-        let travel_segs = travel_on_segments(just_forward, project_dist, &p1.path[p1.path_index..]);
-
-        for (e2, _, t2) in queries
+        for (e2, p2, t2) in queries
             .q0()
             .iter()
             .filter(|(_, p2, _)| p2.path_index < p2.path.len())
             .filter(|(_, p2, _)| p2.path[p2.path_index].layer == layer)
-            .filter(|(_, p2, _)| p2.flavor.color != p1.flavor.color)
             .filter(|(e2, _, _)| *e2 != e1)
         {
-            for seg in travel_segs.iter() {
-                let annihilating = t2
-                    .translation
-                    .truncate()
-                    .distance(t1.translation.truncate())
-                    < explosion_dist;
+            let dist = distance_on_path(
+                t1.translation.truncate(),
+                t2.translation.truncate(),
+                &travel_segs,
+            );
 
-                if annihilating {
-                    collisions.push((e1, e2, true));
-                    break;
-                }
+            if let Some(dist) = dist {
+                potential_cols.push((e2, p2.flavor.color, dist));
+            }
+        }
 
-                let col = point_segment_collision(t2.translation.truncate(), seg.0, seg.1);
+        // we only need to care about the "lead pixie"
 
-                match col {
-                    crate::collision::SegmentCollision::None => {}
-                    _ => {
-                        collisions.push((e1, e2, false));
-                        break;
-                    }
-                }
+        potential_cols.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
+
+        if let Some((e2, color, dist)) = potential_cols.first() {
+            if *color != p1.flavor.color && *dist <= explosion_dist {
+                collisions.push((e1, e2.clone(), true));
+            }
+
+            if *color != p1.flavor.color {
+                collisions.push((e1, e2.clone(), false));
             }
         }
     }
