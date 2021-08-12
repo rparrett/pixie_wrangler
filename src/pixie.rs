@@ -1,14 +1,21 @@
-use crate::collision::point_segment_collision;
 use crate::layer;
 use crate::lines::{distance_on_path, travel_on_segments};
 use crate::{lines::corner_angle, GameState, PixieCount, RoadSegment, TestingState, GRID_SIZE};
 
 use bevy::prelude::*;
+use bevy::utils::{HashMap, HashSet};
 use bevy_prototype_lyon::prelude::*;
 use rand::Rng;
 use serde::Deserialize;
 
 pub const PIXIE_RADIUS: f32 = 6.0;
+pub const PIXIE_VISION_DISTANCE: f32 = PIXIE_RADIUS * 3.0;
+pub const PIXIE_EXPLOSION_DISTANCE: f32 = PIXIE_RADIUS * 0.5;
+pub const PIXIE_MIN_SPEED: f32 = 10.0;
+pub const PIXIE_MAX_SPEED: f32 = 60.0;
+pub const PIXIE_MAX_SPEED_45: f32 = 10.0;
+pub const PIXIE_MAX_SPEED_90: f32 = 30.0;
+pub const PIXIE_MAX_SPEED_ATTRACTED: f32 = 120.0;
 
 pub struct PixiePlugin;
 impl Plugin for PixiePlugin {
@@ -49,13 +56,15 @@ pub struct Pixie {
     pub path: Vec<RoadSegment>,
     pub path_index: usize,
     pub next_corner_angle: Option<f32>,
-    pub max_speed: f32,
     pub current_speed: f32,
-    pub current_speed_limit: f32,
     pub acceleration: f32,
     pub deceleration: f32,
-    pub attracted: bool,
     pub exploding: bool,
+
+    pub lead_pixie: Option<LeadPixie>,
+    pub driving_state: DrivingState,
+    pub corner_debuff_time: f32,
+    pub corner_debuff_acceleration: f32,
 }
 impl Default for Pixie {
     fn default() -> Self {
@@ -64,15 +73,31 @@ impl Default for Pixie {
             path: vec![],
             path_index: 0,
             next_corner_angle: None,
-            max_speed: 60.0,
-            current_speed: 60.0,
-            current_speed_limit: 60.0,
-            acceleration: 10.0,
+            current_speed: PIXIE_MAX_SPEED,
+            acceleration: 50.0,
             deceleration: 50.0,
-            attracted: false,
             exploding: false,
+
+            lead_pixie: None,
+            driving_state: DrivingState::Cruising,
+            corner_debuff_time: 0.0,
+            corner_debuff_acceleration: 0.0,
         }
     }
+}
+
+#[derive(Clone)]
+pub struct LeadPixie {
+    distance: f32,
+    speed: f32,
+    attractor: bool,
+}
+
+#[derive(Clone)]
+pub enum DrivingState {
+    Accelerating,
+    Cruising,
+    Braking,
 }
 
 pub struct PixieEmitter {
@@ -162,9 +187,14 @@ fn collide_pixies_system(
     mut queries: QuerySet<(Query<(Entity, &Pixie, &Transform)>, Query<&mut Pixie>)>,
 ) {
     let mut collisions = vec![];
+    let mut explosions = vec![];
 
-    let vision_dist = PIXIE_RADIUS * 3.0;
-    let explosion_dist = PIXIE_RADIUS * 0.5;
+    // prevent any pixie that is attracting another from itself being
+    // attracted
+    let mut attractors = HashSet::default();
+    // prevent pixies that are overlapping from mutually slowing down
+    // for each other
+    let mut followers = HashMap::default();
 
     for (e1, p1, t1) in queries
         .q0()
@@ -178,7 +208,7 @@ fn collide_pixies_system(
 
         let travel_segs = travel_on_segments(
             t1.translation.truncate(),
-            vision_dist,
+            PIXIE_VISION_DISTANCE,
             &p1.path[p1.path_index..],
         );
 
@@ -198,40 +228,66 @@ fn collide_pixies_system(
             );
 
             if let Some(dist) = dist {
-                potential_cols.push((e2, p2.flavor.color, dist));
+                potential_cols.push((e2, p2.flavor, p2.current_speed, dist));
             }
         }
 
-        // we only need to care about the "lead pixie"
+        // we probably only need to care about the "lead pixie"
+        potential_cols.sort_by(|a, b| a.3.partial_cmp(&b.3).unwrap());
 
-        potential_cols.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
+        // TODO it would probably be proper to collect these, sort them by distance,
+        // and then iterate them again so that pixies with the closest lead-pixie
+        // get preferential treatment when deciding who can be attracted to whom.
 
-        if let Some((e2, color, dist)) = potential_cols.first() {
-            if *color != p1.flavor.color && *dist <= explosion_dist {
-                collisions.push((e1, e2.clone(), true));
+        if let Some((e2, flavor, current_speed, dist)) = potential_cols.first() {
+            if flavor.color != p1.flavor.color && *dist <= PIXIE_EXPLOSION_DISTANCE {
+                explosions.push(e1);
+                explosions.push(*e2);
+                continue;
             }
 
-            if *color != p1.flavor.color {
-                collisions.push((e1, e2.clone(), false));
+            // if we are already attracting a pixie, and our lead pixie is
+            // dissimilar, then we can just carry on.
+            if attractors.contains(&e1) && flavor.color != p1.flavor.color {
+                continue;
             }
+
+            if flavor.color != p1.flavor.color {
+                attractors.insert(*e2);
+            }
+
+            match followers.get(e2) {
+                Some(follower) if *follower == e1 => continue,
+                _ => {}
+            }
+
+            collisions.push((
+                e1,
+                *e2,
+                LeadPixie {
+                    speed: *current_speed,
+                    distance: *dist,
+                    attractor: flavor.color != p1.flavor.color,
+                },
+            ));
+
+            followers.insert(e1, *e2);
         }
     }
 
     for mut pixie in queries.q1_mut().iter_mut() {
-        pixie.attracted = false;
+        pixie.lead_pixie = None;
     }
 
-    for (e1, e2, explode) in collisions.iter() {
-        if let Ok(mut pixie) = queries.q1_mut().get_mut(*e1) {
-            pixie.attracted = true;
-            if *explode {
-                pixie.exploding = *explode;
-            }
+    for entity in explosions.iter() {
+        if let Ok(mut pixie) = queries.q1_mut().get_mut(*entity) {
+            pixie.exploding = true;
         }
-        if let Ok(mut pixie) = queries.q1_mut().get_mut(*e2) {
-            if *explode {
-                pixie.exploding = *explode;
-            }
+    }
+
+    for (e1, _e2, lead_pixie) in collisions.iter() {
+        if let Ok(mut pixie) = queries.q1_mut().get_mut(*e1) {
+            pixie.lead_pixie = Some(lead_pixie.clone());
         }
     }
 }
@@ -267,35 +323,66 @@ fn move_pixies_system(
         let dist = transform.translation.truncate().distance(next_waypoint);
         let last_dist = transform.translation.truncate().distance(prev_waypoint);
 
-        if pixie.attracted {
-            // pixies will drive very recklessly towards a pixie of another
-            // flavor
-            pixie.current_speed_limit = 100.0;
-        } else {
-            // pixies must otherwise slow down as they approach sharp corners
-            if dist < GRID_SIZE {
-                if let Some(angle) = pixie.next_corner_angle {
-                    if angle <= 45.0 {
-                        pixie.current_speed_limit = 10.0;
-                    } else if angle <= 90.0 {
-                        pixie.current_speed_limit = 30.0;
-                    }
-                } else {
-                    pixie.current_speed_limit = pixie.max_speed;
+        // determine speed limit and acceleration based on environmental factors
+
+        let mut speed_limit = PIXIE_MAX_SPEED;
+
+        if let Some(lead_pixie) = &pixie.lead_pixie {
+            if !lead_pixie.attractor {
+                speed_limit = lead_pixie.speed - 10.0;
+                speed_limit = speed_limit.max(PIXIE_MIN_SPEED);
+            }
+        }
+        if dist < GRID_SIZE {
+            // pixies must slow down as they approach sharp corners
+
+            if let Some(angle) = pixie.next_corner_angle {
+                if angle <= 45.0 {
+                    speed_limit = speed_limit.min(PIXIE_MAX_SPEED_45);
+                    pixie.corner_debuff_time = 5.0;
+                    pixie.corner_debuff_acceleration = pixie.acceleration / 8.0;
+                } else if angle <= 90.0 {
+                    speed_limit = speed_limit.min(PIXIE_MAX_SPEED_90);
+                    pixie.corner_debuff_time = 5.0;
+                    pixie.corner_debuff_acceleration = pixie.acceleration / 6.0;
                 }
-            } else {
-                pixie.current_speed_limit = pixie.max_speed;
+            }
+        }
+        if let Some(lead_pixie) = &pixie.lead_pixie {
+            // pixies will drive very recklessly towards a pixie of another
+            // flavor. this overrides other cornering and braking behaviors.
+
+            if lead_pixie.attractor {
+                speed_limit = PIXIE_MAX_SPEED_ATTRACTED;
             }
         }
 
-        let speed_diff = pixie.current_speed_limit - pixie.current_speed;
-        if speed_diff > f32::EPSILON {
-            pixie.current_speed += pixie.acceleration * delta;
-            pixie.current_speed = pixie.current_speed.min(pixie.current_speed_limit);
-        } else if speed_diff < f32::EPSILON {
+        pixie.corner_debuff_time = (pixie.corner_debuff_time - delta).max(0.0);
+        let acceleration = if pixie.corner_debuff_time > 0.0 {
+            pixie.corner_debuff_acceleration
+        } else {
+            pixie.acceleration
+        };
+
+        pixie.driving_state = DrivingState::Cruising;
+
+        // move towards speed limit
+
+        let speed_diff = speed_limit - pixie.current_speed;
+
+        if speed_diff < -1.0 * f32::EPSILON {
             pixie.current_speed -= pixie.deceleration * delta;
-            pixie.current_speed = pixie.current_speed.max(pixie.current_speed_limit);
+            pixie.current_speed = pixie.current_speed.max(speed_limit);
+            pixie.driving_state = DrivingState::Braking;
         }
+
+        if speed_diff > f32::EPSILON {
+            pixie.current_speed += acceleration * delta;
+            pixie.current_speed = pixie.current_speed.min(speed_limit);
+            pixie.driving_state = DrivingState::Accelerating
+        }
+
+        // move the pixie
 
         let step = pixie.current_speed * delta;
 
