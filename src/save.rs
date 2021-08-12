@@ -37,7 +37,7 @@ pub fn load_system(mut commands: Commands) {
             }
         };
 
-        commands.insert_resource(save_file.scores.clone());
+        commands.insert_resource(save_file.scores);
     }
     #[cfg(target_arch = "wasm32")]
     {
@@ -64,7 +64,7 @@ pub fn load_system(mut commands: Commands) {
             }
         };
 
-        commands.insert_resource(save_file.scores.clone());
+        commands.insert_resource(save_file.scores);
     }
 }
 
@@ -89,12 +89,8 @@ pub fn save_system(scores: Res<BestScores>) {
             }
         };
 
-        match ron::ser::to_writer_pretty(file, &save_file, pretty) {
-            Err(e) => {
-                warn!("Failed to serialize save data: {:?}", e);
-                return;
-            }
-            _ => {}
+        if let Err(e) = ron::ser::to_writer_pretty(file, &save_file, pretty) {
+            warn!("Failed to serialize save data: {:?}", e);
         }
     }
     #[cfg(target_arch = "wasm32")]
@@ -117,11 +113,8 @@ pub fn save_system(scores: Res<BestScores>) {
             _ => return,
         };
 
-        match storage.set_item(SAVE_FILE, data.as_str()) {
-            Err(e) => {
-                warn!("Failed to store save file: {:?}", e);
-            }
-            _ => {}
+        if let Err(e) = storage.set_item(SAVE_FILE, data.as_str()) {
+            warn!("Failed to store save file: {:?}", e);
         }
     }
 }

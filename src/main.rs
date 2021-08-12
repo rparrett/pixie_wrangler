@@ -1,3 +1,4 @@
+#![allow(clippy::too_many_arguments, clippy::type_complexity)]
 use crate::collision::{point_segment_collision, segment_collision, SegmentCollision};
 use crate::debug::DebugLinesPlugin;
 use crate::level::Level;
@@ -1586,7 +1587,9 @@ fn spawn_obstacle(commands: &mut Commands, obstacle: &level::Obstacle) {
                         .insert(ColliderLayer(0));
                 });
         }
-        _ => {}
+        _ => {
+            info!("{:?} not implemented", obstacle);
+        }
     }
 }
 

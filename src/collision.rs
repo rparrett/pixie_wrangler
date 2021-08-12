@@ -28,9 +28,9 @@ pub fn point_segment_collision(p: Vec2, a: Vec2, b: Vec2) -> SegmentCollision {
 
     let t = (d1.dot(d2) / len2).clamp(0.0, 1.0);
     let proj = a + t * diff;
-    let d = p.distance(proj);
+    let dist = p.distance(proj);
 
-    if d <= 0.0001 {
+    if dist <= 0.0001 {
         SegmentCollision::Touching
     } else {
         SegmentCollision::None
