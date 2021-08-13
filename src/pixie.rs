@@ -10,6 +10,7 @@ use serde::Deserialize;
 
 pub const PIXIE_RADIUS: f32 = 6.0;
 pub const PIXIE_VISION_DISTANCE: f32 = PIXIE_RADIUS * 3.0;
+pub const PIXIE_BRAKING_DISTANCE: f32 = PIXIE_RADIUS * 2.0;
 pub const PIXIE_EXPLOSION_DISTANCE: f32 = PIXIE_RADIUS * 0.5;
 pub const PIXIE_MIN_SPEED: f32 = 10.0;
 pub const PIXIE_MAX_SPEED: f32 = 60.0;
@@ -60,7 +61,6 @@ pub struct Pixie {
     pub acceleration: f32,
     pub deceleration: f32,
     pub exploding: bool,
-
     pub lead_pixie: Option<LeadPixie>,
     pub driving_state: DrivingState,
     pub corner_debuff_time: f32,
@@ -328,7 +328,7 @@ fn move_pixies_system(
         let mut speed_limit = PIXIE_MAX_SPEED;
 
         if let Some(lead_pixie) = &pixie.lead_pixie {
-            if !lead_pixie.attractor {
+            if !lead_pixie.attractor && lead_pixie.distance < PIXIE_BRAKING_DISTANCE {
                 speed_limit = lead_pixie.speed - 10.0;
                 speed_limit = speed_limit.max(PIXIE_MIN_SPEED);
             }

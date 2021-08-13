@@ -11,7 +11,7 @@ use crate::radio_button::{
 };
 use crate::save::SavePlugin;
 
-use bevy::utils::HashMap;
+use bevy::utils::{Duration, HashMap};
 //use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::{prelude::*, utils::HashSet, window::CursorMoved};
 
@@ -265,7 +265,7 @@ struct TestingState {
 #[derive(Default)]
 struct PathfindingState {
     valid: bool,
-    paths: Vec<(PixieFlavor, Vec<RoadSegment>)>,
+    paths: Vec<(PixieFlavor, Entity, Vec<RoadSegment>)>,
     invalid_nodes: Vec<Entity>,
 }
 
@@ -489,7 +489,7 @@ fn pathfinding_system(
                         continue;
                     }
 
-                    paths.push((*flavor, world_path));
+                    paths.push((*flavor, a_entity, world_path));
                 } else {
                     ok = false;
                     not_ok.push(a_entity);
@@ -584,13 +584,46 @@ fn pixie_button_system(
                 visible.is_visible = false;
             }
 
-            for (flavor, world_path) in pathfinding.paths.iter() {
+            let duration = 0.4;
+
+            let mut counts = HashMap::default();
+            for (_, start_entity, _) in pathfinding.paths.iter() {
+                *counts.entry(start_entity).or_insert(0) += 1;
+            }
+
+            let mut is = HashMap::default();
+
+            for (flavor, start_entity, world_path) in pathfinding.paths.iter() {
+                let i = is.entry(start_entity).or_insert(0);
+
+                // unwrap: we just inserted these above
+                let count = counts.get(start_entity).unwrap();
+                let per = duration / *count as f32;
+
+                // if we have multiple pixies coming out of the same starting
+                // point, stagger their emitters evenly. this prevents some
+                // awkward bunching up at the start of the path.
+
+                let mut timer = Timer::from_seconds(0.4, true);
+                timer.set_elapsed(Duration::from_secs_f32((*i + 1) as f32 * per));
+
+                info!(
+                    "{:?} {:?} {:?} {:?} {:?}",
+                    start_entity,
+                    count,
+                    *i,
+                    flavor,
+                    *i as f32 * per
+                );
+
                 commands.spawn().insert(PixieEmitter {
                     flavor: *flavor,
                     path: world_path.clone(),
                     remaining: 50,
-                    timer: Timer::from_seconds(0.4, true),
+                    timer,
                 });
+
+                *i += 1;
             }
 
             testing_state.started = Some(time.seconds_since_startup());
