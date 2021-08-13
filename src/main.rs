@@ -585,6 +585,7 @@ fn pixie_button_system(
             }
 
             let duration = 0.4;
+            let total_pixies = 50;
 
             let mut counts = HashMap::default();
             for (_, start_entity, _) in pathfinding.paths.iter() {
@@ -598,14 +599,14 @@ fn pixie_button_system(
 
                 // unwrap: we just inserted these above
                 let count = counts.get(start_entity).unwrap();
-                let per = duration / *count as f32;
+                let pixies = total_pixies / *count;
 
                 // if we have multiple pixies coming out of the same starting
                 // point, stagger their emitters evenly. this prevents some
                 // awkward bunching up at the start of the path.
 
-                let mut timer = Timer::from_seconds(0.4, true);
-                timer.set_elapsed(Duration::from_secs_f32((*i + 1) as f32 * per));
+                let mut timer = Timer::from_seconds(duration * *count as f32, true);
+                timer.set_elapsed(Duration::from_secs_f32((*i + 1) as f32 * duration));
 
                 info!(
                     "{:?} {:?} {:?} {:?} {:?}",
@@ -613,13 +614,13 @@ fn pixie_button_system(
                     count,
                     *i,
                     flavor,
-                    *i as f32 * per
+                    (*i + 1) as f32 * duration
                 );
 
                 commands.spawn().insert(PixieEmitter {
                     flavor: *flavor,
                     path: world_path.clone(),
-                    remaining: 50,
+                    remaining: pixies,
                     timer,
                 });
 
