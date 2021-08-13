@@ -7,7 +7,6 @@ An exciting blend of traffic simulation games and printed circuit board design.
 ## TODO
 
 - [ ] At least two more levels
-- [ ] Corner debuff should be distance rather than time based
 - [ ] We should save the player's solution to each level
 - [ ] Audio
 - [ ] It would be nice if pixies could darken when traveling on lower layers

@@ -17,6 +17,8 @@ pub const PIXIE_MAX_SPEED: f32 = 60.0;
 pub const PIXIE_MAX_SPEED_45: f32 = 10.0;
 pub const PIXIE_MAX_SPEED_90: f32 = 30.0;
 pub const PIXIE_MAX_SPEED_ATTRACTED: f32 = 120.0;
+pub const CORNER_DEBUFF_ACTIVATION_DISTANCE: f32 = GRID_SIZE;
+pub const CORNER_DEBUFF_DISTANCE: f32 = 24.0;
 
 pub struct PixiePlugin;
 impl Plugin for PixiePlugin {
@@ -63,7 +65,7 @@ pub struct Pixie {
     pub exploding: bool,
     pub lead_pixie: Option<LeadPixie>,
     pub driving_state: DrivingState,
-    pub corner_debuff_time: f32,
+    pub corner_debuff_distance_remaining: f32,
     pub corner_debuff_acceleration: f32,
 }
 impl Default for Pixie {
@@ -80,7 +82,7 @@ impl Default for Pixie {
 
             lead_pixie: None,
             driving_state: DrivingState::Cruising,
-            corner_debuff_time: 0.0,
+            corner_debuff_distance_remaining: 0.0,
             corner_debuff_acceleration: 0.0,
         }
     }
@@ -333,17 +335,17 @@ fn move_pixies_system(
                 speed_limit = speed_limit.max(PIXIE_MIN_SPEED);
             }
         }
-        if dist < GRID_SIZE {
+        if dist < CORNER_DEBUFF_ACTIVATION_DISTANCE {
             // pixies must slow down as they approach sharp corners
 
             if let Some(angle) = pixie.next_corner_angle {
                 if angle <= 45.0 {
                     speed_limit = speed_limit.min(PIXIE_MAX_SPEED_45);
-                    pixie.corner_debuff_time = 5.0;
+                    pixie.corner_debuff_distance_remaining = CORNER_DEBUFF_DISTANCE;
                     pixie.corner_debuff_acceleration = pixie.acceleration / 8.0;
                 } else if angle <= 90.0 {
                     speed_limit = speed_limit.min(PIXIE_MAX_SPEED_90);
-                    pixie.corner_debuff_time = 5.0;
+                    pixie.corner_debuff_distance_remaining = CORNER_DEBUFF_DISTANCE;
                     pixie.corner_debuff_acceleration = pixie.acceleration / 6.0;
                 }
             }
@@ -357,8 +359,7 @@ fn move_pixies_system(
             }
         }
 
-        pixie.corner_debuff_time = (pixie.corner_debuff_time - delta).max(0.0);
-        let acceleration = if pixie.corner_debuff_time > 0.0 {
+        let acceleration = if pixie.corner_debuff_distance_remaining > 0.0 {
             pixie.corner_debuff_acceleration
         } else {
             pixie.acceleration
@@ -426,6 +427,9 @@ fn move_pixies_system(
                 pixie.next_corner_angle = Some(180.0);
             }
         }
+
+        pixie.corner_debuff_distance_remaining =
+            (pixie.corner_debuff_distance_remaining - step).max(0.0);
 
         transform.rotate(Quat::from_rotation_z(pixie.current_speed * -0.08 * delta));
     }
