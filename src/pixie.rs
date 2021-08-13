@@ -9,8 +9,8 @@ use rand::Rng;
 use serde::Deserialize;
 
 pub const PIXIE_RADIUS: f32 = 6.0;
-pub const PIXIE_VISION_DISTANCE: f32 = PIXIE_RADIUS * 3.0;
-pub const PIXIE_BRAKING_DISTANCE: f32 = PIXIE_RADIUS * 2.0;
+pub const PIXIE_VISION_DISTANCE: f32 = PIXIE_RADIUS * 4.0;
+pub const PIXIE_BRAKING_DISTANCE: f32 = PIXIE_RADIUS * 3.0;
 pub const PIXIE_EXPLOSION_DISTANCE: f32 = PIXIE_RADIUS * 0.5;
 pub const PIXIE_MIN_SPEED: f32 = 10.0;
 pub const PIXIE_MAX_SPEED: f32 = 60.0;
