@@ -105,6 +105,7 @@ pub fn traveled_segments(
     let mut current = start;
 
     while i < segments.len() {
+        let prev = segments[i].points.0;
         let next = segments[i].points.1;
         let to_next = current.distance(next);
 
@@ -114,11 +115,11 @@ pub fn traveled_segments(
             to_go -= to_next;
             i += 1;
         } else {
-            let diff = next - current;
+            let segment_diff = next - prev;
+            let segment_length = prev.distance(next);
 
-            let theta = diff.y.atan2(diff.x);
+            let projected = current + to_go / segment_length * segment_diff;
 
-            let projected = current + Vec2::new(to_go * theta.cos(), to_go * theta.sin());
             path.push((current, projected));
 
             return path;
