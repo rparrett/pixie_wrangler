@@ -94,7 +94,7 @@ pub fn distance_on_path(start: Vec2, point: Vec2, segments: &[(Vec2, Vec2)]) -> 
 }
 
 /// * `start` The starting point, which should be on the first segment
-pub fn travel_on_segments(
+pub fn traveled_segments(
     start: Vec2,
     distance: f32,
     segments: &[RoadSegment],
@@ -126,4 +126,33 @@ pub fn travel_on_segments(
     }
 
     path
+}
+
+/// * `start` The starting point, which should be on the first segment
+pub fn travel(start: Vec2, distance: f32, segments: &[RoadSegment]) -> (Vec2, usize) {
+    let mut to_go = distance;
+    let mut i = 0;
+    let mut current = start;
+
+    while i < segments.len() {
+        let prev = segments[i].points.0;
+        let next = segments[i].points.1;
+
+        let to_next = current.distance(next);
+
+        if to_next < to_go {
+            current = next;
+            to_go -= to_next;
+            i += 1;
+        } else {
+            let segment_diff = next - prev;
+            let segment_length = prev.distance(next);
+
+            let projected = current + to_go / segment_length * segment_diff;
+
+            return (projected, i);
+        }
+    }
+
+    (segments.last().unwrap().points.1, i)
 }

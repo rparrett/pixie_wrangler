@@ -1,5 +1,5 @@
 use crate::layer;
-use crate::lines::{distance_on_path, travel_on_segments};
+use crate::lines::{distance_on_path, travel, traveled_segments};
 use crate::{lines::corner_angle, GameState, PixieCount, RoadSegment, TestingState, GRID_SIZE};
 
 use bevy::prelude::*;
@@ -206,7 +206,7 @@ fn collide_pixies_system(
 
         let layer = p1.path[p1.path_index].layer;
 
-        let travel_segs = travel_on_segments(
+        let travel_segs = traveled_segments(
             t1.translation.truncate(),
             PIXIE_VISION_DISTANCE,
             &p1.path[p1.path_index..],
@@ -386,12 +386,16 @@ fn move_pixies_system(
 
         let step = pixie.current_speed * delta;
 
-        transform.rotate(Quat::from_rotation_z(pixie.current_speed * -0.08 * delta));
+        let (to, segments_traveled) = travel(
+            transform.translation.truncate(),
+            step,
+            &pixie.path[pixie.path_index..],
+        );
 
-        if step < dist {
-            transform.translation.x += step / dist * (next_waypoint.x - transform.translation.x);
-            transform.translation.y += step / dist * (next_waypoint.y - transform.translation.y);
+        transform.translation.x = to.x;
+        transform.translation.y = to.y;
 
+        if segments_traveled == 0 {
             // pixies travelling uphill should stay above the next road as they approach it.
             // pixies travelling downhill should stay above the previous road as they leave it.
             if next_layer < current_layer && dist < PIXIE_RADIUS {
@@ -402,12 +406,7 @@ fn move_pixies_system(
                 transform.translation.z = layer::PIXIE - current_layer as f32
             }
         } else {
-            // TODO we should really move past this next waypoint the remaining distance
-
-            transform.translation.x = next_waypoint.x;
-            transform.translation.y = next_waypoint.y;
-
-            pixie.path_index += 1;
+            pixie.path_index += segments_traveled;
         }
 
         if pixie.next_corner_angle.is_none() || step > dist {
@@ -427,6 +426,8 @@ fn move_pixies_system(
                 pixie.next_corner_angle = Some(180.0);
             }
         }
+
+        transform.rotate(Quat::from_rotation_z(pixie.current_speed * -0.08 * delta));
     }
 }
 

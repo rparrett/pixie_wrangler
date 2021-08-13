@@ -608,15 +608,6 @@ fn pixie_button_system(
                 let mut timer = Timer::from_seconds(duration * *count as f32, true);
                 timer.set_elapsed(Duration::from_secs_f32((*i + 1) as f32 * duration));
 
-                info!(
-                    "{:?} {:?} {:?} {:?} {:?}",
-                    start_entity,
-                    count,
-                    *i,
-                    flavor,
-                    (*i + 1) as f32 * duration
-                );
-
                 commands.spawn().insert(PixieEmitter {
                     flavor: *flavor,
                     path: world_path.clone(),
