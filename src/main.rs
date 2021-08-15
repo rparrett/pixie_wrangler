@@ -1854,7 +1854,7 @@ fn update_score_text_system(
         return;
     }
 
-    let eff_text = if testing_state.done {
+    let score_text = if testing_state.done {
         let val = ((pixie_count.0 as f32 / cost.0 as f32 / testing_state.elapsed as f32) * 10000.0)
             .ceil() as u32;
 
@@ -1887,7 +1887,7 @@ fn update_score_text_system(
     };
 
     if let Some(mut text) = q_score_text.iter_mut().next() {
-        text.sections[0].value = eff_text;
+        text.sections[0].value = score_text;
     }
 }
 

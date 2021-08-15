@@ -50,7 +50,7 @@ fn level_select_enter(
     mut commands: Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
     button_materials: Res<ButtonMaterials>,
-    best_efficiencies: Res<BestScores>,
+    best_scores: Res<BestScores>,
     handles: Res<Handles>,
     levels: Res<Assets<Level>>,
 ) {
@@ -150,18 +150,18 @@ fn level_select_enter(
                                                 None => UI_GREY_RED_COLOR,
                                             };
 
-                                            let (eff_text, star_text_one, star_text_two) =
-                                                if let (Some(eff), Some(level)) =
-                                                    (best_efficiencies.0.get(&i), level)
+                                            let (score_text, star_text_one, star_text_two) =
+                                                if let (Some(score), Some(level)) =
+                                                    (best_scores.0.get(&i), level)
                                                 {
                                                     let stars = level
                                                         .star_thresholds
                                                         .iter()
-                                                        .filter(|t| **t < *eff)
+                                                        .filter(|t| **t < *score)
                                                         .count();
 
                                                     (
-                                                        format!("{}", eff),
+                                                        format!("{}", score),
                                                         "★".repeat(stars),
                                                         "★".repeat(3 - stars),
                                                     )
@@ -209,7 +209,7 @@ fn level_select_enter(
 
                                             parent.spawn_bundle(TextBundle {
                                                 text: Text::with_section(
-                                                    eff_text,
+                                                    score_text,
                                                     TextStyle {
                                                         font: handles.fonts[0].clone(),
                                                         font_size: 30.0,
