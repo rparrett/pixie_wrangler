@@ -1,6 +1,6 @@
-use crate::{BestScores, GameState};
+use crate::{GameState, RoadSegment};
 
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 
@@ -9,6 +9,15 @@ const SAVE_FILE: &str = "save.ron";
 #[derive(Deserialize, Serialize)]
 struct SaveFile {
     scores: BestScores,
+    solutions: Solutions,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct BestScores(pub HashMap<u32, u32>);
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct Solutions(pub HashMap<u32, Solution>);
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct Solution {
+    pub segments: Vec<RoadSegment>,
 }
 
 pub struct SavePlugin;
@@ -38,6 +47,7 @@ pub fn load_system(mut commands: Commands) {
         };
 
         commands.insert_resource(save_file.scores);
+        commands.insert_resource(save_file.solutions);
     }
     #[cfg(target_arch = "wasm32")]
     {
@@ -68,13 +78,18 @@ pub fn load_system(mut commands: Commands) {
     }
 }
 
-pub fn save_system(scores: Res<BestScores>) {
-    if !scores.is_changed() || scores.is_added() {
+pub fn save_system(scores: Res<BestScores>, solutions: Res<Solutions>) {
+    if !scores.is_changed() && !solutions.is_changed() {
+        return;
+    }
+
+    if scores.is_added() || solutions.is_added() {
         return;
     }
 
     let save_file = SaveFile {
         scores: (*scores).clone(),
+        solutions: (*solutions).clone(),
     };
 
     let pretty = PrettyConfig::new();

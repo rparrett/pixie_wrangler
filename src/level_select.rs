@@ -1,4 +1,6 @@
-use crate::{level::Level, BestScores, ButtonMaterials, GameState, Handles, UI_GREY_RED_COLOR};
+use crate::{
+    level::Level, save::BestScores, ButtonMaterials, GameState, Handles, UI_GREY_RED_COLOR,
+};
 use bevy::prelude::*;
 
 pub struct LevelSelectPlugin;

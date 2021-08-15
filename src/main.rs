@@ -22,6 +22,7 @@ use petgraph::algo::astar;
 use petgraph::dot::{Config, Dot};
 use petgraph::stable_graph::{NodeIndex, StableUnGraph};
 use petgraph::visit::{DfsPostOrder, Walker};
+use save::{BestScores, Solution, Solutions};
 use serde::{Deserialize, Serialize};
 
 mod collision;
@@ -113,7 +114,8 @@ fn main() {
             .label("score_calc")
             .with_system(pathfinding_system.system())
             .with_system(update_cost_system.system())
-            .with_system(update_test_state_system.system()),
+            .with_system(update_test_state_system.system())
+            .with_system(save_solution_system.system()),
     );
     app.add_system_set_to_stage(
         "after_update",
@@ -147,6 +149,7 @@ fn main() {
     app.init_resource::<Cost>();
     app.init_resource::<BestScore>();
     app.init_resource::<BestScores>();
+    app.init_resource::<Solutions>();
     //app.add_plugin(LogDiagnosticsPlugin::default());
     //app.add_plugin(FrameTimeDiagnosticsPlugin::default());
     app.run();
@@ -193,9 +196,7 @@ struct Cost(u32);
 struct Score(Option<u32>);
 #[derive(Default)]
 struct BestScore(Option<u32>);
-#[derive(Clone, Default, Serialize, Deserialize)]
-pub struct BestScores(HashMap<u32, u32>);
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoadSegment {
     points: (Vec2, Vec2),
     layer: u32,
@@ -970,7 +971,7 @@ fn drawing_mouse_click_system(
 
                 info!("after: {:?}", points);
 
-                let (start_node, end_node) = spawn_road_segment(
+                let (_, start_node, end_node) = spawn_road_segment(
                     &mut commands,
                     &mut graph,
                     RoadSegment {
@@ -1071,7 +1072,7 @@ fn drawing_mouse_click_system(
                                 commands.entity(*entity).despawn_recursive();
 
                                 // create a new segment on (entity start, this_point)
-                                let (start_node_a, end_node_a) = spawn_road_segment(
+                                let (_, start_node_a, end_node_a) = spawn_road_segment(
                                     &mut commands,
                                     &mut graph,
                                     RoadSegment {
@@ -1087,7 +1088,7 @@ fn drawing_mouse_click_system(
                                 graph.graph.add_edge(end_node_a, *node, 0.0);
 
                                 // create a new segment on (entity end, this_point)
-                                let (start_node_b, end_node_b) = spawn_road_segment(
+                                let (_, start_node_b, end_node_b) = spawn_road_segment(
                                     &mut commands,
                                     &mut graph,
                                     RoadSegment {
@@ -1542,7 +1543,7 @@ fn spawn_road_segment(
     commands: &mut Commands,
     graph: &mut RoadGraph,
     segment: RoadSegment,
-) -> (NodeIndex, NodeIndex) {
+) -> (Entity, NodeIndex, NodeIndex) {
     let color = FINISHED_ROAD_COLORS[segment.layer as usize - 1];
     let ent = commands
         .spawn_bundle(GeometryBuilder::build_as(
@@ -1572,7 +1573,7 @@ fn spawn_road_segment(
         .entity(ent)
         .insert(SegmentGraphNodes(start_node, end_node));
 
-    (start_node, end_node)
+    (ent, start_node, end_node)
 }
 
 fn spawn_obstacle(commands: &mut Commands, obstacle: &level::Obstacle) {
@@ -1634,7 +1635,7 @@ fn spawn_terminus(
     graph: &mut ResMut<RoadGraph>,
     handles: &Res<Handles>,
     terminus: &Terminus,
-) {
+) -> (Entity, NodeIndex) {
     let label_offset = 22.0;
     let label_spacing = 22.0;
 
@@ -1744,6 +1745,8 @@ fn spawn_terminus(
     let node = graph.graph.add_node(ent);
 
     commands.entity(ent).insert(PointGraphNode(node));
+
+    (ent, node)
 }
 
 fn update_cost_system(
@@ -1907,6 +1910,20 @@ fn playing_exit_system(mut commands: Commands, query: Query<Entity, Without<UiCa
     }
 }
 
+fn save_solution_system(
+    query: Query<&RoadSegment>,
+    level: Res<SelectedLevel>,
+    line_drawing: Res<LineDrawingState>,
+    mut solutions: ResMut<Solutions>,
+) {
+    if !line_drawing.is_changed() {
+        return;
+    }
+
+    let segments = query.iter().cloned().collect();
+    solutions.0.insert(level.0, Solution { segments: segments });
+}
+
 fn playing_enter_system(
     mut commands: Commands,
     mut more_commands: Commands,
@@ -1914,9 +1931,10 @@ fn playing_enter_system(
     button_materials: Res<ButtonMaterials>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     levels: Res<Assets<Level>>,
-    level: Res<SelectedLevel>,
+    selected_level: Res<SelectedLevel>,
     best_scores: Res<BestScores>,
     handles: Res<Handles>,
+    solutions: Res<Solutions>,
 ) {
     // Reset
     commands.insert_resource(Score::default());
@@ -1929,7 +1947,7 @@ fn playing_enter_system(
     commands.insert_resource(PathfindingState::default());
     graph.graph.clear();
 
-    if let Some(score) = best_scores.0.get(&level.0) {
+    if let Some(score) = best_scores.0.get(&selected_level.0) {
         commands.insert_resource(BestScore(Some(*score)));
     } else {
         commands.insert_resource(BestScore::default());
@@ -1960,12 +1978,15 @@ fn playing_enter_system(
 
     // Build level
 
+    let mut connections: Vec<(Vec2, NodeIndex)> = vec![];
+
     let level = levels
-        .get(handles.levels[level.0 as usize - 1].clone())
+        .get(handles.levels[selected_level.0 as usize - 1].clone())
         .unwrap();
 
     for t in level.terminuses.iter() {
-        spawn_terminus(&mut commands, &mut graph, &handles, t);
+        let (_, node) = spawn_terminus(&mut commands, &mut graph, &handles, t);
+        connections.push((t.point, node));
     }
 
     for o in level.obstacles.iter() {
@@ -1976,6 +1997,27 @@ fn playing_enter_system(
         "{:?}",
         Dot::with_config(&graph.graph, &[Config::EdgeNoLabel])
     );
+
+    // Spawn previous solution to level
+
+    if let Some(solution) = solutions.0.get(&selected_level.0) {
+        for seg in solution.segments.iter() {
+            let (_, node_a, node_b) = spawn_road_segment(&mut commands, &mut graph, seg.clone());
+
+            for (point, node) in connections.iter() {
+                if *point == seg.points.0 {
+                    graph.graph.add_edge(*node, node_a, 0.0);
+                }
+
+                if *point == seg.points.1 {
+                    graph.graph.add_edge(*node, node_b, 0.0);
+                }
+            }
+
+            connections.push((seg.points.0, node_a));
+            connections.push((seg.points.1, node_b));
+        }
+    }
 
     // Build UI
 
