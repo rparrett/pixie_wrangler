@@ -970,8 +970,14 @@ fn drawing_mouse_click_system(
 
                 info!("after: {:?}", points);
 
-                let (start_node, end_node) =
-                    spawn_road_segment(&mut commands, &mut graph, points, line_state.layer);
+                let (start_node, end_node) = spawn_road_segment(
+                    &mut commands,
+                    &mut graph,
+                    RoadSegment {
+                        points,
+                        layer: line_state.layer,
+                    },
+                );
 
                 for (node, is_start, connections, point) in [
                     (start_node, true, &add.connections.0, add.points.0),
@@ -1068,8 +1074,10 @@ fn drawing_mouse_click_system(
                                 let (start_node_a, end_node_a) = spawn_road_segment(
                                     &mut commands,
                                     &mut graph,
-                                    (segment.points.0, *point),
-                                    segment.layer,
+                                    RoadSegment {
+                                        points: (segment.points.0, *point),
+                                        layer: segment.layer,
+                                    },
                                 );
 
                                 // reconnect new segment to split line's old start node neighbors
@@ -1082,8 +1090,10 @@ fn drawing_mouse_click_system(
                                 let (start_node_b, end_node_b) = spawn_road_segment(
                                     &mut commands,
                                     &mut graph,
-                                    (*point, segment.points.1),
-                                    segment.layer,
+                                    RoadSegment {
+                                        points: (*point, segment.points.1),
+                                        layer: segment.layer,
+                                    },
                                 );
 
                                 // reconnect new segment to split line's old end node neighbors
@@ -1531,32 +1541,33 @@ fn shape_visibility_fix_system(
 fn spawn_road_segment(
     commands: &mut Commands,
     graph: &mut RoadGraph,
-    points: (Vec2, Vec2),
-    layer: u32,
+    segment: RoadSegment,
 ) -> (NodeIndex, NodeIndex) {
-    let color = FINISHED_ROAD_COLORS[layer as usize - 1];
+    let color = FINISHED_ROAD_COLORS[segment.layer as usize - 1];
     let ent = commands
         .spawn_bundle(GeometryBuilder::build_as(
-            &shapes::Line(points.0, points.1),
+            &shapes::Line(segment.points.0, segment.points.1),
             ShapeColors::new(color.as_rgba_linear()),
             DrawMode::Stroke(StrokeOptions::default().with_line_width(2.0)),
-            Transform::from_xyz(0.0, 0.0, layer::ROAD - layer as f32),
+            Transform::from_xyz(0.0, 0.0, layer::ROAD - segment.layer as f32),
         ))
-        .insert(RoadSegment { points, layer })
+        .insert(segment.clone())
         .with_children(|parent| {
             parent
                 .spawn()
-                .insert(Collider::Segment(points))
-                .insert(ColliderLayer(layer));
+                .insert(Collider::Segment(segment.points))
+                .insert(ColliderLayer(segment.layer));
         })
         .id();
 
     let start_node = graph.graph.add_node(ent);
     let end_node = graph.graph.add_node(ent);
 
-    graph
-        .graph
-        .add_edge(start_node, end_node, (points.0 - points.1).length());
+    graph.graph.add_edge(
+        start_node,
+        end_node,
+        (segment.points.0 - segment.points.1).length(),
+    );
     commands
         .entity(ent)
         .insert(SegmentGraphNodes(start_node, end_node));
