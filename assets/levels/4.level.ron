@@ -100,5 +100,5 @@ Level(
         Rect(Vec2(288.0, 0.0), Vec2(336.0, -144.0)),
         Rect(Vec2(192.0, -96.0), Vec2(288.0, -144.0))
     ],
-    star_thresholds: [300, 400, 500],
+    star_thresholds: [300, 350, 400],
 )
