@@ -157,7 +157,7 @@ fn level_select_enter(
                                                     let stars = level
                                                         .star_thresholds
                                                         .iter()
-                                                        .filter(|t| **t < *score)
+                                                        .filter(|t| **t <= *score)
                                                         .count();
 
                                                     (
