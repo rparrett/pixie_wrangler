@@ -55,7 +55,16 @@ Level(
     ],
     obstacles: [
         Rect(Vec2(-624.0, 48.0), Vec2(-144.0, -288.0)),
-        Rect(Vec2(144.0, 48.0), Vec2(624.0, 336.0))
+        Rect(Vec2(144.0, 48.0), Vec2(624.0, 336.0)),
+        // blockers
+        Rect(Vec2(-536, 48), Vec2(-520, 104)),
+        Rect(Vec2(-440, 48), Vec2(-426, 104)),
+        Rect(Vec2(-344, 48), Vec2(-328, 104)),
+        Rect(Vec2(-248, 48), Vec2(-232, 104)),
+        Rect(Vec2(536, 48),  Vec2(520, -8)),
+        Rect(Vec2(440, 48),  Vec2(424, -8)),
+        Rect(Vec2(344, 48),  Vec2(328, -8)),
+        Rect(Vec2(248, 48),  Vec2(232, -8)),
     ],
     star_thresholds: [300, 450, 500],
 )
