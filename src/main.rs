@@ -1,7 +1,7 @@
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 use crate::collision::{point_segment_collision, segment_collision, SegmentCollision};
 use crate::debug::DebugLinesPlugin;
-use crate::level::Level;
+use crate::level::{Level, Obstacle, Terminus};
 use crate::level_select::LevelSelectPlugin;
 use crate::lines::{possible_lines, Axis};
 use crate::loading::LoadingPlugin;
@@ -267,13 +267,6 @@ struct PathfindingState {
     valid: bool,
     paths: Vec<(PixieFlavor, Entity, Vec<RoadSegment>)>,
     invalid_nodes: Vec<Entity>,
-}
-
-#[derive(Default, Debug, Deserialize, Clone)]
-pub struct Terminus {
-    point: Vec2,
-    emits: HashSet<PixieFlavor>,
-    collects: HashSet<PixieFlavor>,
 }
 
 struct TerminusIssueIndicator;
@@ -1584,9 +1577,9 @@ fn spawn_road_segment(
     (ent, start_node, end_node)
 }
 
-fn spawn_obstacle(commands: &mut Commands, obstacle: &level::Obstacle) {
+fn spawn_obstacle(commands: &mut Commands, obstacle: &Obstacle) {
     match obstacle {
-        level::Obstacle::Rect(top_left, bottom_right) => {
+        Obstacle::Rect(top_left, bottom_right) => {
             let diff = *bottom_right - *top_left;
             let origin = (*top_left + *bottom_right) / 2.0;
 

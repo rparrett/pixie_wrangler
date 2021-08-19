@@ -1,8 +1,6 @@
-use bevy::prelude::*;
-use bevy::reflect::TypeUuid;
+use crate::PixieFlavor;
+use bevy::{prelude::*, reflect::TypeUuid, utils::HashSet};
 use serde::Deserialize;
-
-use crate::Terminus;
 
 #[derive(Deserialize, Debug, TypeUuid)]
 #[uuid = "962DF4C2-C221-4364-A9F7-B7340FB60437"]
@@ -17,4 +15,11 @@ pub struct Level {
 pub enum Obstacle {
     Rect(Vec2, Vec2),
     Polygon(Vec<Vec2>),
+}
+
+#[derive(Default, Debug, Deserialize, Clone)]
+pub struct Terminus {
+    pub point: Vec2,
+    pub emits: HashSet<PixieFlavor>,
+    pub collects: HashSet<PixieFlavor>,
 }
