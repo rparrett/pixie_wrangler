@@ -1589,7 +1589,7 @@ fn spawn_obstacle(commands: &mut Commands, obstacle: &level::Obstacle) {
                         height: diff.y.abs(),
                         ..Default::default()
                     },
-                    ShapeColors::new(Color::GRAY),
+                    ShapeColors::new(Color::rgb(0.086, 0.105, 0.133)),
                     DrawMode::Fill(FillOptions::default()),
                     Transform::from_translation(origin.extend(layer::OBSTACLE)),
                 ))
