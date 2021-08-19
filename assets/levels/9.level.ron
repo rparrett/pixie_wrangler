@@ -1,0 +1,141 @@
+Level(
+    terminuses: [
+        // tl
+        Terminus(
+            point:    Vec2(-480.0, 288.0),
+            emits:    [],
+            collects: [PixieFlavor ( color: 0, net: 1)]
+        ),
+        Terminus(
+            point:    Vec2(-480.0, 192.0),
+            emits:    [],
+            collects: [PixieFlavor ( color: 1, net: 1)]
+        ),
+        Terminus(
+            point:    Vec2(-576.0, 192.0),
+            emits:    [],
+            collects: [PixieFlavor ( color: 2, net: 1)]
+        ),
+        // bl
+        Terminus(
+            point:    Vec2(-576.0, -144.0),
+            emits:    [],
+            collects: [PixieFlavor ( color: 4, net: 1)],
+        ),
+        Terminus(
+            point:    Vec2(-480.0, -144.0),
+            emits:    [],
+            collects: [PixieFlavor ( color: 3, net: 1)],
+        ),
+        Terminus(
+            point:    Vec2(-480.0, -240.0),
+            emits:    [],
+            collects: [PixieFlavor ( color: 5, net: 1)],
+        ),
+        // tr
+        Terminus(
+            point:    Vec2(480.0, 288.0),
+            emits:    [PixieFlavor ( color: 3, net: 0)],
+            collects: []
+        ),
+        Terminus(
+            point:    Vec2(480.0, 192.0),
+            emits:    [PixieFlavor ( color: 4, net: 0)],
+            collects: []
+        ),
+        Terminus(
+            point:    Vec2(576.0, 192.0),
+            emits:    [PixieFlavor ( color: 5, net: 0)],
+            collects: []
+        ),
+        // br
+        Terminus(
+            point:    Vec2(576.0, -144.0),
+            emits:    [PixieFlavor ( color: 0, net: 0)],
+            collects: []
+        ),
+        Terminus(
+            point:    Vec2(480.0, -144.0),
+            emits:    [PixieFlavor ( color: 2, net: 0)],
+            collects: []
+        ),
+        Terminus(
+            point:    Vec2(480.0, -240.0),
+            emits:    [PixieFlavor ( color: 1, net: 0)],
+            collects: []
+        ),
+        // rtl
+        Terminus(
+            point:    Vec2(384, -96),
+            emits:    [],
+            collects: [PixieFlavor ( color: 0, net: 0)]
+        ),
+        Terminus(
+            point:    Vec2(384, 96),
+            emits:    [PixieFlavor ( color: 0, net: 1)],
+            collects: []
+        ),
+        Terminus(
+            point:    Vec2(240, -96),
+            emits:    [PixieFlavor ( color: 2, net: 1)],
+            collects: []
+        ),
+        Terminus(
+            point:    Vec2(240, 96),
+            emits:    [],
+            collects: [PixieFlavor ( color: 2, net: 0)]
+        ),
+        Terminus(
+            point:    Vec2(96.0, -96.0),
+            emits:    [],
+            collects: [PixieFlavor ( color: 4, net: 0)]
+        ),
+        Terminus(
+            point:    Vec2(96, 96),
+            emits:    [PixieFlavor ( color: 4, net: 1)],
+            collects: []
+        ),
+        Terminus(
+            point:    Vec2(-96, -96),
+            emits:    [PixieFlavor ( color: 1, net: 1)],
+            collects: []
+        ),
+        Terminus(
+            point:    Vec2(-96.0, 96.0),
+            emits:    [],
+            collects: [PixieFlavor ( color: 1, net: 0)]
+        ),
+        Terminus(
+            point:    Vec2(-240, -96),
+            emits:    [],
+            collects: [PixieFlavor ( color: 3, net: 0)]
+        ),
+        Terminus(
+            point:    Vec2(-240, 96),
+            emits:    [PixieFlavor ( color: 3, net: 1)],
+            collects: []
+        ),
+        Terminus(
+            point:    Vec2(-384, -96),
+            emits:    [PixieFlavor ( color: 5, net: 1)],
+            collects: []
+        ),
+        Terminus(
+            point:    Vec2(-384, 96),
+            emits:    [],
+            collects: [PixieFlavor ( color: 5, net: 0)]
+        ),
+    ],
+    obstacles: [
+        // corners
+        Rect(Vec2(-624, -192), Vec2(-528, -288)),
+        Rect(Vec2(-624, 336), Vec2(-528, 240)),
+        Rect(Vec2(528, 336), Vec2(624, 240)),
+        Rect(Vec2(528, -192), Vec2(624, -288)),
+        //
+        Rect(Vec2(-432.0, 48.0), Vec2(-48.0, -48.0)),
+        Rect(Vec2(48.0, 48.0), Vec2(432.0, -48.0))
+
+    ],
+    star_thresholds: [200, 250, 300],
+)
