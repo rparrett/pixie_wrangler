@@ -179,8 +179,7 @@ struct ScoreText;
 struct ElapsedText;
 
 struct ToolButton;
-struct LayerOneButton;
-struct LayerTwoButton;
+struct LayerButton(u32);
 struct NetRippingButton;
 struct PixieButton;
 struct ResetButton;
@@ -330,20 +329,23 @@ impl FromWorld for ButtonMaterials {
 const GRID_SIZE: f32 = 48.0;
 const BOTTOM_BAR_HEIGHT: f32 = 70.0;
 
-const FINISHED_ROAD_COLORS: [Color; 2] = [
+const FINISHED_ROAD_COLORS: [Color; 3] = [
     Color::rgb(0.251, 0.435, 0.729),
     Color::rgb(0.247, 0.725, 0.314),
+    Color::rgb(0.247, 0.725, 0.714),
 ];
-const DRAWING_ROAD_COLORS: [Color; 2] = [
+const DRAWING_ROAD_COLORS: [Color; 3] = [
     Color::rgb(0.102, 0.18, 0.298),
     Color::rgb(0.102, 0.298, 0.125),
+    Color::rgb(0.102, 0.298, 0.298),
 ];
 const BACKGROUND_COLOR: Color = Color::rgb(0.05, 0.066, 0.09);
 const GRID_COLOR: Color = Color::rgb(0.086, 0.105, 0.133);
 const UI_WHITE_COLOR: Color = Color::rgb(0.788, 0.82, 0.851);
 const UI_GREY_RED_COLOR: Color = Color::rgb(1.0, 0.341, 0.341);
 
-const TUNNEL_MULTIPLIER: f32 = 2.0;
+const LAYER_TWO_MULTIPLIER: f32 = 2.0;
+const LAYER_THREE_MULTIPLIER: f32 = 4.0;
 
 fn tool_button_display_system(
     mut q_text: Query<&mut Text>,
@@ -365,24 +367,14 @@ fn tool_button_display_system(
 fn tool_button_system(
     mut drawing_state: ResMut<DrawingState>,
     mut line_state: ResMut<LineDrawingState>,
-    q_interaction_one: Query<&Interaction, (Changed<Interaction>, With<LayerOneButton>)>,
-    q_interaction_two: Query<&Interaction, (Changed<Interaction>, With<LayerTwoButton>)>,
+    q_interaction_layer: Query<(&Interaction, &LayerButton), Changed<Interaction>>,
     q_interaction_rip: Query<&Interaction, (Changed<Interaction>, With<NetRippingButton>)>,
 ) {
-    for _ in q_interaction_one
+    for (_, layer_button) in q_interaction_layer
         .iter()
-        .filter(|i| **i == Interaction::Clicked)
+        .filter(|(i, _)| **i == Interaction::Clicked)
     {
-        line_state.layer = 1;
-        if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
-            drawing_state.mode = DrawingMode::LineDrawing;
-        }
-    }
-    for _ in q_interaction_two
-        .iter()
-        .filter(|i| **i == Interaction::Clicked)
-    {
-        line_state.layer = 2;
+        line_state.layer = layer_button.0;
         if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
             drawing_state.mode = DrawingMode::LineDrawing;
         }
@@ -791,31 +783,47 @@ fn keyboard_system(
     keyboard_input: Res<Input<KeyCode>>,
     mut line_state: ResMut<LineDrawingState>,
     mut drawing_state: ResMut<DrawingState>,
+    levels: Res<Assets<Level>>,
+    selected_level: Res<SelectedLevel>,
+    handles: Res<Handles>,
     mut q_radio_button: Query<&mut RadioButton>,
-    q_layer_one_button: Query<Entity, With<LayerOneButton>>,
-    q_layer_two_button: Query<Entity, With<LayerTwoButton>>,
+    q_layer_button: Query<(Entity, &LayerButton)>,
     q_net_ripping_button: Query<Entity, With<NetRippingButton>>,
 ) {
-    if keyboard_input.pressed(KeyCode::Key1) {
-        line_state.layer = 1;
-        if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
-            drawing_state.mode = DrawingMode::LineDrawing;
-        }
+    if !keyboard_input.is_changed() {
+        return;
+    }
 
-        if let Ok(ent) = q_layer_one_button.single() {
-            if let Ok(mut radio) = q_radio_button.get_mut(ent) {
-                radio.selected = true;
+    if keyboard_input.pressed(KeyCode::Key1)
+        || keyboard_input.pressed(KeyCode::Key2)
+        || keyboard_input.pressed(KeyCode::Key3)
+    {
+        let layer = if keyboard_input.pressed(KeyCode::Key1) {
+            1
+        } else if keyboard_input.pressed(KeyCode::Key2) {
+            2
+        } else {
+            3
+        };
+
+        let level = levels
+            .get(handles.levels[selected_level.0 as usize - 1].clone())
+            .unwrap();
+
+        if layer <= level.layers {
+            if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
+                drawing_state.mode = DrawingMode::LineDrawing;
             }
-        }
-    } else if keyboard_input.pressed(KeyCode::Key2) {
-        line_state.layer = 2;
-        if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
-            drawing_state.mode = DrawingMode::LineDrawing;
-        }
 
-        if let Ok(ent) = q_layer_two_button.single() {
-            if let Ok(mut radio) = q_radio_button.get_mut(ent) {
-                radio.selected = true;
+            line_state.layer = layer;
+
+            for (ent, _) in q_layer_button
+                .iter()
+                .filter(|(_, layer_button)| layer_button.0 == layer)
+            {
+                if let Ok(mut radio) = q_radio_button.get_mut(ent) {
+                    radio.selected = true;
+                }
             }
         }
     } else if keyboard_input.pressed(KeyCode::Escape) {
@@ -1774,7 +1782,13 @@ fn update_cost_system(
             Err(_) => continue,
         };
 
-        let multiplier = if layer.0 > 1 { TUNNEL_MULTIPLIER } else { 1.0 };
+        let multiplier = if layer.0 == 1 {
+            LAYER_TWO_MULTIPLIER
+        } else if layer.0 == 2 {
+            LAYER_THREE_MULTIPLIER
+        } else {
+            1.0
+        };
 
         cost += (segment.points.0 - segment.points.1).length() * multiplier;
     }
@@ -1787,8 +1801,10 @@ fn update_cost_system(
     let mut potential_cost = 0.0;
     if line_draw.valid {
         for segment in line_draw.segments.iter() {
-            let multiplier = if line_draw.layer > 1 {
-                TUNNEL_MULTIPLIER
+            let multiplier = if line_draw.layer == 1 {
+                LAYER_TWO_MULTIPLIER
+            } else if line_draw.layer == 2 {
+                LAYER_THREE_MULTIPLIER
             } else {
                 1.0
             };
@@ -2071,6 +2087,10 @@ fn playing_enter_system(
                                         justify_content: JustifyContent::Center,
                                         // vertically center child text
                                         align_items: AlignItems::Center,
+                                        margin: Rect {
+                                            right: Val::Px(20.0),
+                                            ..Default::default()
+                                        },
                                         ..Default::default()
                                     },
                                     material: button_materials.normal.clone(),
@@ -2091,78 +2111,51 @@ fn playing_enter_system(
                                         ..Default::default()
                                     });
                                 });
-                            // Tool Buttons
-                            let layer_one_id = parent
-                                .spawn_bundle(ButtonBundle {
-                                    style: Style {
-                                        size: Size::new(Val::Px(50.0), Val::Percent(100.0)),
-                                        // horizontally center child text
-                                        justify_content: JustifyContent::Center,
-                                        // vertically center child text
-                                        align_items: AlignItems::Center,
-                                        margin: Rect {
-                                            left: Val::Px(30.0),
-                                            ..Default::default()
-                                        },
-                                        ..Default::default()
-                                    },
-                                    material: button_materials.normal.clone(),
-                                    ..Default::default()
-                                })
-                                .insert(LayerOneButton)
-                                .insert(ToolButton)
-                                .insert(RadioButton { selected: true })
-                                .with_children(|parent| {
-                                    parent.spawn_bundle(TextBundle {
-                                        text: Text::with_section(
-                                            "1",
-                                            TextStyle {
-                                                font: handles.fonts[0].clone(),
-                                                font_size: 30.0,
-                                                color: Color::rgb(0.9, 0.9, 0.9),
-                                            },
-                                            Default::default(),
-                                        ),
-                                        ..Default::default()
-                                    });
-                                })
-                                .id();
 
-                            let layer_two_id = parent
-                                .spawn_bundle(ButtonBundle {
-                                    style: Style {
-                                        size: Size::new(Val::Px(50.0), Val::Percent(100.0)),
-                                        // horizontally center child text
-                                        justify_content: JustifyContent::Center,
-                                        // vertically center child text
-                                        align_items: AlignItems::Center,
-                                        margin: Rect {
-                                            left: Val::Px(10.0),
+                            // Tool Buttons
+                            let mut tool_button_ids = vec![];
+
+                            for layer in 1..=level.layers {
+                                let id = parent
+                                    .spawn_bundle(ButtonBundle {
+                                        style: Style {
+                                            size: Size::new(Val::Px(50.0), Val::Percent(100.0)),
+                                            // horizontally center child text
+                                            justify_content: JustifyContent::Center,
+                                            // vertically center child text
+                                            align_items: AlignItems::Center,
+                                            margin: Rect {
+                                                left: Val::Px(10.0),
+                                                ..Default::default()
+                                            },
                                             ..Default::default()
                                         },
+                                        material: button_materials.normal.clone(),
                                         ..Default::default()
-                                    },
-                                    material: button_materials.normal.clone(),
-                                    ..Default::default()
-                                })
-                                .insert(LayerTwoButton)
-                                .insert(ToolButton)
-                                .insert(RadioButton { selected: false })
-                                .with_children(|parent| {
-                                    parent.spawn_bundle(TextBundle {
-                                        text: Text::with_section(
-                                            "2",
-                                            TextStyle {
-                                                font: handles.fonts[0].clone(),
-                                                font_size: 30.0,
-                                                color: Color::rgb(0.9, 0.9, 0.9),
-                                            },
-                                            Default::default(),
-                                        ),
-                                        ..Default::default()
-                                    });
-                                })
-                                .id();
+                                    })
+                                    .insert(LayerButton(layer))
+                                    .insert(ToolButton)
+                                    .insert(RadioButton {
+                                        selected: layer == 1,
+                                    })
+                                    .with_children(|parent| {
+                                        parent.spawn_bundle(TextBundle {
+                                            text: Text::with_section(
+                                                format!("{}", layer),
+                                                TextStyle {
+                                                    font: handles.fonts[0].clone(),
+                                                    font_size: 30.0,
+                                                    color: Color::rgb(0.9, 0.9, 0.9),
+                                                },
+                                                Default::default(),
+                                            ),
+                                            ..Default::default()
+                                        });
+                                    })
+                                    .id();
+
+                                tool_button_ids.push(id);
+                            }
 
                             let net_ripping_id = parent
                                 .spawn_bundle(ButtonBundle {
@@ -2200,21 +2193,20 @@ fn playing_enter_system(
                                 })
                                 .id();
 
+                            tool_button_ids.push(net_ripping_id);
+
                             let tool_group_id = more_commands
                                 .spawn()
                                 .insert(RadioButtonGroup {
-                                    entities: vec![layer_one_id, layer_two_id, net_ripping_id],
+                                    entities: tool_button_ids.clone(),
                                 })
                                 .id();
-                            more_commands
-                                .entity(layer_one_id)
-                                .insert(RadioButtonGroupRelation(tool_group_id));
-                            more_commands
-                                .entity(layer_two_id)
-                                .insert(RadioButtonGroupRelation(tool_group_id));
-                            more_commands
-                                .entity(net_ripping_id)
-                                .insert(RadioButtonGroupRelation(tool_group_id));
+
+                            for id in tool_button_ids.iter() {
+                                more_commands
+                                    .entity(*id)
+                                    .insert(RadioButtonGroupRelation(tool_group_id));
+                            }
                         });
 
                     // Score, etc
