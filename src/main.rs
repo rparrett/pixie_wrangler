@@ -1937,7 +1937,7 @@ fn save_solution_system(
     }
 
     let segments = query.iter().cloned().collect();
-    solutions.0.insert(level.0, Solution { segments: segments });
+    solutions.0.insert(level.0, Solution { segments });
 }
 
 fn playing_enter_system(
