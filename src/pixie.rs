@@ -1,6 +1,9 @@
+use std::time::Duration;
+
 use crate::layer;
 use crate::lines::{distance_on_path, travel, traveled_segments};
-use crate::{lines::corner_angle, GameState, PixieCount, RoadSegment, TestingState, GRID_SIZE};
+use crate::sim::SIMULATION_TIMESTEP;
+use crate::{lines::corner_angle, GameState, PixieCount, RoadSegment, SimulationState, GRID_SIZE};
 
 use bevy::prelude::*;
 use bevy::utils::{HashMap, HashSet};
@@ -24,24 +27,12 @@ pub struct PixiePlugin;
 impl Plugin for PixiePlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_system_set(
-            SystemSet::on_update(GameState::Playing)
-                .label("pixies")
-                .after("test_buttons")
-                .with_system(
-                    collide_pixies_system
-                        .system()
-                        .label("collide_pixies")
-                        .before("move_pixies"),
-                )
-                .with_system(explode_pixies_system.system().after("collide_pixies"))
-                .with_system(move_pixies_system.system().label("move_pixies"))
-                .with_system(move_fragments_system.system())
-                .with_system(emit_pixies_system.system()),
+            SystemSet::on_update(GameState::Playing).with_system(move_fragments_system.system()),
         );
     }
 }
 
-struct PixieFragment {
+pub struct PixieFragment {
     direction: Vec2,
     life_remaining: f32,
 }
@@ -124,12 +115,11 @@ pub const PIXIE_COLORS: [Color; 6] = [
     Color::YELLOW,
 ];
 
-fn move_fragments_system(
+pub fn move_fragments_system(
     mut commands: Commands,
-    time: Res<Time>,
     mut query: Query<(Entity, &mut PixieFragment, &mut Transform)>,
 ) {
-    let delta = time.delta_seconds();
+    let delta = SIMULATION_TIMESTEP;
 
     for (entity, mut frag, mut transform) in query.iter_mut() {
         frag.life_remaining -= delta;
@@ -148,7 +138,7 @@ fn move_fragments_system(
     }
 }
 
-fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixie, &Transform)>) {
+pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixie, &Transform)>) {
     let mut rng = rand::thread_rng();
 
     let shape = shapes::RegularPolygon {
@@ -185,7 +175,7 @@ fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixie, &
     }
 }
 
-fn collide_pixies_system(
+pub fn collide_pixies_system(
     mut queries: QuerySet<(Query<(Entity, &Pixie, &Transform)>, Query<&mut Pixie>)>,
 ) {
     let mut collisions = vec![];
@@ -294,13 +284,12 @@ fn collide_pixies_system(
     }
 }
 
-fn move_pixies_system(
+pub fn move_pixies_system(
     mut commands: Commands,
-    time: Res<Time>,
     mut score: ResMut<PixieCount>,
     mut query: Query<(Entity, &mut Pixie, &mut Transform)>,
 ) {
-    let delta = time.delta_seconds();
+    let delta = SIMULATION_TIMESTEP;
 
     for (entity, mut pixie, mut transform) in query.iter_mut() {
         if pixie.path_index > pixie.path.len() - 1 {
@@ -435,13 +424,12 @@ fn move_pixies_system(
     }
 }
 
-fn emit_pixies_system(
-    time: Res<Time>,
-    testing_state: Res<TestingState>,
+pub fn emit_pixies_system(
+    testing_state: Res<SimulationState>,
     mut q_emitters: Query<&mut PixieEmitter>,
     mut commands: Commands,
 ) {
-    if testing_state.started.is_none() {
+    if !testing_state.started {
         return;
     }
 
@@ -450,7 +438,9 @@ fn emit_pixies_system(
             continue;
         }
 
-        emitter.timer.tick(time.delta());
+        emitter
+            .timer
+            .tick(Duration::from_secs_f32(SIMULATION_TIMESTEP));
 
         if !emitter.timer.finished() {
             continue;

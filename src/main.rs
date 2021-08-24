@@ -24,6 +24,9 @@ use petgraph::stable_graph::{NodeIndex, StableUnGraph};
 use petgraph::visit::{DfsPostOrder, Walker};
 use save::{BestScores, Solution, Solutions};
 use serde::{Deserialize, Serialize};
+use sim::{
+    SimulationPlugin, SimulationSettings, SimulationSpeed, SimulationState, SIMULATION_TIMESTEP,
+};
 
 mod collision;
 mod debug;
@@ -35,6 +38,7 @@ mod loading;
 mod pixie;
 mod radio_button;
 mod save;
+mod sim;
 
 fn main() {
     let mut app = App::build();
@@ -52,6 +56,7 @@ fn main() {
     app.add_plugin(ShapePlugin);
     app.add_plugin(RadioButtonPlugin);
     app.add_plugin(PixiePlugin);
+    app.add_plugin(SimulationPlugin);
     app.add_plugin(LoadingPlugin);
     app.add_plugin(LevelSelectPlugin);
     app.add_plugin(SavePlugin);
@@ -106,6 +111,7 @@ fn main() {
             .label("test_buttons")
             .with_system(pixie_button_system.system())
             .with_system(reset_button_system.system())
+            .with_system(speed_button_system.system())
             .with_system(back_button_system.system()),
     );
     app.add_system_set_to_stage(
@@ -114,7 +120,6 @@ fn main() {
             .label("score_calc")
             .with_system(pathfinding_system.system())
             .with_system(update_cost_system.system())
-            .with_system(update_test_state_system.system())
             .with_system(save_solution_system.system()),
     );
     app.add_system_set_to_stage(
@@ -140,7 +145,7 @@ fn main() {
     app.init_resource::<DrawingState>();
     app.init_resource::<LineDrawingState>();
     app.init_resource::<NetRippingState>();
-    app.init_resource::<TestingState>();
+    app.init_resource::<SimulationState>();
     app.init_resource::<PathfindingState>();
     app.init_resource::<MouseState>();
     app.init_resource::<RoadGraph>();
@@ -183,12 +188,13 @@ struct LayerButton(u32);
 struct NetRippingButton;
 struct PixieButton;
 struct ResetButton;
+struct SpeedButton;
 struct BackButton;
 
 #[derive(Default)]
 struct SelectedLevel(u32);
 #[derive(Default)]
-struct PixieCount(u32);
+pub struct PixieCount(u32);
 #[derive(Default)]
 struct Cost(u32);
 #[derive(Default)]
@@ -253,13 +259,6 @@ struct NetRippingState {
     entities: Vec<Entity>,
     nodes: Vec<NodeIndex>,
     segments: Vec<(Vec2, Vec2)>,
-}
-
-#[derive(Default)]
-struct TestingState {
-    started: Option<f64>,
-    elapsed: f64,
-    done: bool,
 }
 
 #[derive(Default)]
@@ -496,18 +495,18 @@ fn pathfinding_system(
 
 fn pixie_button_text_system(
     pathfinding: Res<PathfindingState>,
-    testing_state: Res<TestingState>,
+    sim_state: Res<SimulationState>,
     mut q_text: Query<&mut Text>,
     q_pixie_button: Query<&Children, With<PixieButton>>,
 ) {
-    if !pathfinding.is_changed() && !testing_state.is_changed() {
+    if !pathfinding.is_changed() && !sim_state.is_changed() {
         return;
     }
 
     for children in q_pixie_button.iter() {
         for child in children.iter() {
             if let Ok(mut text) = q_text.get_mut(*child) {
-                if testing_state.started.is_some() && !testing_state.done {
+                if sim_state.started && !sim_state.done {
                     text.sections[0].value = "NO WAIT STOP".to_string();
                 } else {
                     text.sections[0].value = "RELEASE THE PIXIES".to_string();
@@ -533,9 +532,8 @@ fn back_button_system(
 
 fn pixie_button_system(
     mut commands: Commands,
-    time: Res<Time>,
     mut pixie_count: ResMut<PixieCount>,
-    mut testing_state: ResMut<TestingState>,
+    mut sim_state: ResMut<SimulationState>,
     mut line_state: ResMut<LineDrawingState>,
     pathfinding: Res<PathfindingState>,
     q_interaction: Query<&Interaction, (Changed<Interaction>, With<Button>, With<PixieButton>)>,
@@ -547,12 +545,12 @@ fn pixie_button_system(
         line_state.drawing = false;
         line_state.segments = vec![];
 
-        if testing_state.started.is_some() && !testing_state.done {
+        if sim_state.started && !sim_state.done {
             for entity in q_emitters.iter().chain(q_pixies.iter()) {
                 commands.entity(entity).despawn();
             }
 
-            testing_state.started = None;
+            sim_state.started = false;
         } else {
             if !pathfinding.valid {
                 for (mut visible, parent) in q_indicator.iter_mut() {
@@ -604,11 +602,11 @@ fn pixie_button_system(
                 *i += 1;
             }
 
-            testing_state.started = Some(time.seconds_since_startup());
+            sim_state.started = true;
         }
 
-        testing_state.elapsed = 0.0;
-        testing_state.done = false;
+        sim_state.step = 0;
+        sim_state.done = false;
         pixie_count.0 = 0;
     }
 }
@@ -618,7 +616,7 @@ fn reset_button_system(
     q_interaction: Query<&Interaction, (Changed<Interaction>, With<Button>, With<ResetButton>)>,
     mut graph: ResMut<RoadGraph>,
     mut pixie_count: ResMut<PixieCount>,
-    mut testing_state: ResMut<TestingState>,
+    mut sim_state: ResMut<SimulationState>,
     mut line_state: ResMut<LineDrawingState>,
     q_road_chunks: Query<Entity, With<RoadSegment>>,
     q_pixies: Query<Entity, With<Pixie>>,
@@ -651,11 +649,34 @@ fn reset_button_system(
         line_state.drawing = false;
         line_state.segments = vec![];
 
-        testing_state.started = None;
-        testing_state.done = false;
-        testing_state.elapsed = 0.0;
+        *sim_state = SimulationState::default();
 
         pixie_count.0 = 0;
+    }
+}
+
+fn speed_button_system(
+    q_interaction: Query<
+        (&Interaction, &Children),
+        (Changed<Interaction>, With<Button>, With<SpeedButton>),
+    >,
+    mut q_text: Query<&mut Text>,
+    mut simulation_settings: ResMut<SimulationSettings>,
+) {
+    for (_, children) in q_interaction
+        .iter()
+        .filter(|(i, _)| **i == Interaction::Clicked)
+    {
+        simulation_settings.speed = match simulation_settings.speed {
+            SimulationSpeed::Normal => SimulationSpeed::Fast,
+            SimulationSpeed::Fast => SimulationSpeed::Normal,
+        };
+
+        for child in children.iter() {
+            if let Ok(mut text) = q_text.get_mut(*child) {
+                text.sections[0].value = simulation_settings.speed.label();
+            }
+        }
     }
 }
 
@@ -843,7 +864,7 @@ fn net_ripping_mouse_click_system(
     mut commands: Commands,
     mouse_input: ResMut<Input<MouseButton>>,
     mut ripping_state: ResMut<NetRippingState>,
-    testing_state: Res<TestingState>,
+    sim_state: Res<SimulationState>,
     drawing_state: Res<DrawingState>,
     mut graph: ResMut<RoadGraph>,
 ) {
@@ -851,7 +872,7 @@ fn net_ripping_mouse_click_system(
         return;
     }
 
-    if testing_state.started.is_some() && !testing_state.done {
+    if sim_state.started && !sim_state.done {
         return;
     }
 
@@ -876,7 +897,7 @@ fn drawing_mouse_click_system(
     mouse: Res<MouseState>,
     drawing_state: ResMut<DrawingState>,
     mut line_state: ResMut<LineDrawingState>,
-    testing_state: Res<TestingState>,
+    sim_state: Res<SimulationState>,
     mut graph: ResMut<RoadGraph>,
     q_point_nodes: Query<&PointGraphNode>,
     q_segment_nodes: Query<&SegmentGraphNodes>,
@@ -890,7 +911,7 @@ fn drawing_mouse_click_system(
         return;
     }
 
-    if testing_state.started.is_some() && !testing_state.done {
+    if sim_state.started && !sim_state.done {
         return;
     }
 
@@ -1164,7 +1185,7 @@ fn net_ripping_mouse_movement_system(
     drawing_state: Res<DrawingState>,
     mouse: Res<MouseState>,
     mut ripping_state: ResMut<NetRippingState>,
-    testing_state: Res<TestingState>,
+    sim_state: Res<SimulationState>,
     graph: Res<RoadGraph>,
     q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
     q_road_segments: Query<&RoadSegment>,
@@ -1174,7 +1195,7 @@ fn net_ripping_mouse_movement_system(
         return;
     }
 
-    if testing_state.started.is_some() && !testing_state.done {
+    if sim_state.started && !sim_state.done {
         return;
     }
 
@@ -1272,7 +1293,7 @@ fn not_drawing_mouse_movement_system(
 
 fn drawing_mouse_movement_system(
     mut line_state: ResMut<LineDrawingState>,
-    testing_state: Res<TestingState>,
+    sim_state: Res<SimulationState>,
     mouse: Res<MouseState>,
     q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
 ) {
@@ -1280,7 +1301,7 @@ fn drawing_mouse_movement_system(
         return;
     }
 
-    if testing_state.started.is_some() && !testing_state.done {
+    if sim_state.started && !sim_state.done {
         return;
     }
 
@@ -1819,39 +1840,8 @@ fn update_cost_system(
     }
 }
 
-fn update_test_state_system(
-    mut testing_state: ResMut<TestingState>,
-    time: Res<Time>,
-    q_emitter: Query<&PixieEmitter>,
-    q_pixie: Query<Entity, With<Pixie>>,
-) {
-    if testing_state.done {
-        return;
-    }
-
-    if let Some(started) = testing_state.started {
-        testing_state.elapsed = time.seconds_since_startup() - started;
-    }
-
-    if q_emitter.iter().count() < 1 {
-        return;
-    }
-
-    for emitter in q_emitter.iter() {
-        if emitter.remaining > 0 {
-            return;
-        }
-    }
-
-    if q_pixie.iter().count() > 0 {
-        return;
-    }
-
-    testing_state.done = true;
-}
-
 fn update_score_text_system(
-    testing_state: Res<TestingState>,
+    sim_state: Res<SimulationState>,
     pixie_count: Res<PixieCount>,
     cost: Res<Cost>,
     selected_level: Res<SelectedLevel>,
@@ -1859,13 +1849,15 @@ fn update_score_text_system(
     mut best_scores: ResMut<BestScores>,
     mut q_score_text: Query<&mut Text, With<ScoreText>>,
 ) {
-    if !testing_state.is_changed() {
+    if !sim_state.is_changed() {
         return;
     }
 
-    let score_text = if testing_state.done {
-        let val = ((pixie_count.0 as f32 / cost.0 as f32 / testing_state.elapsed as f32) * 10000.0)
-            .ceil() as u32;
+    let score_text = if sim_state.done {
+        let elapsed = sim_state.step as f32 * SIMULATION_TIMESTEP;
+        info!("{} {}", sim_state.step, elapsed);
+
+        let val = ((pixie_count.0 as f32 / cost.0 as f32 / elapsed as f32) * 10000.0).ceil() as u32;
 
         if let Some(best) = best_scores.0.get_mut(&selected_level.0) {
             if *best < val {
@@ -1901,15 +1893,15 @@ fn update_score_text_system(
 }
 
 fn update_elapsed_text_system(
-    testing_state: Res<TestingState>,
+    sim_state: Res<SimulationState>,
     mut q_text: Query<&mut Text, With<ElapsedText>>,
 ) {
-    if !testing_state.is_changed() {
+    if !sim_state.is_changed() {
         return;
     }
 
     for mut text in q_text.iter_mut() {
-        text.sections[0].value = format!("ŧ{:.1}", testing_state.elapsed);
+        text.sections[0].value = format!("ŧ{:.1}", sim_state.step as f32 * SIMULATION_TIMESTEP);
     }
 }
 
@@ -1944,6 +1936,7 @@ fn playing_enter_system(
     best_scores: Res<BestScores>,
     handles: Res<Handles>,
     solutions: Res<Solutions>,
+    simulation_settings: Res<SimulationSettings>,
 ) {
     // Reset
     commands.insert_resource(Score::default());
@@ -1952,7 +1945,7 @@ fn playing_enter_system(
     commands.insert_resource(DrawingState::default());
     commands.insert_resource(LineDrawingState::default());
     commands.insert_resource(NetRippingState::default());
-    commands.insert_resource(TestingState::default());
+    commands.insert_resource(SimulationState::default());
     commands.insert_resource(PathfindingState::default());
     graph.graph.clear();
 
@@ -2344,6 +2337,38 @@ fn playing_enter_system(
                                     parent.spawn_bundle(TextBundle {
                                         text: Text::with_section(
                                             "RESET",
+                                            TextStyle {
+                                                font: handles.fonts[0].clone(),
+                                                font_size: 30.0,
+                                                color: Color::rgb(0.9, 0.9, 0.9),
+                                            },
+                                            Default::default(),
+                                        ),
+                                        ..Default::default()
+                                    });
+                                });
+                            parent
+                                .spawn_bundle(ButtonBundle {
+                                    style: Style {
+                                        size: Size::new(Val::Px(50.0), Val::Percent(100.0)),
+                                        // horizontally center child text
+                                        justify_content: JustifyContent::Center,
+                                        // vertically center child text
+                                        align_items: AlignItems::Center,
+                                        margin: Rect {
+                                            left: Val::Px(10.0),
+                                            ..Default::default()
+                                        },
+                                        ..Default::default()
+                                    },
+                                    material: button_materials.normal.clone(),
+                                    ..Default::default()
+                                })
+                                .insert(SpeedButton)
+                                .with_children(|parent| {
+                                    parent.spawn_bundle(TextBundle {
+                                        text: Text::with_section(
+                                            simulation_settings.speed.label(),
                                             TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
