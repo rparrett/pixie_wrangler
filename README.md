@@ -6,6 +6,8 @@ An exciting blend of traffic simulation games and printed circuit board design.
 
 ## TODO
 
+- [ ] Simulation Complete Dialog?
+- [ ] Rearrange levels
 - [ ] Audio
 - [ ] It would be nice if pixies could darken when traveling on lower layers
 - [ ] Maybe line drawing should automatically stop when drawing to an intersection
