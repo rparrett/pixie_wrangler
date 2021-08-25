@@ -2322,7 +2322,7 @@ fn playing_enter_system(
                             parent
                                 .spawn_bundle(ButtonBundle {
                                     style: Style {
-                                        size: Size::new(Val::Px(150.0), Val::Percent(100.0)),
+                                        size: Size::new(Val::Px(110.0), Val::Percent(100.0)),
                                         // horizontally center child text
                                         justify_content: JustifyContent::Center,
                                         // vertically center child text
