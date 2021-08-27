@@ -16,6 +16,7 @@ use bevy::utils::{Duration, HashMap};
 use bevy::{prelude::*, utils::HashSet, window::CursorMoved};
 
 use bevy_asset_ron::*;
+use bevy_easings::*;
 use bevy_prototype_lyon::prelude::*;
 use itertools::Itertools;
 use petgraph::algo::astar;
@@ -61,6 +62,7 @@ fn main() {
     app.add_plugin(LevelSelectPlugin);
     app.add_plugin(SavePlugin);
     app.add_plugin(DebugLinesPlugin);
+    app.add_plugin(EasingsPlugin);
     app.add_plugin(RonAssetPlugin::<Level>::new(&["level.ron"]));
     app.add_state(GameState::Loading);
 
@@ -105,14 +107,19 @@ fn main() {
             .with_system(draw_net_ripping_system.system())
             .with_system(button_system_system.system()),
     );
+    app.add_system_set(
+        SystemSet::on_update(GameState::Playing)
+            .after("drawing_interaction")
+            .with_system(dismiss_score_dialog_button_system.system()),
+    );
     // whenever
     app.add_system_set(
         SystemSet::on_update(GameState::Playing)
-            .label("test_buttons")
             .with_system(pixie_button_system.system())
             .with_system(reset_button_system.system())
             .with_system(speed_button_system.system())
-            .with_system(back_button_system.system()),
+            .with_system(back_button_system.system())
+            .with_system(show_score_dialog_system.system()),
     );
     app.add_system_set_to_stage(
         "after_update",
@@ -152,7 +159,6 @@ fn main() {
     app.init_resource::<ButtonMaterials>();
     app.init_resource::<PixieCount>();
     app.init_resource::<Cost>();
-    app.init_resource::<BestScore>();
     app.init_resource::<BestScores>();
     app.init_resource::<Solutions>();
     //app.add_plugin(LogDiagnosticsPlugin::default());
@@ -190,6 +196,9 @@ struct PixieButton;
 struct ResetButton;
 struct SpeedButton;
 struct BackButton;
+struct DismissScoreDialogButton;
+struct PlayAreaNode;
+struct ScoreDialog;
 
 #[derive(Default)]
 struct SelectedLevel(u32);
@@ -521,12 +530,235 @@ fn pixie_button_text_system(
     }
 }
 
+fn show_score_dialog_system(
+    mut commands: Commands,
+    sim_state: Res<SimulationState>,
+    handles: Res<Handles>,
+    button_materials: Res<ButtonMaterials>,
+    selected_level: Res<SelectedLevel>,
+    levels: Res<Assets<Level>>,
+    score: Res<Score>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut q_node: Query<(Entity, &mut Handle<ColorMaterial>), With<PlayAreaNode>>,
+    q_dialog: Query<Entity, With<ScoreDialog>>,
+) {
+    if !sim_state.is_changed() && !score.is_changed() {
+        return;
+    }
+
+    if !sim_state.done {
+        return;
+    }
+
+    if q_dialog.single().is_ok() {
+        return;
+    }
+
+    let level = match handles
+        .levels
+        .get(selected_level.0 as usize - 1)
+        .and_then(|h| levels.get(h.clone()))
+    {
+        Some(level) => level,
+        None => return,
+    };
+
+    let score = match score.0 {
+        Some(score) => score,
+        None => return,
+    };
+
+    let num_stars = level
+        .star_thresholds
+        .iter()
+        .filter(|t| **t <= score)
+        .count();
+
+    let dialog_style = Style {
+        size: Size::new(Val::Px(320.0), Val::Px(300.0)),
+        margin: Rect {
+            top: Val::Px(-1000.0),
+            ..Default::default()
+        },
+        padding: Rect::all(Val::Px(20.0)),
+        flex_direction: FlexDirection::ColumnReverse,
+        justify_content: JustifyContent::SpaceBetween,
+        align_items: AlignItems::Center,
+        ..Default::default()
+    };
+    let mut dialog_style_to = dialog_style.clone();
+    dialog_style_to.margin.top = Val::Px(0.0);
+
+    let dialog_entity = commands
+        .spawn_bundle(NodeBundle {
+            style: dialog_style.clone(),
+            material: materials.add(Color::rgb(0.2, 0.2, 0.2).into()),
+            ..Default::default()
+        })
+        .insert(dialog_style.ease_to(
+            dialog_style_to,
+            EaseFunction::QuadraticInOut,
+            EasingType::Once {
+                duration: Duration::from_secs_f32(0.7),
+            },
+        ))
+        .insert(ScoreDialog)
+        .with_children(|parent| {
+            parent.spawn_bundle(TextBundle {
+                text: Text {
+                    sections: vec![
+                        TextSection {
+                            value: "★".repeat(num_stars),
+                            style: TextStyle {
+                                font: handles.fonts[0].clone(),
+                                font_size: 100.0,
+                                color: crate::UI_WHITE_COLOR,
+                            },
+                        },
+                        TextSection {
+                            value: "★".repeat(3 - num_stars),
+                            style: TextStyle {
+                                font: handles.fonts[0].clone(),
+                                font_size: 100.0,
+                                color: Color::DARK_GRAY,
+                            },
+                        },
+                    ],
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
+            parent.spawn_bundle(TextBundle {
+                text: Text::with_section(
+                    format!("Æ{}", score),
+                    TextStyle {
+                        font: handles.fonts[0].clone(),
+                        font_size: 100.0,
+                        color: FINISHED_ROAD_COLORS[1],
+                    },
+                    Default::default(),
+                ),
+                ..Default::default()
+            });
+
+            // bottom buttons
+            parent
+                .spawn_bundle(NodeBundle {
+                    style: Style {
+                        size: Size::new(Val::Percent(100.0), Val::Px(70.0)),
+                        flex_direction: FlexDirection::Row,
+                        // horizontally center child text
+                        justify_content: JustifyContent::Center,
+                        // vertically center child text
+                        align_items: AlignItems::Center,
+                        ..Default::default()
+                    },
+                    material: materials.add(Color::NONE.into()),
+                    ..Default::default()
+                })
+                .with_children(|parent| {
+                    parent
+                        .spawn_bundle(ButtonBundle {
+                            style: Style {
+                                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                                // horizontally center child text
+                                justify_content: JustifyContent::Center,
+                                // vertically center child text
+                                align_items: AlignItems::Center,
+                                ..Default::default()
+                            },
+                            material: button_materials.normal.clone(),
+                            ..Default::default()
+                        })
+                        .insert(DismissScoreDialogButton)
+                        .with_children(|parent| {
+                            parent.spawn_bundle(TextBundle {
+                                text: Text::with_section(
+                                    "DISMISS",
+                                    TextStyle {
+                                        font: handles.fonts[0].clone(),
+                                        font_size: 30.0,
+                                        color: Color::rgb(0.9, 0.9, 0.9),
+                                    },
+                                    Default::default(),
+                                ),
+                                ..Default::default()
+                            });
+                        });
+                    parent
+                        .spawn_bundle(ButtonBundle {
+                            style: Style {
+                                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                                // horizontally center child text
+                                justify_content: JustifyContent::Center,
+                                // vertically center child text
+                                align_items: AlignItems::Center,
+                                margin: Rect {
+                                    left: Val::Px(10.0),
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            },
+                            material: button_materials.normal.clone(),
+                            ..Default::default()
+                        })
+                        .insert(BackButton)
+                        .with_children(|parent| {
+                            parent.spawn_bundle(TextBundle {
+                                text: Text::with_section(
+                                    "ONWARD →",
+                                    TextStyle {
+                                        font: handles.fonts[0].clone(),
+                                        font_size: 30.0,
+                                        color: Color::rgb(0.9, 0.9, 0.9),
+                                    },
+                                    Default::default(),
+                                ),
+                                ..Default::default()
+                            });
+                        });
+                });
+        })
+        .id();
+    if let Ok((entity, mut color_handle)) = q_node.single_mut() {
+        commands.entity(entity).push_children(&[dialog_entity]);
+        *color_handle = materials.add(Color::rgba(0.0, 0.0, 0.0, 0.8).into());
+    }
+}
+
 fn back_button_system(
     q_interaction: Query<&Interaction, (Changed<Interaction>, With<Button>, With<BackButton>)>,
     mut state: ResMut<State<GameState>>,
 ) {
     for _ in q_interaction.iter().filter(|i| **i == Interaction::Clicked) {
         state.replace(GameState::LevelSelect).unwrap();
+    }
+}
+
+fn dismiss_score_dialog_button_system(
+    mut commands: Commands,
+    mut sim_state: ResMut<SimulationState>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    q_interaction: Query<
+        &Interaction,
+        (
+            Changed<Interaction>,
+            With<Button>,
+            With<DismissScoreDialogButton>,
+        ),
+    >,
+    q_dialog: Query<Entity, With<ScoreDialog>>,
+    mut q_node: Query<&mut Handle<ColorMaterial>, With<PlayAreaNode>>,
+) {
+    for _ in q_interaction.iter().filter(|i| **i == Interaction::Clicked) {
+        if let Ok(entity) = q_dialog.single() {
+            commands.entity(entity).despawn_recursive();
+            *sim_state = SimulationState::default();
+        }
+
+        if let Ok(mut color_handle) = q_node.single_mut() {
+            *color_handle = materials.add(Color::NONE.into())
+        }
     }
 }
 
@@ -541,6 +773,11 @@ fn pixie_button_system(
     q_pixies: Query<Entity, With<Pixie>>,
     mut q_indicator: Query<(&mut Visible, &Parent), With<TerminusIssueIndicator>>,
 ) {
+    // do nothing while score dialog is shown
+    if sim_state.started && sim_state.done {
+        return;
+    }
+
     for _ in q_interaction.iter().filter(|i| **i == Interaction::Clicked) {
         line_state.drawing = false;
         line_state.segments = vec![];
@@ -624,6 +861,11 @@ fn reset_button_system(
     q_terminuses: Query<Entity, With<Terminus>>,
     mut q_indicator: Query<&mut Visible, With<TerminusIssueIndicator>>,
 ) {
+    // do nothing while score dialog is shown
+    if sim_state.started && sim_state.done {
+        return;
+    }
+
     for _ in q_interaction.iter().filter(|i| **i == Interaction::Clicked) {
         for chunk in q_road_chunks
             .iter()
@@ -872,7 +1114,7 @@ fn net_ripping_mouse_click_system(
         return;
     }
 
-    if sim_state.started && !sim_state.done {
+    if sim_state.started {
         return;
     }
 
@@ -911,7 +1153,7 @@ fn drawing_mouse_click_system(
         return;
     }
 
-    if sim_state.started && !sim_state.done {
+    if sim_state.started {
         return;
     }
 
@@ -1195,7 +1437,7 @@ fn net_ripping_mouse_movement_system(
         return;
     }
 
-    if sim_state.started && !sim_state.done {
+    if sim_state.started {
         return;
     }
 
@@ -1301,7 +1543,7 @@ fn drawing_mouse_movement_system(
         return;
     }
 
-    if sim_state.started && !sim_state.done {
+    if sim_state.started {
         return;
     }
 
@@ -1548,7 +1790,7 @@ fn update_pixie_count_text_system(
     }
 
     let mut text = query.single_mut().unwrap();
-    text.sections[0].value = format!("Þ{}", pixie_count.0);
+    text.sections[0].value = format!("₽{}", pixie_count.0);
 }
 
 /// Workaround for bevy_prototype_lyon always setting `is_visible = true` after it builds a mesh.
@@ -1845,19 +2087,20 @@ fn update_score_text_system(
     pixie_count: Res<PixieCount>,
     cost: Res<Cost>,
     selected_level: Res<SelectedLevel>,
-    mut best_score: ResMut<BestScore>,
     mut best_scores: ResMut<BestScores>,
     mut q_score_text: Query<&mut Text, With<ScoreText>>,
+    mut score: ResMut<Score>,
 ) {
     if !sim_state.is_changed() {
         return;
     }
 
-    let score_text = if sim_state.done {
+    if sim_state.done {
         let elapsed = sim_state.step as f32 * SIMULATION_TIMESTEP;
-        info!("{} {}", sim_state.step, elapsed);
 
         let val = ((pixie_count.0 as f32 / cost.0 as f32 / elapsed as f32) * 10000.0).ceil() as u32;
+
+        score.0 = Some(val);
 
         if let Some(best) = best_scores.0.get_mut(&selected_level.0) {
             if *best < val {
@@ -1866,29 +2109,14 @@ fn update_score_text_system(
         } else {
             best_scores.0.insert(selected_level.0, val);
         }
-
-        match best_score.0 {
-            Some(best) if best < val => {
-                best_score.0 = Some(val);
-                format!("Æ{}", val)
-            }
-            Some(best) => {
-                format!("Æ{} ({})", val, best)
-            }
-            None => {
-                best_score.0 = Some(val);
-                format!("Æ{}", val)
-            }
-        }
-    } else {
-        match best_score.0 {
-            Some(best) => format!("Æ? ({})", best),
-            _ => "Æ?".to_string(),
-        }
-    };
+    }
 
     if let Some(mut text) = q_score_text.iter_mut().next() {
-        text.sections[0].value = score_text;
+        if let Some(best) = best_scores.0.get(&selected_level.0) {
+            text.sections[0].value = format!("Æ{}", best);
+        } else {
+            text.sections[0].value = "Æ?".to_string()
+        }
     }
 }
 
@@ -1933,7 +2161,6 @@ fn playing_enter_system(
     mut materials: ResMut<Assets<ColorMaterial>>,
     levels: Res<Assets<Level>>,
     selected_level: Res<SelectedLevel>,
-    best_scores: Res<BestScores>,
     handles: Res<Handles>,
     solutions: Res<Solutions>,
     simulation_settings: Res<SimulationSettings>,
@@ -1948,12 +2175,6 @@ fn playing_enter_system(
     commands.insert_resource(SimulationState::default());
     commands.insert_resource(PathfindingState::default());
     graph.graph.clear();
-
-    if let Some(score) = best_scores.0.get(&selected_level.0) {
-        commands.insert_resource(BestScore(Some(*score)));
-    } else {
-        commands.insert_resource(BestScore::default());
-    }
 
     // Build arena
 
@@ -2086,7 +2307,7 @@ fn playing_enter_system(
                                 .with_children(|parent| {
                                     parent.spawn_bundle(TextBundle {
                                         text: Text::with_section(
-                                            "◄",
+                                            "←",
                                             TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
@@ -2413,5 +2634,20 @@ fn playing_enter_system(
                                 });
                         });
                 });
+
+            // the rest of the space over the play area
+            parent
+                .spawn_bundle(NodeBundle {
+                    style: Style {
+                        size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                        flex_direction: FlexDirection::Column,
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        ..Default::default()
+                    },
+                    material: materials.add(Color::NONE.into()),
+                    ..Default::default()
+                })
+                .insert(PlayAreaNode);
         });
 }

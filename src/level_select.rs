@@ -74,7 +74,7 @@ fn level_select_enter(
                     ..Default::default()
                 },
                 text: Text::with_section(
-                    "Pixie Wrangler",
+                    "₽IXIE WRANGLER",
                     TextStyle {
                         font: handles.fonts[0].clone(),
                         font_size: 60.0,
@@ -161,7 +161,7 @@ fn level_select_enter(
                                                         .count();
 
                                                     (
-                                                        format!("{}", score),
+                                                        format!("Æ{}", score),
                                                         "★".repeat(stars),
                                                         "★".repeat(3 - stars),
                                                     )
