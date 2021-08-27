@@ -1,19 +1,22 @@
 # Pixie Wrangler
 
-Help the pixies overcome The Resistance in their journey from Source to Sink.
+Help the Pixies overcome The Resistance¹ in their journey from Source to Sink.
 
-An exciting blend of traffic simulation games and printed circuit board design.
+An exciting² blend of traffic simulation games and printed circuit board design.
+
+---
+
+¹Super janky circuit design software
+
+²Debateable
 
 ## TODO
 
-- [ ] Simulation Complete Dialog?
-- [ ] Rearrange levels
 - [ ] Audio
-- [ ] It would be nice if pixies could darken when traveling on lower layers
-- [ ] Maybe line drawing should automatically stop when drawing to an intersection
-      Should it just always stop unless there are no collisions at the endpoint
-      At all?
+- [ ] Darken pixies when traveling on lower layers
+- [ ] Automatically stop line drawing at intersections
 - [ ] Randomizer mode?
+- [ ] Add something to corners to indicate that they will block lines
 
 ## Prerequisites
 
