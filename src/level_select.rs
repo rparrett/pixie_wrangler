@@ -1,5 +1,6 @@
 use crate::{
-    level::Level, save::BestScores, ButtonMaterials, GameState, Handles, UI_GREY_RED_COLOR,
+    level::Level, pixie::PIXIE_COLORS, save::BestScores, ButtonMaterials, GameState, Handles,
+    UI_GREY_RED_COLOR,
 };
 use bevy::prelude::*;
 
@@ -78,7 +79,7 @@ fn level_select_enter(
                     TextStyle {
                         font: handles.fonts[0].clone(),
                         font_size: 60.0,
-                        color: Color::rgb(0.9, 0.9, 0.9),
+                        color: PIXIE_COLORS[1],
                     },
                     TextAlignment {
                         vertical: VerticalAlign::Center,
