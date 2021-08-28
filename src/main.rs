@@ -722,7 +722,7 @@ fn show_score_dialog_system(
         .id();
     if let Ok((entity, mut color_handle)) = q_node.single_mut() {
         commands.entity(entity).push_children(&[dialog_entity]);
-        *color_handle = materials.add(Color::rgba(0.0, 0.0, 0.0, 0.8).into());
+        *color_handle = materials.add(Color::rgba(0.0, 0.0, 0.0, 0.7).into());
     }
 }
 
