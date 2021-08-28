@@ -2141,11 +2141,11 @@ fn playing_exit_system(mut commands: Commands, query: Query<Entity, Without<UiCa
 
 fn save_solution_system(
     query: Query<&RoadSegment>,
+    graph: Res<RoadGraph>,
     level: Res<SelectedLevel>,
-    line_drawing: Res<LineDrawingState>,
     mut solutions: ResMut<Solutions>,
 ) {
-    if !line_drawing.is_changed() {
+    if !graph.is_changed() {
         return;
     }
 
