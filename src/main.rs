@@ -105,7 +105,7 @@ fn main() {
             .with_system(net_ripping_mouse_click_system.system())
             .with_system(draw_mouse_system.system())
             .with_system(draw_net_ripping_system.system())
-            .with_system(button_system_system.system()),
+            .with_system(button_system.system()),
     );
     app.add_system_set(
         SystemSet::on_update(GameState::Playing)
@@ -391,7 +391,7 @@ fn tool_button_system(
     }
 }
 
-fn button_system_system(
+fn button_system(
     button_materials: Res<ButtonMaterials>,
     mut q_interaction: Query<
         (&Interaction, &mut Handle<ColorMaterial>),

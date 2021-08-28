@@ -15,7 +15,7 @@ impl Plugin for LevelSelectPlugin {
         app.add_system_set(
             SystemSet::on_update(GameState::LevelSelect)
                 .with_system(level_select_update.system())
-                .with_system(crate::button_system_system.system())
+                .with_system(crate::button_system.system())
                 .with_system(level_select_button_system.system()),
         );
         app.add_system_set(
