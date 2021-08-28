@@ -20,6 +20,7 @@ It's entirely possible that there's a playable demo at [pixiewrangler.robparrett
 - [ ] Randomizer mode?
 - [ ] Add something to segment corners to indicate that they will block lines
 - [ ] Add "reset all data" button to level select screen
+- [ ] Add "export data" button for web users
 - [ ] Optimize pixie collision detection
 - [ ] More Levels
 - [ ] Pixie-combiners
