@@ -3,6 +3,8 @@ use bevy::{asset::LoadState, prelude::*};
 
 pub struct LoadingPlugin;
 
+pub const NUM_LEVELS: u32 = 9;
+
 impl Plugin for LoadingPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_system_set(
@@ -23,7 +25,7 @@ fn loading_setup(
         .spawn_bundle(UiCameraBundle::default())
         .insert(UiCamera);
 
-    for i in 1..=9 {
+    for i in 1..=NUM_LEVELS {
         handles
             .levels
             .push(asset_server.load(format!("levels/{}.level.ron", i).as_str()));

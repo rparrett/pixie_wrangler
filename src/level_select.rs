@@ -55,12 +55,14 @@ fn level_select_enter(
     handles: Res<Handles>,
     levels: Res<Assets<Level>>,
 ) {
+    let total_score: u32 = best_scores.0.iter().map(|(_, v)| v.clone()).sum();
+
     commands
         .spawn_bundle(NodeBundle {
             style: Style {
                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                 flex_direction: FlexDirection::ColumnReverse,
-                align_items: AlignItems::FlexStart,
+                align_items: AlignItems::Center,
                 justify_content: JustifyContent::SpaceEvenly,
                 ..Default::default()
             },
@@ -69,25 +71,52 @@ fn level_select_enter(
         })
         .insert(LevelSelectScreen)
         .with_children(|parent| {
-            parent.spawn_bundle(TextBundle {
-                style: Style {
-                    align_self: AlignSelf::Center,
+            parent
+                .spawn_bundle(NodeBundle {
+                    style: Style {
+                        flex_direction: FlexDirection::ColumnReverse,
+                        ..Default::default()
+                    },
+                    material: materials.add(Color::NONE.into()),
                     ..Default::default()
-                },
-                text: Text::with_section(
-                    "₽IXIE WRANGLER",
-                    TextStyle {
-                        font: handles.fonts[0].clone(),
-                        font_size: 60.0,
-                        color: PIXIE_COLORS[1],
-                    },
-                    TextAlignment {
-                        vertical: VerticalAlign::Center,
-                        horizontal: HorizontalAlign::Center,
-                    },
-                ),
-                ..Default::default()
-            });
+                })
+                .with_children(|parent| {
+                    parent.spawn_bundle(TextBundle {
+                        style: Style {
+                            align_self: AlignSelf::Center,
+                            ..Default::default()
+                        },
+                        text: Text::with_section(
+                            "₽IXIE WRANGLER",
+                            TextStyle {
+                                font: handles.fonts[0].clone(),
+                                font_size: 60.0,
+                                color: PIXIE_COLORS[1],
+                            },
+                            TextAlignment {
+                                vertical: VerticalAlign::Center,
+                                horizontal: HorizontalAlign::Center,
+                            },
+                        ),
+                        ..Default::default()
+                    });
+                    parent.spawn_bundle(TextBundle {
+                        style: Style {
+                            align_self: AlignSelf::Center,
+                            ..Default::default()
+                        },
+                        text: Text::with_section(
+                            format!("Æ{}", total_score),
+                            TextStyle {
+                                font: handles.fonts[0].clone(),
+                                font_size: 30.0,
+                                color: crate::FINISHED_ROAD_COLORS[1],
+                            },
+                            Default::default(),
+                        ),
+                        ..Default::default()
+                    });
+                });
 
             parent
                 .spawn_bundle(NodeBundle {
