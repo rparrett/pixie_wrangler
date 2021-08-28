@@ -17,6 +17,7 @@ An exciting² blend of traffic simulation games and printed circuit board design
 - [ ] Automatically stop line drawing at intersections
 - [ ] Randomizer mode?
 - [ ] Add something to corners to indicate that they will block lines
+- [ ] Add clear data button to level select screen
 
 ## Prerequisites
 
