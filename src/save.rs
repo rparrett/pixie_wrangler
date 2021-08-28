@@ -75,6 +75,7 @@ pub fn load_system(mut commands: Commands) {
         };
 
         commands.insert_resource(save_file.scores);
+        commands.insert_resource(save_file.solutions);
     }
 }
 
