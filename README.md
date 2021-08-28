@@ -4,6 +4,8 @@ Help the Pixies overcome The Resistance¹ in their journey from Source to Sink.
 
 An exciting² blend of traffic simulation games and printed circuit board design.
 
+It's entirely possible that there's a playable demo at [pixiewrangler.robparrett.com](https://pixiewrangler.robparrett.com).
+
 ---
 
 ¹Super janky circuit design software
@@ -16,8 +18,15 @@ An exciting² blend of traffic simulation games and printed circuit board design
 - [ ] Darken pixies when traveling on lower layers
 - [ ] Automatically stop line drawing at intersections
 - [ ] Randomizer mode?
-- [ ] Add something to corners to indicate that they will block lines
-- [ ] Add clear data button to level select screen
+- [ ] Add something to segment corners to indicate that they will block lines
+- [ ] Add "reset all data" button to level select screen
+- [ ] Optimize pixie collision detection
+- [ ] More Levels
+- [ ] Pixie-combiners
+
+## Contributing
+
+Do it! Throw some code at me!
 
 ## Prerequisites
 
