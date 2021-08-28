@@ -23,6 +23,7 @@ It's entirely possible that there's a playable demo at [pixiewrangler.robparrett
 - [ ] Optimize pixie collision detection
 - [ ] More Levels
 - [ ] Pixie-combiners
+- [ ] Completely rethink scoring
 
 ## Contributing
 
