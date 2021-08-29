@@ -12,8 +12,10 @@ impl Plugin for SimulationPlugin {
         app.add_stage_after(
             CoreStage::Update,
             "simulation",
-            SimulationStage(
-                SystemStage::parallel()
+            SimulationStage {
+                step: SIMULATION_TIMESTEP as f64,
+                accumulator: 0.0,
+                stage: SystemStage::parallel()
                     // need to run these in the same order every time for scores
                     // to be deterministic. probably.
                     .with_system(
@@ -31,7 +33,7 @@ impl Plugin for SimulationPlugin {
                     )
                     .with_system(explode_pixies_system.system().after("collide_pixies"))
                     .with_system(update_sim_state_system.system().after("emit_pixies")),
-            ),
+            },
         );
     }
 }
@@ -41,19 +43,33 @@ pub const SIMULATION_TIMESTEP: f32 = 0.016_666_668;
 #[derive(Default)]
 pub struct SimulationState {
     pub started: bool,
-    pub step: u32,
+    pub tick: u32,
     pub done: bool,
 }
 
-struct SimulationStage(SystemStage);
+struct SimulationStage {
+    step: f64,
+    accumulator: f64,
+    stage: SystemStage,
+}
+
 impl Stage for SimulationStage {
     fn run(&mut self, world: &mut World) {
+        let delta = match world.get_resource::<Time>() {
+            Some(time) => time.delta_seconds_f64(),
+            None => return,
+        };
+
         let speed = match world.get_resource::<SimulationSettings>() {
             Some(settings) => settings.speed,
             None => return,
         };
 
-        for _ in 0..speed.steps_per_frame() {
+        self.accumulator += delta * speed.scale();
+
+        while self.accumulator > self.step {
+            self.accumulator -= self.step;
+
             if let Some(state) = world.get_resource::<SimulationState>() {
                 if !state.started {
                     return;
@@ -64,10 +80,10 @@ impl Stage for SimulationStage {
                 }
             }
 
-            self.0.run(world);
+            self.stage.run(world);
 
             match world.get_resource_mut::<SimulationState>() {
-                Some(mut state) => state.step += 1,
+                Some(mut state) => state.tick += 1,
                 None => return,
             };
         }
@@ -85,10 +101,10 @@ impl Default for SimulationSpeed {
     }
 }
 impl SimulationSpeed {
-    fn steps_per_frame(&self) -> u32 {
+    fn scale(&self) -> f64 {
         match self {
-            Self::Normal => 1,
-            Self::Fast => 4,
+            Self::Normal => 1.0,
+            Self::Fast => 4.0,
         }
     }
     pub fn label(&self) -> String {

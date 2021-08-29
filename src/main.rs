@@ -842,7 +842,7 @@ fn pixie_button_system(
             sim_state.started = true;
         }
 
-        sim_state.step = 0;
+        sim_state.tick = 0;
         sim_state.done = false;
         pixie_count.0 = 0;
     }
@@ -2096,7 +2096,7 @@ fn update_score_text_system(
     }
 
     if sim_state.done {
-        let elapsed = sim_state.step as f32 * SIMULATION_TIMESTEP;
+        let elapsed = sim_state.tick as f32 * SIMULATION_TIMESTEP;
 
         let val = ((pixie_count.0 as f32 / cost.0 as f32 / elapsed as f32) * 10000.0).ceil() as u32;
 
@@ -2129,7 +2129,7 @@ fn update_elapsed_text_system(
     }
 
     for mut text in q_text.iter_mut() {
-        text.sections[0].value = format!("ŧ{:.1}", sim_state.step as f32 * SIMULATION_TIMESTEP);
+        text.sections[0].value = format!("ŧ{:.1}", sim_state.tick as f32 * SIMULATION_TIMESTEP);
     }
 }
 
