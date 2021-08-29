@@ -55,6 +55,12 @@ struct SimulationStage {
 
 impl Stage for SimulationStage {
     fn run(&mut self, world: &mut World) {
+        if let Some(state) = world.get_resource::<SimulationState>() {
+            if !state.started || state.done {
+                return;
+            }
+        }
+
         let delta = match world.get_resource::<Time>() {
             Some(time) => time.delta_seconds_f64(),
             None => return,
@@ -70,22 +76,19 @@ impl Stage for SimulationStage {
         while self.accumulator > self.step {
             self.accumulator -= self.step;
 
-            if let Some(state) = world.get_resource::<SimulationState>() {
-                if !state.started {
-                    return;
-                }
-
-                if state.done {
-                    return;
-                }
-            }
-
             self.stage.run(world);
 
             match world.get_resource_mut::<SimulationState>() {
                 Some(mut state) => state.tick += 1,
                 None => return,
             };
+
+            if let Some(state) = world.get_resource::<SimulationState>() {
+                if !state.started || state.done {
+                    self.accumulator = 0.0;
+                    return;
+                }
+            }
         }
     }
 }
