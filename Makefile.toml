@@ -46,5 +46,19 @@ command = "microserver"
 args = ["--port", "${PORT}"]
 dependencies = ["build-web", "microserver"]
 
+[tasks.bundle-itch]
+script = '''
+rm -rf target/itch
+mkdir -p target/itch/target
+cp index-itch.html target/itch/index.html
+cp *.woff target/itch/
+cp -R assets target/itch/
+cp target/wasm.js target/itch/target/
+cp target/wasm_bg.wasm target/itch/target/
+pushd target/itch
+zip -r pixie-wrangler-itch.zip *
+popd
+'''
+
 [tasks.test]
 disabled = true
