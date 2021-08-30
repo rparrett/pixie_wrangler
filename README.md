@@ -10,7 +10,7 @@ It's entirely possible that there's a playable demo at [pixiewrangler.robparrett
 
 ¹Super janky circuit design software
 
-²Debateable
+²Debatable
 
 ## TODO
 
