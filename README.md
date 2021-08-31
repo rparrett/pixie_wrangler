@@ -4,7 +4,7 @@ Help the Pixies overcome The Resistance¹ in their journey from Source to Sink.
 
 An exciting² blend of traffic simulation games and printed circuit board design.
 
-It's entirely possible that there's a playable demo at [pixiewrangler.robparrett.com](https://pixiewrangler.robparrett.com).
+It's entirely possible that there's a playable demo at [itch.io](https://euclidean-whale.itch.io/pixie-wrangler) or [pixiewrangler.robparrett.com](https://pixiewrangler.robparrett.com).
 
 ---
 
