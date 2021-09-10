@@ -236,5 +236,25 @@ mod tests {
             ),
             SegmentCollision::Overlapping
         ));
+        // | -
+        assert!(matches!(
+            segment_collision(
+                Vec2::new(-10.0, -10.0),
+                Vec2::new(-10.0, 10.0),
+                Vec2::new(0.0, 0.0),
+                Vec2::new(10.0, 0.0),
+            ),
+            SegmentCollision::None
+        ));
+        // | /
+        assert!(matches!(
+            segment_collision(
+                Vec2::new(-10.0, -10.0),
+                Vec2::new(-10.0, 10.0),
+                Vec2::new(0.0, -10.0),
+                Vec2::new(10.0, 0.0),
+            ),
+            SegmentCollision::None
+        ));
     }
 }
