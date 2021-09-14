@@ -37,6 +37,26 @@ pub fn point_segment_collision(p: Vec2, a: Vec2, b: Vec2) -> SegmentCollision {
     }
 }
 
+pub fn in_collinear_segment(p: Vec2, s1: Vec2, s2: Vec2) -> bool {
+    if s1.x != s2.x {
+        if s1.x <= p.x && p.x <= s2.x {
+            return true;
+        }
+        if s1.x >= p.x && p.x >= s2.x {
+            return true;
+        }
+    } else {
+        if s1.y <= p.y && p.y <= s2.y {
+            return true;
+        }
+        if s1.y >= p.y && p.y >= s2.y {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 // for reference, this is helpful
 // https://github.com/pgkelley4/line-segments-intersect/blob/master/js/line-segments-intersect.js
 // but we're differing pretty wildly in how we choose to deal with collinearities, and
@@ -108,25 +128,9 @@ pub fn segment_collision(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> SegmentColli
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
-    fn test_point_segment_collision() {
-        // -.-
-        assert!(matches!(
-            point_segment_collision(
-                Vec2::new(0.0, 0.0),
-                Vec2::new(-1.0, 0.0),
-                Vec2::new(1.0, 0.0)
-            ),
-            SegmentCollision::Touching
-        ));
-        assert!(matches!(
-            point_segment_collision(
-                Vec2::new(0.0, 0.0),
-                Vec2::new(0.0, -1.0),
-                Vec2::new(0.0, 1.0)
-            ),
-            SegmentCollision::Touching
-        ));
+    fn pointseg_connecting() {
         // .--
         assert!(matches!(
             point_segment_collision(
@@ -145,6 +149,31 @@ mod tests {
             ),
             SegmentCollision::Connecting
         ));
+    }
+
+    #[test]
+    fn pointseg_touching() {
+        // -.-
+        assert!(matches!(
+            point_segment_collision(
+                Vec2::new(0.0, 0.0),
+                Vec2::new(-1.0, 0.0),
+                Vec2::new(1.0, 0.0)
+            ),
+            SegmentCollision::Touching
+        ));
+        assert!(matches!(
+            point_segment_collision(
+                Vec2::new(0.0, 0.0),
+                Vec2::new(0.0, -1.0),
+                Vec2::new(0.0, 1.0)
+            ),
+            SegmentCollision::Touching
+        ));
+    }
+
+    #[test]
+    fn pointseg_none() {
         assert!(matches!(
             point_segment_collision(
                 Vec2::new(1.0, 1.0),
@@ -156,7 +185,30 @@ mod tests {
     }
 
     #[test]
-    fn test_segment_collision() {
+    fn pointseg_collinear() {
+        // collinear horizontal
+        assert!(matches!(
+            point_segment_collision(
+                Vec2::new(0.0, 0.0),
+                Vec2::new(1.0, 0.0),
+                Vec2::new(2.0, 0.0)
+            ),
+            SegmentCollision::None
+        ));
+
+        // collinear vertical
+        assert!(matches!(
+            point_segment_collision(
+                Vec2::new(0.0, 0.0),
+                Vec2::new(0.0, 1.0),
+                Vec2::new(0.0, 2.0)
+            ),
+            SegmentCollision::None
+        ));
+    }
+
+    #[test]
+    fn segseg_collinear_none() {
         // collinear non-overlapping x axis
         assert!(matches!(
             segment_collision(
@@ -177,6 +229,10 @@ mod tests {
             ),
             SegmentCollision::None
         ));
+    }
+
+    #[test]
+    fn segseg_intersecting() {
         // x
         assert!(matches!(
             segment_collision(
@@ -187,7 +243,11 @@ mod tests {
             ),
             SegmentCollision::Intersecting
         ));
-        // 3-limbed x
+    }
+
+    #[test]
+    fn segseg_touching() {
+        // y
         assert!(matches!(
             segment_collision(
                 Vec2::new(-1.0, 1.0),
@@ -197,25 +257,34 @@ mod tests {
             ),
             SegmentCollision::Touching
         ));
+    }
+
+    #[test]
+    fn segseg_connecting() {
         // V
         assert!(matches!(
             segment_collision(
                 Vec2::new(-2.0, 2.0),
-                Vec2::new(1.0, 1.0),
-                Vec2::new(1.0, 1.0),
+                Vec2::new(0.0, 0.0),
+                Vec2::new(0.0, 0.0),
                 Vec2::new(2.0, 2.0),
             ),
             SegmentCollision::Connecting
         ));
+        // V
         assert!(matches!(
             segment_collision(
                 Vec2::new(2.0, 2.0),
-                Vec2::new(1.0, 1.0),
+                Vec2::new(0.0, 0.0),
                 Vec2::new(-2.0, 2.0),
-                Vec2::new(1.0, 1.0),
+                Vec2::new(0.0, 0.0),
             ),
             SegmentCollision::Connecting
         ));
+    }
+
+    #[test]
+    fn segseg_parallel() {
         // =
         assert!(matches!(
             segment_collision(
@@ -226,6 +295,10 @@ mod tests {
             ),
             SegmentCollision::None
         ));
+    }
+
+    #[test]
+    fn segseg_overlapping() {
         // -=-
         assert!(matches!(
             segment_collision(
@@ -236,6 +309,10 @@ mod tests {
             ),
             SegmentCollision::Overlapping
         ));
+    }
+
+    #[test]
+    fn segseg_none() {
         // | -
         assert!(matches!(
             segment_collision(
