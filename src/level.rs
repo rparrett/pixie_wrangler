@@ -17,7 +17,7 @@ pub enum Obstacle {
     Polygon(Vec<Vec2>),
 }
 
-#[derive(Default, Debug, Deserialize, Clone)]
+#[derive(Default, Debug, Deserialize, Clone, Component)]
 pub struct Terminus {
     pub point: Vec2,
     pub emits: HashSet<PixieFlavor>,

@@ -11,6 +11,7 @@ use crate::radio_button::{
 };
 use crate::save::SavePlugin;
 
+use bevy::render::options::WgpuOptions;
 use bevy::utils::{Duration, HashMap};
 //use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::{prelude::*, utils::HashSet, window::CursorMoved};
@@ -42,28 +43,40 @@ mod save;
 mod sim;
 
 fn main() {
-    let mut app = App::build();
-    app.insert_resource(ClearColor(BACKGROUND_COLOR))
+    let mut app = App::new();
+
+    let mut wgpu_options = WgpuOptions::default();
+    if cfg!(target_arch = "wasm32") {
+        // wgpu sets this to 2048 for webgl2, which is not enough for 1280x720 * 2.0 (scale factor).
+        // I'm not really sure how to handle this sort of thing properly, but increasing this limit
+        // "works on my machine."
+        wgpu_options.limits.max_texture_dimension_2d = 2560;
+    }
+
+    app.insert_resource(wgpu_options)
+        .insert_resource(ClearColor(BACKGROUND_COLOR))
         .insert_resource(Msaa { samples: 4 })
         .insert_resource(WindowDescriptor {
             title: String::from("Pixie Wrangler"),
+            width: 1280.,
+            height: 720.,
             #[cfg(target_arch = "wasm32")]
             canvas: Some("#bevy".to_string()),
             ..Default::default()
-        })
-        .add_plugins(DefaultPlugins);
-    #[cfg(target_arch = "wasm32")]
-    app.add_plugin(bevy_webgl2::WebGL2Plugin);
-    app.add_plugin(ShapePlugin);
-    app.add_plugin(RadioButtonPlugin);
-    app.add_plugin(PixiePlugin);
-    app.add_plugin(SimulationPlugin);
-    app.add_plugin(LoadingPlugin);
-    app.add_plugin(LevelSelectPlugin);
-    app.add_plugin(SavePlugin);
-    app.add_plugin(DebugLinesPlugin);
-    app.add_plugin(EasingsPlugin);
-    app.add_plugin(RonAssetPlugin::<Level>::new(&["level.ron"]));
+        });
+
+    app.add_plugins(DefaultPlugins)
+        .add_plugin(ShapePlugin)
+        .add_plugin(RadioButtonPlugin)
+        .add_plugin(PixiePlugin)
+        .add_plugin(SimulationPlugin)
+        .add_plugin(LoadingPlugin)
+        .add_plugin(LevelSelectPlugin)
+        .add_plugin(SavePlugin)
+        .add_plugin(DebugLinesPlugin)
+        .add_plugin(EasingsPlugin)
+        .add_plugin(RonAssetPlugin::<Level>::new(&["level.ron"]));
+
     app.add_state(GameState::Loading);
 
     app.add_stage_after(CoreStage::Update, "after_update", SystemStage::parallel());
@@ -145,7 +158,6 @@ fn main() {
         "after_shape",
         SystemStage::parallel(),
     );
-    app.add_system_to_stage("after_shape", shape_visibility_fix_system.system());
 
     app.init_resource::<Handles>();
     app.init_resource::<SelectedLevel>();
@@ -156,7 +168,6 @@ fn main() {
     app.init_resource::<PathfindingState>();
     app.init_resource::<MouseState>();
     app.init_resource::<RoadGraph>();
-    app.init_resource::<ButtonMaterials>();
     app.init_resource::<PixieCount>();
     app.init_resource::<Cost>();
     app.init_resource::<BestScores>();
@@ -178,26 +189,46 @@ struct Handles {
     levels: Vec<Handle<Level>>,
     fonts: Vec<Handle<Font>>,
 }
+#[derive(Component)]
 struct UiCamera;
+#[derive(Component)]
 struct MainCamera;
+#[derive(Component)]
 struct Cursor;
+#[derive(Component)]
 struct DrawingLine;
+#[derive(Component)]
 struct RippingLine;
+#[derive(Component)]
 struct GridPoint;
+#[derive(Component)]
 struct PixieCountText;
+#[derive(Component)]
 struct CostText;
+#[derive(Component)]
 struct ScoreText;
+#[derive(Component)]
 struct ElapsedText;
 
+#[derive(Component)]
 struct ToolButton;
+#[derive(Component)]
 struct LayerButton(u32);
+#[derive(Component)]
 struct NetRippingButton;
+#[derive(Component)]
 struct PixieButton;
+#[derive(Component)]
 struct ResetButton;
+#[derive(Component)]
 struct SpeedButton;
+#[derive(Component)]
 struct BackButton;
+#[derive(Component)]
 struct DismissScoreDialogButton;
+#[derive(Component)]
 struct PlayAreaNode;
+#[derive(Component)]
 struct ScoreDialog;
 
 #[derive(Default)]
@@ -210,15 +241,15 @@ struct Cost(u32);
 struct Score(Option<u32>);
 #[derive(Default)]
 struct BestScore(Option<u32>);
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Component, Serialize, Deserialize)]
 pub struct RoadSegment {
     points: (Vec2, Vec2),
     layer: u32,
 }
 
-#[derive(Debug)]
+#[derive(Component, Debug)]
 struct PointGraphNode(NodeIndex);
-#[derive(Debug)]
+#[derive(Component, Debug)]
 struct SegmentGraphNodes(NodeIndex, NodeIndex);
 
 enum DrawingMode {
@@ -277,8 +308,8 @@ struct PathfindingState {
     invalid_nodes: Vec<Entity>,
 }
 
+#[derive(Component)]
 struct TerminusIssueIndicator;
-struct ShapeStartsInvisible;
 
 #[derive(Default)]
 struct RoadGraph {
@@ -291,11 +322,12 @@ struct MouseState {
     snapped: Vec2,
     window_position: Vec2,
 }
-
+#[derive(Component)]
 enum Collider {
     Point(Vec2),
     Segment((Vec2, Vec2)),
 }
+#[derive(Component)]
 struct ColliderLayer(u32);
 
 #[derive(Clone, Debug)]
@@ -311,21 +343,9 @@ enum SegmentConnection {
     Split(Entity),
 }
 
-struct ButtonMaterials {
-    normal: Handle<ColorMaterial>,
-    hovered: Handle<ColorMaterial>,
-    pressed: Handle<ColorMaterial>,
-}
-impl FromWorld for ButtonMaterials {
-    fn from_world(world: &mut World) -> Self {
-        let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
-        ButtonMaterials {
-            normal: materials.add(Color::rgb(0.15, 0.15, 0.15).into()),
-            hovered: materials.add(Color::rgb(0.25, 0.25, 0.25).into()),
-            pressed: materials.add(Color::rgb(0.35, 0.75, 0.35).into()),
-        }
-    }
-}
+pub const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
+pub const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
+pub const PRESSED_BUTTON: Color = Color::rgb(0.35, 0.75, 0.35);
 
 const GRID_SIZE: f32 = 48.0;
 const BOTTOM_BAR_HEIGHT: f32 = 70.0;
@@ -392,23 +412,16 @@ fn tool_button_system(
 }
 
 fn button_system(
-    button_materials: Res<ButtonMaterials>,
     mut q_interaction: Query<
-        (&Interaction, &mut Handle<ColorMaterial>),
+        (&Interaction, &mut UiColor),
         (Changed<Interaction>, With<Button>, Without<RadioButton>),
     >,
 ) {
-    for (interaction, mut material) in q_interaction.iter_mut() {
+    for (interaction, mut color) in q_interaction.iter_mut() {
         match *interaction {
-            Interaction::Clicked => {
-                *material = button_materials.pressed.clone();
-            }
-            Interaction::Hovered => {
-                *material = button_materials.hovered.clone();
-            }
-            Interaction::None => {
-                *material = button_materials.normal.clone();
-            }
+            Interaction::Clicked => *color = PRESSED_BUTTON.into(),
+            Interaction::Hovered => *color = HOVERED_BUTTON.into(),
+            Interaction::None => *color = NORMAL_BUTTON.into(),
         }
     }
 }
@@ -534,12 +547,10 @@ fn show_score_dialog_system(
     mut commands: Commands,
     sim_state: Res<SimulationState>,
     handles: Res<Handles>,
-    button_materials: Res<ButtonMaterials>,
     selected_level: Res<SelectedLevel>,
     levels: Res<Assets<Level>>,
     score: Res<Score>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    mut q_node: Query<(Entity, &mut Handle<ColorMaterial>), With<PlayAreaNode>>,
+    mut q_node: Query<(Entity, &mut UiColor), With<PlayAreaNode>>,
     q_dialog: Query<Entity, With<ScoreDialog>>,
 ) {
     if !sim_state.is_changed() && !score.is_changed() {
@@ -550,7 +561,7 @@ fn show_score_dialog_system(
         return;
     }
 
-    if q_dialog.single().is_ok() {
+    if q_dialog.get_single().is_ok() {
         return;
     }
 
@@ -592,7 +603,7 @@ fn show_score_dialog_system(
     let dialog_entity = commands
         .spawn_bundle(NodeBundle {
             style: dialog_style.clone(),
-            material: materials.add(Color::rgb(0.2, 0.2, 0.2).into()),
+            color: Color::rgb(0.2, 0.2, 0.2).into(),
             ..Default::default()
         })
         .insert(dialog_style.ease_to(
@@ -653,7 +664,7 @@ fn show_score_dialog_system(
                         align_items: AlignItems::Center,
                         ..Default::default()
                     },
-                    material: materials.add(Color::NONE.into()),
+                    color: Color::NONE.into(),
                     ..Default::default()
                 })
                 .with_children(|parent| {
@@ -667,7 +678,7 @@ fn show_score_dialog_system(
                                 align_items: AlignItems::Center,
                                 ..Default::default()
                             },
-                            material: button_materials.normal.clone(),
+                            color: NORMAL_BUTTON.into(),
                             ..Default::default()
                         })
                         .insert(DismissScoreDialogButton)
@@ -699,7 +710,7 @@ fn show_score_dialog_system(
                                 },
                                 ..Default::default()
                             },
-                            material: button_materials.normal.clone(),
+                            color: NORMAL_BUTTON.into(),
                             ..Default::default()
                         })
                         .insert(BackButton)
@@ -720,9 +731,9 @@ fn show_score_dialog_system(
                 });
         })
         .id();
-    if let Ok((entity, mut color_handle)) = q_node.single_mut() {
+    if let Ok((entity, mut color)) = q_node.get_single_mut() {
         commands.entity(entity).push_children(&[dialog_entity]);
-        *color_handle = materials.add(Color::rgba(0.0, 0.0, 0.0, 0.7).into());
+        *color = Color::rgba(0.0, 0.0, 0.0, 0.7).into();
     }
 }
 
@@ -738,7 +749,6 @@ fn back_button_system(
 fn dismiss_score_dialog_button_system(
     mut commands: Commands,
     mut sim_state: ResMut<SimulationState>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     q_interaction: Query<
         &Interaction,
         (
@@ -748,16 +758,16 @@ fn dismiss_score_dialog_button_system(
         ),
     >,
     q_dialog: Query<Entity, With<ScoreDialog>>,
-    mut q_node: Query<&mut Handle<ColorMaterial>, With<PlayAreaNode>>,
+    mut q_node: Query<&mut UiColor, With<PlayAreaNode>>,
 ) {
     for _ in q_interaction.iter().filter(|i| **i == Interaction::Clicked) {
-        if let Ok(entity) = q_dialog.single() {
+        if let Ok(entity) = q_dialog.get_single() {
             commands.entity(entity).despawn_recursive();
             *sim_state = SimulationState::default();
         }
 
-        if let Ok(mut color_handle) = q_node.single_mut() {
-            *color_handle = materials.add(Color::NONE.into())
+        if let Ok(mut color) = q_node.get_single_mut() {
+            *color = Color::NONE.into()
         }
     }
 }
@@ -771,7 +781,7 @@ fn pixie_button_system(
     q_interaction: Query<&Interaction, (Changed<Interaction>, With<Button>, With<PixieButton>)>,
     q_emitters: Query<Entity, With<PixieEmitter>>,
     q_pixies: Query<Entity, With<Pixie>>,
-    mut q_indicator: Query<(&mut Visible, &Parent), With<TerminusIssueIndicator>>,
+    mut q_indicator: Query<(&mut Visibility, &Parent), With<TerminusIssueIndicator>>,
 ) {
     // do nothing while score dialog is shown
     if sim_state.started && sim_state.done {
@@ -790,8 +800,8 @@ fn pixie_button_system(
             sim_state.started = false;
         } else {
             if !pathfinding.valid {
-                for (mut visible, parent) in q_indicator.iter_mut() {
-                    visible.is_visible = pathfinding.invalid_nodes.contains(&parent.0);
+                for (mut visibility, parent) in q_indicator.iter_mut() {
+                    visibility.is_visible = pathfinding.invalid_nodes.contains(&parent.0);
                 }
 
                 return;
@@ -859,7 +869,7 @@ fn reset_button_system(
     q_pixies: Query<Entity, With<Pixie>>,
     q_emitters: Query<Entity, With<PixieEmitter>>,
     q_terminuses: Query<Entity, With<Terminus>>,
-    mut q_indicator: Query<&mut Visible, With<TerminusIssueIndicator>>,
+    mut q_indicator: Query<&mut Visibility, With<TerminusIssueIndicator>>,
 ) {
     // do nothing while score dialog is shown
     if sim_state.started && sim_state.done {
@@ -875,8 +885,8 @@ fn reset_button_system(
             commands.entity(chunk).despawn_recursive();
         }
 
-        for mut visible in q_indicator.iter_mut() {
-            visible.is_visible = false;
+        for mut visibility in q_indicator.iter_mut() {
+            visibility.is_visible = false;
         }
 
         graph.graph.clear();
@@ -953,8 +963,7 @@ fn draw_mouse_system(
         commands
             .spawn_bundle(GeometryBuilder::build_as(
                 &shape,
-                ShapeColors::new(color.as_rgba_linear()),
-                DrawMode::Stroke(StrokeOptions::default().with_line_width(2.0)),
+                DrawMode::Stroke(StrokeMode::new(color, 2.0)),
                 Transform::from_translation(snapped.extend(layer::CURSOR)),
             ))
             .insert(Cursor);
@@ -979,8 +988,7 @@ fn draw_mouse_system(
             commands
                 .spawn_bundle(GeometryBuilder::build_as(
                     &shapes::Line(*a, *b),
-                    ShapeColors::new(color.as_rgba_linear()),
-                    DrawMode::Stroke(StrokeOptions::default().with_line_width(2.0)),
+                    DrawMode::Stroke(StrokeMode::new(color, 2.0)),
                     Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
                 ))
                 .insert(DrawingLine);
@@ -1005,8 +1013,7 @@ fn draw_net_ripping_system(
         commands
             .spawn_bundle(GeometryBuilder::build_as(
                 &shapes::Line(*a, *b),
-                ShapeColors::new(Color::RED),
-                DrawMode::Stroke(StrokeOptions::default().with_line_width(2.0)),
+                DrawMode::Stroke(StrokeMode::new(Color::RED, 2.0)),
                 Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
             ))
             .insert(RippingLine);
@@ -1094,7 +1101,7 @@ fn keyboard_system(
             drawing_state.mode = DrawingMode::NetRipping;
         }
 
-        if let Ok(ent) = q_net_ripping_button.single() {
+        if let Ok(ent) = q_net_ripping_button.get_single() {
             if let Ok(mut radio) = q_radio_button.get_mut(ent) {
                 radio.selected = true;
             }
@@ -1789,18 +1796,8 @@ fn update_pixie_count_text_system(
         return;
     }
 
-    let mut text = query.single_mut().unwrap();
+    let mut text = query.single_mut();
     text.sections[0].value = format!("₽{}", pixie_count.0);
-}
-
-/// Workaround for bevy_prototype_lyon always setting `is_visible = true` after it builds a mesh.
-/// We'll just swoop in right afterwards and change it back.
-fn shape_visibility_fix_system(
-    mut invis: Query<&mut Visible, (Changed<Handle<Mesh>>, With<ShapeStartsInvisible>)>,
-) {
-    for mut visible in invis.iter_mut() {
-        visible.is_visible = false;
-    }
 }
 
 fn spawn_road_segment(
@@ -1812,8 +1809,7 @@ fn spawn_road_segment(
     let ent = commands
         .spawn_bundle(GeometryBuilder::build_as(
             &shapes::Line(segment.points.0, segment.points.1),
-            ShapeColors::new(color.as_rgba_linear()),
-            DrawMode::Stroke(StrokeOptions::default().with_line_width(2.0)),
+            DrawMode::Stroke(StrokeMode::new(color, 2.0)),
             Transform::from_xyz(0.0, 0.0, layer::ROAD - segment.layer as f32),
         ))
         .insert(segment.clone())
@@ -1849,12 +1845,10 @@ fn spawn_obstacle(commands: &mut Commands, obstacle: &Obstacle) {
             commands
                 .spawn_bundle(GeometryBuilder::build_as(
                     &shapes::Rectangle {
-                        width: diff.x.abs(),
-                        height: diff.y.abs(),
+                        extents: Vec2::new(diff.x.abs(), diff.y.abs()),
                         ..Default::default()
                     },
-                    ShapeColors::new(Color::rgb(0.086, 0.105, 0.133)),
-                    DrawMode::Fill(FillOptions::default()),
+                    DrawMode::Fill(FillMode::color(Color::rgb(0.086, 0.105, 0.133))),
                     Transform::from_translation(origin.extend(layer::OBSTACLE)),
                 ))
                 .with_children(|parent| {
@@ -1909,13 +1903,9 @@ fn spawn_terminus(
                 radius: 5.5,
                 center: Vec2::splat(0.0),
             },
-            ShapeColors::outlined(
-                BACKGROUND_COLOR.as_rgba_linear(),
-                FINISHED_ROAD_COLORS[0].as_rgba_linear(),
-            ),
             DrawMode::Outlined {
-                fill_options: FillOptions::default(),
-                outline_options: StrokeOptions::default().with_line_width(2.0),
+                fill_mode: FillMode::color(BACKGROUND_COLOR),
+                outline_mode: StrokeMode::new(FINISHED_ROAD_COLORS[0], 2.0),
             },
             Transform::from_translation(terminus.point.extend(layer::TERMINUS)),
         ))
@@ -1997,12 +1987,11 @@ fn spawn_terminus(
                         radius: 5.5,
                         center: Vec2::splat(0.0),
                     },
-                    ShapeColors::new(Color::RED),
-                    DrawMode::Fill(FillOptions::default()),
+                    DrawMode::Fill(FillMode::color(Color::RED)),
                     Transform::from_xyz(-30.0, -1.0 * label_offset, layer::TERMINUS),
                 ))
-                .insert(TerminusIssueIndicator)
-                .insert(ShapeStartsInvisible);
+                .insert(Visibility { is_visible: false })
+                .insert(TerminusIssueIndicator);
         })
         .id();
 
@@ -2157,8 +2146,6 @@ fn playing_enter_system(
     mut commands: Commands,
     mut more_commands: Commands,
     mut graph: ResMut<RoadGraph>,
-    button_materials: Res<ButtonMaterials>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     levels: Res<Assets<Level>>,
     selected_level: Res<SelectedLevel>,
     handles: Res<Handles>,
@@ -2191,8 +2178,7 @@ fn playing_enter_system(
                         radius: 2.5,
                         ..Default::default()
                     },
-                    ShapeColors::new(GRID_COLOR.as_rgba_linear()),
-                    DrawMode::Fill(FillOptions::default()),
+                    DrawMode::Fill(FillMode::color(GRID_COLOR)),
                     Transform::from_xyz(x as f32, y as f32, layer::GRID),
                 ))
                 .insert(GridPoint);
@@ -2253,7 +2239,7 @@ fn playing_enter_system(
                 align_items: AlignItems::Center,
                 ..Default::default()
             },
-            material: materials.add(Color::NONE.into()),
+            color: Color::NONE.into(),
             ..Default::default()
         })
         .with_children(|parent| {
@@ -2268,7 +2254,7 @@ fn playing_enter_system(
                         align_items: AlignItems::Center,
                         ..Default::default()
                     },
-                    material: materials.add(Color::rgb(0.09, 0.11, 0.13).into()),
+                    color: Color::rgb(0.09, 0.11, 0.13).into(),
                     ..Default::default()
                 })
                 .with_children(|parent| {
@@ -2281,7 +2267,7 @@ fn playing_enter_system(
                                 align_items: AlignItems::Center,
                                 ..Default::default()
                             },
-                            material: materials.add(Color::NONE.into()),
+                            color: Color::NONE.into(),
                             ..Default::default()
                         })
                         .with_children(|parent| {
@@ -2300,7 +2286,7 @@ fn playing_enter_system(
                                         },
                                         ..Default::default()
                                     },
-                                    material: button_materials.normal.clone(),
+                                    color: NORMAL_BUTTON.into(),
                                     ..Default::default()
                                 })
                                 .insert(BackButton)
@@ -2337,7 +2323,7 @@ fn playing_enter_system(
                                             },
                                             ..Default::default()
                                         },
-                                        material: button_materials.normal.clone(),
+                                        color: NORMAL_BUTTON.into(),
                                         ..Default::default()
                                     })
                                     .insert(LayerButton(layer))
@@ -2378,7 +2364,7 @@ fn playing_enter_system(
                                         },
                                         ..Default::default()
                                     },
-                                    material: button_materials.normal.clone(),
+                                    color: NORMAL_BUTTON.into(),
                                     ..Default::default()
                                 })
                                 .insert(NetRippingButton)
@@ -2426,7 +2412,7 @@ fn playing_enter_system(
                                 align_items: AlignItems::Center,
                                 ..Default::default()
                             },
-                            material: materials.add(Color::NONE.into()),
+                            color: Color::NONE.into(),
                             ..Default::default()
                         })
                         .with_children(|parent| {
@@ -2536,7 +2522,7 @@ fn playing_enter_system(
                                 align_items: AlignItems::Center,
                                 ..Default::default()
                             },
-                            material: materials.add(Color::NONE.into()),
+                            color: Color::NONE.into(),
                             ..Default::default()
                         })
                         .with_children(|parent| {
@@ -2550,7 +2536,7 @@ fn playing_enter_system(
                                         align_items: AlignItems::Center,
                                         ..Default::default()
                                     },
-                                    material: button_materials.normal.clone(),
+                                    color: NORMAL_BUTTON.into(),
                                     ..Default::default()
                                 })
                                 .insert(ResetButton)
@@ -2582,7 +2568,7 @@ fn playing_enter_system(
                                         },
                                         ..Default::default()
                                     },
-                                    material: button_materials.normal.clone(),
+                                    color: NORMAL_BUTTON.into(),
                                     ..Default::default()
                                 })
                                 .insert(SpeedButton)
@@ -2614,7 +2600,7 @@ fn playing_enter_system(
                                         },
                                         ..Default::default()
                                     },
-                                    material: button_materials.normal.clone(),
+                                    color: NORMAL_BUTTON.into(),
                                     ..Default::default()
                                 })
                                 .insert(PixieButton)
@@ -2645,7 +2631,7 @@ fn playing_enter_system(
                         align_items: AlignItems::Center,
                         ..Default::default()
                     },
-                    material: materials.add(Color::NONE.into()),
+                    color: Color::NONE.into(),
                     ..Default::default()
                 })
                 .insert(PlayAreaNode);

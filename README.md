@@ -50,7 +50,7 @@ cargo install cargo-make
 
 ```bash
 cargo make serve
-cargo make serve --profile release
+cargo make --profile release serve
 ```
 
 then point your browser to [http://127.0.0.1:4001/](http://127.0.0.1:4001/)
@@ -59,5 +59,5 @@ then point your browser to [http://127.0.0.1:4001/](http://127.0.0.1:4001/)
 
 ```bash
 cargo make run
-cargo make run --profile release
+cargo make --profile release run
 ```

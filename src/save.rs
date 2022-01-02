@@ -22,7 +22,7 @@ pub struct Solution {
 
 pub struct SavePlugin;
 impl Plugin for SavePlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_system(save_system.system());
         app.add_system_set(
             SystemSet::on_enter(GameState::Loading).with_system(load_system.system()),

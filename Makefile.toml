@@ -5,7 +5,7 @@ CARGO_WASM_PATH = "${CARGO_TARGET_DIR}/wasm32-unknown-unknown/${ENV_DIR}/${CARGO
 CARGO_PROFILE = "dev"
 TARGET_DIR = "target"
 CARGO_MANIFEST_DIR = "${CARGO_MAKE_WORKING_DIRECTORY}"
-PORT=4001
+PORT=4000
 
 [env.release]
 CARGO_RELEASE_ARGS = "--release"
@@ -13,45 +13,44 @@ CARGO_RELEASE_ARGS = "--release"
 [tasks.show-env]
 command = "env"
 
-[tasks.install-target-wasm32-unknown-unknown]
-args = ["target", "install", "wasm32-unknown-unknown"]
-
-command = "rustup"
-[tasks.microserver]
-install_crate = {crate_name = "microserver", binary = "microserver", test_arg="--help"}
-
-[tasks.wasm-bindgen-cli]
-install_crate = {crate_name = "wasm-bindgen-cli", binary = "wasm-bindgen", test_arg="--help"}
-
-[tasks.cargo-build-web]
-args = ["build", "--target", "wasm32-unknown-unknown", "--features", "web", "@@split(CARGO_RELEASE_ARGS, )"]
-command = "cargo"
-dependencies = ["install-target-wasm32-unknown-unknown"]
-
-[tasks.build-web]
-args = ["--out-dir", "${TARGET_DIR}", "--out-name", "wasm", "--target", "web", "--no-typescript", "${CARGO_WASM_PATH}"]
-command = "wasm-bindgen"
-dependencies = ["cargo-build-web", "wasm-bindgen-cli"]
+[tasks.watch]
+run_task = [
+	{ name = "bindgen" },
+]
+watch = true
 
 [tasks.build-native]
-args = ["build", "--features", "native", "@@split(CARGO_RELEASE_ARGS, )"]
+args = ["build", "@@split(CARGO_RELEASE_ARGS, )"]
 command = "cargo"
 
 [tasks.run]
 command = "${CARGO_TARGET_DIR}/${ENV_DIR}/${CARGO_MAKE_BINARY_EXECUTABLE_NAME}"
 dependencies = ["build-native"]
 
+[tasks.build]
+args = ["build", "--target", "wasm32-unknown-unknown", "@@split(CARGO_RELEASE_ARGS, )"]
+command = "cargo"
+
+[tasks.bindgen]
+install_crate = {crate_name = "wasm-bindgen-cli", binary = "wasm-bindgen", test_arg="--help"}
+args = ["--out-dir", "${TARGET_DIR}", "--out-name", "wasm", "--target", "web", "--no-typescript", "${CARGO_WASM_PATH}"]
+command = "wasm-bindgen"
+dependencies = ["build"]
+
 [tasks.serve]
+install_crate = {crate_name = "microserver", binary = "microserver", test_arg="--help"}
+env = { "RUST_LOG" = "basic_http_serve=trace" }
 command = "microserver"
 args = ["--port", "${PORT}"]
-dependencies = ["build-web", "microserver"]
+dependencies = ["bindgen"]
 
 [tasks.bundle-itch]
+dependencies = ["bindgen"]
 script = '''
 rm -rf target/itch
 mkdir -p target/itch/target
 cp index-itch.html target/itch/index.html
-cp *.woff target/itch/
+cp fix-chrome-audio.js target/itch/
 cp -R assets target/itch/
 cp target/wasm.js target/itch/target/
 cp target/wasm_bg.wasm target/itch/target/

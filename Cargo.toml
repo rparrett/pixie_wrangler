@@ -6,56 +6,44 @@ edition = "2021"
 repository = "https://github.com/rparrett/pixie_wrangler"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[features]
-default = [
-  "bevy/bevy_gltf",
-  "bevy/bevy_winit",
-  "bevy/render",
-  "bevy/png",
-]
-
-native = [
-  "bevy/bevy_wgpu",
-#  "bevy/trace",
-#  "bevy/trace_chrome"
-]
-
-web = [
-  "bevy_webgl2",
-  "web-sys"
-]
-
 [dependencies]
-bevy = {version="0.5.0", default-features=false}
-#bevy = {path = "../bevy", default-features=false}
-bevy_webgl2 = {version="0.5.2", optional=true}
 
-winit = {version = "0.24.0"}
+#bevy = {version="0.5.0", default-features=false}
+#bevy = {path = "../bevy", default-features=false}
+bevy = { path = "../bevy", default-features = false, features = ["bevy_winit", "render", "png"] }
+
 rand = "0.8"
-getrandom = {version="0.1", features=["wasm-bindgen"]}
 petgraph = "0.6"
 itertools = "0.10"
 serde = {version = "1", features = ["derive"]}
 
-bevy_prototype_lyon = "0.3.1"
-#bevy_prototype_lyon = { path = "../bevy_prototype_lyon" }
-bevy_easings = { git = "https://github.com/rparrett/bevy_extra", branch = "fix-0.5" }
-#bevy_easings = { path = "../bevy_extra/bevy_easings" }
+#bevy_prototype_lyon = "0.3.1"
+bevy_prototype_lyon = { path = "../bevy_prototype_lyon" }
+#bevy_easings = { git = "https://github.com/rparrett/bevy_extra", branch = "fix-0.5" }
+bevy_easings = { path = "../bevy_extra/bevy_easings" }
 
-bevy_asset_ron = "0.2"
+#bevy_asset_ron = "0.2"
+bevy_asset_ron = { path = "../bevy_asset_ron" }
 ron = "*"
 
-web-sys = {version="0.3", optional=true, features = ["console", "Window", "Storage"]}
+# Dependencies for native only.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+getrandom = { version = "0.1" }
+
+# Dependencies for WASM only.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.1", features = ["wasm-bindgen"] }
+web-sys = {version="0.3", features = ["console", "Window", "Storage"]}
 
 #[patch.crates-io]
 #bevy = {path = "../bevy", default-features=false}
 
-#[patch.'https://github.com/bevyengine/bevy']
-# bevy = {git = "https://github.com/bevyengine/bevy//", rev="841755aaf23acfd55b375c37390daeb302c5b30b", default-features=false}
-#bevy = {path = "../bevy", default-features=false}
+[patch.'https://github.com/davier/bevy']
+bevy = {path = "../bevy" }
 
-# [patch.'https://github.com/mrk-its/bevy_webgl2']
-# bevy_webgl2 = {git = "https://github.com/mrk-its/bevy_webgl2//", rev="035236b8d7ec52b8e9e20399662e89c73e4521f6", default-features=false}
+[patch.'https://github.com/bevyengine/bevy']
+# bevy = {git = "https://github.com/bevyengine/bevy//", rev="841755aaf23acfd55b375c37390daeb302c5b30b", default-features=false}
+bevy = {path = "../bevy" }
 
 [profile.dev]
 opt-level = 1

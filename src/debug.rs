@@ -4,11 +4,12 @@ use bevy_prototype_lyon::prelude::*;
 pub struct DebugLinesPlugin;
 #[derive(Default)]
 pub struct DebugLines(pub Vec<((Vec2, Vec2), Color, f32)>);
+#[derive(Component)]
 struct DebugLine;
 
 impl Plugin for DebugLinesPlugin {
     // this is where we set up our plugin
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.init_resource::<DebugLines>();
         // run despawn before spawn, ensuring that lines stick around for one frame
         app.add_system(debug_lines_spawn_system.system().label("debug_lines_spawn"));
@@ -31,8 +32,7 @@ fn debug_lines_spawn_system(mut commands: Commands, mut debug_lines: ResMut<Debu
         commands
             .spawn_bundle(GeometryBuilder::build_as(
                 &shapes::Line(line.0, line.1),
-                ShapeColors::new(color.as_rgba_linear()),
-                DrawMode::Stroke(StrokeOptions::default().with_line_width(width)),
+                DrawMode::Stroke(StrokeMode::new(color, width)),
                 Transform::from_xyz(0.0, 0.0, 999.0),
             ))
             .insert(DebugLine);

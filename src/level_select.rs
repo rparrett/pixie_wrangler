@@ -1,15 +1,16 @@
 use crate::{
-    level::Level, pixie::PIXIE_COLORS, save::BestScores, ButtonMaterials, GameState, Handles,
-    UI_GREY_RED_COLOR,
+    level::Level, pixie::PIXIE_COLORS, save::BestScores, GameState, Handles, UI_GREY_RED_COLOR,
 };
 use bevy::prelude::*;
 
 pub struct LevelSelectPlugin;
+#[derive(Component)]
 pub struct LevelSelectScreen;
+#[derive(Component)]
 pub struct LevelSelectButton(u32);
 
 impl Plugin for LevelSelectPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_system_set(
             SystemSet::on_enter(GameState::LevelSelect).with_system(level_select_enter.system()),
         );
@@ -49,8 +50,6 @@ fn level_select_button_system(
 
 fn level_select_enter(
     mut commands: Commands,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    button_materials: Res<ButtonMaterials>,
     best_scores: Res<BestScores>,
     handles: Res<Handles>,
     levels: Res<Assets<Level>>,
@@ -66,7 +65,7 @@ fn level_select_enter(
                 justify_content: JustifyContent::SpaceEvenly,
                 ..Default::default()
             },
-            material: materials.add(Color::NONE.into()),
+            color: Color::NONE.into(),
             ..Default::default()
         })
         .insert(LevelSelectScreen)
@@ -77,7 +76,7 @@ fn level_select_enter(
                         flex_direction: FlexDirection::ColumnReverse,
                         ..Default::default()
                     },
-                    material: materials.add(Color::NONE.into()),
+                    color: Color::NONE.into(),
                     ..Default::default()
                 })
                 .with_children(|parent| {
@@ -127,7 +126,7 @@ fn level_select_enter(
                         justify_content: JustifyContent::Center,
                         ..Default::default()
                     },
-                    material: materials.add(Color::NONE.into()),
+                    color: Color::NONE.into(),
                     ..Default::default()
                 })
                 .with_children(|parent| {
@@ -143,7 +142,7 @@ fn level_select_enter(
                                     justify_content: JustifyContent::Center,
                                     ..Default::default()
                                 },
-                                material: materials.add(Color::NONE.into()),
+                                color: Color::NONE.into(),
                                 ..Default::default()
                             })
                             .with_children(|parent| {
@@ -165,7 +164,7 @@ fn level_select_enter(
                                                 },
                                                 ..Default::default()
                                             },
-                                            material: button_materials.normal.clone(),
+                                            color: crate::NORMAL_BUTTON.into(),
                                             ..Default::default()
                                         })
                                         .insert(LevelSelectButton(i))
@@ -269,6 +268,5 @@ fn level_select_exit(
     }
 
     mouse.reset(MouseButton::Left);
-    mouse.update();
-    mouse.update();
+    mouse.clear();
 }

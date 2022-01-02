@@ -1,17 +1,19 @@
-use crate::ButtonMaterials;
 use bevy::prelude::*;
 
 pub struct RadioButtonPlugin;
+#[derive(Component)]
 pub struct RadioButtonGroup {
     pub entities: Vec<Entity>,
 }
+#[derive(Component)]
 pub struct RadioButton {
     pub selected: bool,
 }
+#[derive(Component)]
 pub struct RadioButtonGroupRelation(pub Entity);
 
 impl Plugin for RadioButtonPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_system(radio_button_system.system().label("radio_button_system"));
         app.add_system(
             radio_button_group_system
@@ -24,8 +26,8 @@ impl Plugin for RadioButtonPlugin {
 
 fn radio_button_group_system(
     mut q: QuerySet<(
-        Query<(Entity, &RadioButton, &RadioButtonGroupRelation), Changed<RadioButton>>,
-        Query<&mut RadioButton>,
+        QueryState<(Entity, &RadioButton, &RadioButtonGroupRelation), Changed<RadioButton>>,
+        QueryState<&mut RadioButton>,
     )>,
     q_radio_group: Query<&RadioButtonGroup>,
 ) {
@@ -43,32 +45,27 @@ fn radio_button_group_system(
     }
 
     for entity in unselect.iter() {
-        if let Ok(mut other_radio) = q.q1_mut().get_mut(*entity) {
+        if let Ok(mut other_radio) = q.q1().get_mut(*entity) {
             other_radio.selected = false;
         }
     }
 }
 
 fn radio_button_system(
-    button_materials: Res<ButtonMaterials>,
     mut interaction_query: Query<
-        (&mut RadioButton, &Interaction, &mut Handle<ColorMaterial>),
+        (&mut RadioButton, &Interaction, &mut UiColor),
         (Changed<Interaction>, With<Button>, With<RadioButton>),
     >,
 ) {
-    for (mut radio, interaction, mut material) in interaction_query.iter_mut() {
+    for (mut radio, interaction, mut color) in interaction_query.iter_mut() {
         match *interaction {
             Interaction::Clicked => {
-                *material = button_materials.pressed.clone();
+                *color = crate::PRESSED_BUTTON.into();
 
                 radio.selected = true;
             }
-            Interaction::Hovered => {
-                *material = button_materials.hovered.clone();
-            }
-            Interaction::None => {
-                *material = button_materials.normal.clone();
-            }
+            Interaction::Hovered => *color = crate::HOVERED_BUTTON.into(),
+            Interaction::None => *color = crate::NORMAL_BUTTON.into(),
         }
     }
 }

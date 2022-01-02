@@ -6,7 +6,7 @@ use bevy::prelude::*;
 
 pub struct SimulationPlugin;
 impl Plugin for SimulationPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.init_resource::<SimulationSettings>();
         app.init_resource::<SimulationState>();
         app.add_stage_after(

@@ -6,7 +6,7 @@ pub struct LoadingPlugin;
 pub const NUM_LEVELS: u32 = 9;
 
 impl Plugin for LoadingPlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_system_set(
             SystemSet::on_enter(GameState::Loading).with_system(loading_setup.system()),
         );
@@ -33,7 +33,7 @@ fn loading_setup(
 
     handles
         .fonts
-        .push(asset_server.load("fonts/CooperHewitt-Medium.ttf"));
+        .push(asset_server.load("fonts/ChakraPetch-Regular-PixieWrangler.ttf"));
 }
 
 fn loading_update(

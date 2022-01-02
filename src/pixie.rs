@@ -25,13 +25,14 @@ pub const CORNER_DEBUFF_DISTANCE: f32 = 24.0;
 
 pub struct PixiePlugin;
 impl Plugin for PixiePlugin {
-    fn build(&self, app: &mut AppBuilder) {
+    fn build(&self, app: &mut App) {
         app.add_system_set(
             SystemSet::on_update(GameState::Playing).with_system(move_fragments_system.system()),
         );
     }
 }
 
+#[derive(Component)]
 pub struct PixieFragment {
     direction: Vec2,
     life_remaining: f32,
@@ -45,6 +46,7 @@ impl Default for PixieFragment {
     }
 }
 
+#[derive(Component)]
 pub struct Pixie {
     pub flavor: PixieFlavor,
     pub path: Vec<RoadSegment>,
@@ -92,6 +94,7 @@ pub enum DrivingState {
     Cruising,
     Braking,
 }
+#[derive(Component)]
 
 pub struct PixieEmitter {
     pub flavor: PixieFlavor,
@@ -163,8 +166,7 @@ pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixi
             commands
                 .spawn_bundle(GeometryBuilder::build_as(
                     &shape,
-                    ShapeColors::new(PIXIE_COLORS[(pixie.flavor.color) as usize].as_rgba_linear()),
-                    DrawMode::Fill(FillOptions::default()),
+                    DrawMode::Fill(FillMode::color(PIXIE_COLORS[(pixie.flavor.color) as usize])),
                     *transform,
                 ))
                 .insert(PixieFragment {
@@ -176,11 +178,16 @@ pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixi
 }
 
 pub fn collide_pixies_system(
-    mut queries: QuerySet<(Query<(Entity, &Pixie, &Transform)>, Query<&mut Pixie>)>,
+    mut queries: QuerySet<(
+        QueryState<(Entity, &Pixie, &Transform)>,
+        QueryState<&mut Pixie>,
+    )>,
 ) {
     let mut collisions = vec![];
-    let mut explosions = vec![];
 
+    // prevent any pixie that's exploding from interacting in another
+    // way
+    let mut explosions = HashSet::default();
     // prevent any pixie that is attracting another from itself being
     // attracted
     let mut attractors = HashSet::default();
@@ -188,31 +195,36 @@ pub fn collide_pixies_system(
     // for each other
     let mut followers = HashMap::default();
 
-    for (e1, p1, t1) in queries
-        .q0()
-        .iter()
-        .filter(|(_, p, _)| p.path_index < p.path.len())
-    {
-        // we are going to project a point forward along the pixie's travel path
-        // and grab the pixies between this pixie and that point
+    let mut collision_groups = HashMap::default();
+
+    for [(e1, p1, t1), (e2, p2, t2)] in queries.q0().iter_combinations() {
+        if e2 == e1 {
+            continue;
+        }
+
+        if p1.path_index >= p1.path.len() {
+            continue;
+        }
 
         let layer = p1.path[p1.path_index].layer;
 
-        let travel_segs = traveled_segments(
-            t1.translation.truncate(),
-            PIXIE_VISION_DISTANCE,
-            &p1.path[p1.path_index..],
-        );
+        if p2.path_index >= p2.path.len() {
+            continue;
+        }
 
-        let mut potential_cols = vec![];
+        if p2.path[p2.path_index].layer != layer {
+            continue;
+        }
 
-        for (e2, p2, t2) in queries
-            .q0()
-            .iter()
-            .filter(|(_, p2, _)| p2.path_index < p2.path.len())
-            .filter(|(_, p2, _)| p2.path[p2.path_index].layer == layer)
-            .filter(|(e2, _, _)| *e2 != e1)
-        {
+        // this collision detection code is directional along the path,
+        // so both orientations must be considered.
+        for (e1, p1, t1, e2, p2, t2) in [(e1, p1, t1, e2, p2, t2), (e2, p2, t2, e1, p1, t1)] {
+            let travel_segs = traveled_segments(
+                t1.translation.truncate(),
+                PIXIE_VISION_DISTANCE,
+                &p1.path[p1.path_index..],
+            );
+
             let dist = distance_on_path(
                 t1.translation.truncate(),
                 t2.translation.truncate(),
@@ -220,65 +232,77 @@ pub fn collide_pixies_system(
             );
 
             if let Some(dist) = dist {
-                potential_cols.push((e2, p2.flavor, p2.current_speed, dist));
+                collision_groups.entry(e1).or_insert(vec![]).push((
+                    p1.flavor,
+                    e2,
+                    p2.flavor,
+                    p2.current_speed,
+                    dist,
+                ));
             }
         }
+    }
 
+    for (e1, group) in collision_groups.iter_mut() {
         // we probably only need to care about the "lead pixie"
-        potential_cols.sort_by(|a, b| a.3.partial_cmp(&b.3).unwrap());
+        group.sort_by(|a, b| a.4.partial_cmp(&b.4).unwrap());
 
         // TODO it would probably be proper to collect these, sort them by distance,
         // and then iterate them again so that pixies with the closest lead-pixie
         // get preferential treatment when deciding who can be attracted to whom.
 
-        if let Some((e2, flavor, current_speed, dist)) = potential_cols.first() {
-            if flavor.color != p1.flavor.color && *dist <= PIXIE_EXPLOSION_DISTANCE {
-                explosions.push(e1);
-                explosions.push(*e2);
+        if let Some((p1_flavor, e2, flavor, current_speed, dist)) = group.first() {
+            if explosions.contains(e1) || explosions.contains(e2) {
+                continue;
+            }
+
+            if flavor.color != p1_flavor.color && *dist <= PIXIE_EXPLOSION_DISTANCE {
+                explosions.insert(*e1);
+                explosions.insert(*e2);
                 continue;
             }
 
             // if we are already attracting a pixie, and our lead pixie is
             // dissimilar, then we can just carry on.
-            if attractors.contains(&e1) && flavor.color != p1.flavor.color {
+            if attractors.contains(e1) && flavor.color != p1_flavor.color {
                 continue;
             }
 
-            if flavor.color != p1.flavor.color {
+            if flavor.color != p1_flavor.color {
                 attractors.insert(*e2);
             }
 
             match followers.get(e2) {
-                Some(follower) if *follower == e1 => continue,
+                Some(follower) if *follower == *e1 => continue,
                 _ => {}
             }
 
             collisions.push((
-                e1,
+                *e1,
                 *e2,
                 LeadPixie {
                     speed: *current_speed,
                     distance: *dist,
-                    attractor: flavor.color != p1.flavor.color,
+                    attractor: flavor.color != p1_flavor.color,
                 },
             ));
 
-            followers.insert(e1, *e2);
+            followers.insert(*e1, *e2);
         }
     }
 
-    for mut pixie in queries.q1_mut().iter_mut() {
+    for mut pixie in queries.q1().iter_mut() {
         pixie.lead_pixie = None;
     }
 
     for entity in explosions.iter() {
-        if let Ok(mut pixie) = queries.q1_mut().get_mut(*entity) {
+        if let Ok(mut pixie) = queries.q1().get_mut(*entity) {
             pixie.exploding = true;
         }
     }
 
     for (e1, _e2, lead_pixie) in collisions.iter() {
-        if let Ok(mut pixie) = queries.q1_mut().get_mut(*e1) {
+        if let Ok(mut pixie) = queries.q1().get_mut(*e1) {
             pixie.lead_pixie = Some(lead_pixie.clone());
         }
     }
@@ -306,7 +330,12 @@ pub fn move_pixies_system(
         } else {
             current_layer
         };
-        let prev_layer = if let Some(seg) = pixie.path.get(pixie.path_index - 1) {
+        let prev_layer = if let Some(seg) = pixie
+            .path_index
+            .checked_sub(1)
+            .map(|i| pixie.path.get(i))
+            .flatten()
+        {
             seg.layer
         } else {
             current_layer
@@ -457,8 +486,9 @@ pub fn emit_pixies_system(
         commands
             .spawn_bundle(GeometryBuilder::build_as(
                 &shape,
-                ShapeColors::new(PIXIE_COLORS[(emitter.flavor.color) as usize].as_rgba_linear()),
-                DrawMode::Fill(FillOptions::default()),
+                DrawMode::Fill(FillMode::color(
+                    PIXIE_COLORS[(emitter.flavor.color) as usize],
+                )),
                 Transform::from_translation(
                     first_segment
                         .points
