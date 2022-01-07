@@ -131,8 +131,7 @@ fn main() {
             .with_system(pixie_button_system.system())
             .with_system(reset_button_system.system())
             .with_system(speed_button_system.system())
-            .with_system(back_button_system.system())
-            .with_system(show_score_dialog_system.system()),
+            .with_system(back_button_system.system()),
     );
     app.add_system_set_to_stage(
         "after_update",
@@ -151,6 +150,14 @@ fn main() {
             .with_system(update_pixie_count_text_system.system())
             .with_system(update_elapsed_text_system.system())
             .with_system(update_score_text_system.system()),
+    );
+    // TODO: This needs to run after update_score_text. It would be
+    // nice to move the important bits to score_calc.
+    app.add_system_set_to_stage(
+        "after_update",
+        SystemSet::on_update(GameState::Playing)
+            .after("score_ui")
+            .with_system(show_score_dialog_system.system()),
     );
 
     app.add_stage_after(
