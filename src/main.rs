@@ -45,16 +45,7 @@ mod sim;
 fn main() {
     let mut app = App::new();
 
-    let mut wgpu_options = WgpuOptions::default();
-    if cfg!(target_arch = "wasm32") {
-        // wgpu sets this to 2048 for webgl2, which is not enough for 1280x720 * 2.0 (scale factor).
-        // I'm not really sure how to handle this sort of thing properly, but increasing this limit
-        // "works on my machine."
-        wgpu_options.limits.max_texture_dimension_2d = 2560;
-    }
-
-    app.insert_resource(wgpu_options)
-        .insert_resource(ClearColor(BACKGROUND_COLOR))
+    app.insert_resource(ClearColor(BACKGROUND_COLOR))
         .insert_resource(Msaa { samples: 4 })
         .insert_resource(WindowDescriptor {
             title: String::from("Pixie Wrangler"),
