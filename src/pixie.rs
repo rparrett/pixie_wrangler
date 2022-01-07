@@ -178,16 +178,12 @@ pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixi
 }
 
 pub fn collide_pixies_system(
-    mut queries: QuerySet<(
-        QueryState<(Entity, &Pixie, &Transform)>,
-        QueryState<&mut Pixie>,
-    )>,
+    query: Query<(Entity, &Transform), With<Pixie>>,
+    mut pixie_query: Query<&mut Pixie>,
 ) {
     let mut collisions = vec![];
+    let mut explosions = vec![];
 
-    // prevent any pixie that's exploding from interacting in another
-    // way
-    let mut explosions = HashSet::default();
     // prevent any pixie that is attracting another from itself being
     // attracted
     let mut attractors = HashSet::default();
@@ -195,35 +191,40 @@ pub fn collide_pixies_system(
     // for each other
     let mut followers = HashMap::default();
 
-    let mut collision_groups = HashMap::default();
-
-    for [(e1, p1, t1), (e2, p2, t2)] in queries.q0().iter_combinations() {
-        if e2 == e1 {
-            continue;
-        }
+    for (e1, t1) in query.iter() {
+        let p1 = pixie_query.get(e1).unwrap();
 
         if p1.path_index >= p1.path.len() {
             continue;
         }
 
+        // we are going to project a point forward along the pixie's travel path
+        // and grab the pixies between this pixie and that point
+
         let layer = p1.path[p1.path_index].layer;
 
-        if p2.path_index >= p2.path.len() {
-            continue;
-        }
+        let travel_segs = traveled_segments(
+            t1.translation.truncate(),
+            PIXIE_VISION_DISTANCE,
+            &p1.path[p1.path_index..],
+        );
 
-        if p2.path[p2.path_index].layer != layer {
-            continue;
-        }
+        let mut potential_cols = vec![];
 
-        // this collision detection code is directional along the path,
-        // so both orientations must be considered.
-        for (e1, p1, t1, e2, p2, t2) in [(e1, p1, t1, e2, p2, t2), (e2, p2, t2, e1, p1, t1)] {
-            let travel_segs = traveled_segments(
-                t1.translation.truncate(),
-                PIXIE_VISION_DISTANCE,
-                &p1.path[p1.path_index..],
-            );
+        for (e2, t2) in query.iter() {
+            let p2 = pixie_query.get(e2).unwrap();
+
+            if e2 == e1 {
+                continue;
+            }
+
+            if p2.path_index >= p2.path.len() {
+                continue;
+            }
+
+            if p2.path[p2.path_index].layer != layer {
+                continue;
+            }
 
             let dist = distance_on_path(
                 t1.translation.truncate(),
@@ -232,77 +233,65 @@ pub fn collide_pixies_system(
             );
 
             if let Some(dist) = dist {
-                collision_groups.entry(e1).or_insert(vec![]).push((
-                    p1.flavor,
-                    e2,
-                    p2.flavor,
-                    p2.current_speed,
-                    dist,
-                ));
+                potential_cols.push((e2, p2.flavor, p2.current_speed, dist));
             }
         }
-    }
 
-    for (e1, group) in collision_groups.iter_mut() {
         // we probably only need to care about the "lead pixie"
-        group.sort_by(|a, b| a.4.partial_cmp(&b.4).unwrap());
+        potential_cols.sort_by(|a, b| a.3.partial_cmp(&b.3).unwrap());
 
         // TODO it would probably be proper to collect these, sort them by distance,
         // and then iterate them again so that pixies with the closest lead-pixie
         // get preferential treatment when deciding who can be attracted to whom.
 
-        if let Some((p1_flavor, e2, flavor, current_speed, dist)) = group.first() {
-            if explosions.contains(e1) || explosions.contains(e2) {
-                continue;
-            }
-
-            if flavor.color != p1_flavor.color && *dist <= PIXIE_EXPLOSION_DISTANCE {
-                explosions.insert(*e1);
-                explosions.insert(*e2);
+        if let Some((e2, flavor, current_speed, dist)) = potential_cols.first() {
+            if flavor.color != p1.flavor.color && *dist <= PIXIE_EXPLOSION_DISTANCE {
+                explosions.push(e1);
+                explosions.push(*e2);
                 continue;
             }
 
             // if we are already attracting a pixie, and our lead pixie is
             // dissimilar, then we can just carry on.
-            if attractors.contains(e1) && flavor.color != p1_flavor.color {
+            if attractors.contains(&e1) && flavor.color != p1.flavor.color {
                 continue;
             }
 
-            if flavor.color != p1_flavor.color {
+            if flavor.color != p1.flavor.color {
                 attractors.insert(*e2);
             }
 
             match followers.get(e2) {
-                Some(follower) if *follower == *e1 => continue,
+                Some(follower) if *follower == e1 => continue,
                 _ => {}
             }
 
             collisions.push((
-                *e1,
+                e1,
                 *e2,
                 LeadPixie {
                     speed: *current_speed,
                     distance: *dist,
-                    attractor: flavor.color != p1_flavor.color,
+                    attractor: flavor.color != p1.flavor.color,
                 },
             ));
 
-            followers.insert(*e1, *e2);
+            followers.insert(e1, *e2);
         }
     }
 
-    for mut pixie in queries.q1().iter_mut() {
+    for mut pixie in pixie_query.iter_mut() {
         pixie.lead_pixie = None;
     }
 
     for entity in explosions.iter() {
-        if let Ok(mut pixie) = queries.q1().get_mut(*entity) {
+        if let Ok(mut pixie) = pixie_query.get_mut(*entity) {
             pixie.exploding = true;
         }
     }
 
     for (e1, _e2, lead_pixie) in collisions.iter() {
-        if let Ok(mut pixie) = queries.q1().get_mut(*e1) {
+        if let Ok(mut pixie) = pixie_query.get_mut(*e1) {
             pixie.lead_pixie = Some(lead_pixie.clone());
         }
     }
