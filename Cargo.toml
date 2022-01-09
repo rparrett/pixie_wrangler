@@ -8,22 +8,17 @@ repository = "https://github.com/rparrett/pixie_wrangler"
 
 [dependencies]
 
-#bevy = {version="0.5.0", default-features=false}
-#bevy = {path = "../bevy", default-features=false}
-bevy = { path = "../bevy", default-features = false, features = ["bevy_winit", "render", "png"] }
+bevy = { version = "0.6", default-features=false, features = ["bevy_winit", "render", "png"] }
+
+bevy_prototype_lyon = "0.4"
+bevy_easings = { path = "../bevy_extra/bevy_easings" }
+#bevy_asset_ron = "0.2"
+bevy_asset_ron = { path = "../bevy_asset_ron" }
 
 rand = "0.8"
 petgraph = "0.6"
 itertools = "0.10"
 serde = {version = "1", features = ["derive"]}
-
-#bevy_prototype_lyon = "0.3.1"
-bevy_prototype_lyon = { path = "../bevy_prototype_lyon" }
-#bevy_easings = { git = "https://github.com/rparrett/bevy_extra", branch = "fix-0.5" }
-bevy_easings = { path = "../bevy_extra/bevy_easings" }
-
-#bevy_asset_ron = "0.2"
-bevy_asset_ron = { path = "../bevy_asset_ron" }
 ron = "*"
 
 # Dependencies for native only.
@@ -34,16 +29,6 @@ getrandom = { version = "0.1" }
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.1", features = ["wasm-bindgen"] }
 web-sys = {version="0.3", features = ["console", "Window", "Storage"]}
-
-#[patch.crates-io]
-#bevy = {path = "../bevy", default-features=false}
-
-[patch.'https://github.com/davier/bevy']
-bevy = {path = "../bevy" }
-
-[patch.'https://github.com/bevyengine/bevy']
-# bevy = {git = "https://github.com/bevyengine/bevy//", rev="841755aaf23acfd55b375c37390daeb302c5b30b", default-features=false}
-bevy = {path = "../bevy" }
 
 [profile.dev]
 opt-level = 1
