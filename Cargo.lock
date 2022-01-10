@@ -214,11 +214,13 @@ dependencies = [
 
 [[package]]
 name = "bevy_asset_ron"
-version = "0.2.0"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d1cac0c9e9448b0c750daade0b1755072e031671dd08ad1bdded6f6f3a7d4d2"
 dependencies = [
  "anyhow",
  "bevy",
- "ron 0.6.6",
+ "ron",
  "serde",
 ]
 
@@ -289,7 +291,9 @@ dependencies = [
 
 [[package]]
 name = "bevy_easings"
-version = "0.4.0"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64943117cc2c31fffd4cf2488a535ab0fbbd80156f3dda0b3c0382f6d316fccb"
 dependencies = [
  "bevy",
  "interpolation",
@@ -541,7 +545,7 @@ dependencies = [
  "bevy_reflect",
  "bevy_transform",
  "bevy_utils",
- "ron 0.7.0",
+ "ron",
  "serde",
  "thiserror",
  "uuid",
@@ -1835,7 +1839,7 @@ dependencies = [
  "itertools",
  "petgraph",
  "rand",
- "ron 0.7.0",
+ "ron",
  "serde",
  "web-sys",
 ]
@@ -2002,17 +2006,6 @@ name = "renderdoc-sys"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1382d1f0a252c4bf97dc20d979a2fdd05b024acd7c2ed0f7595d7817666a157"
-
-[[package]]
-name = "ron"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86018df177b1beef6c7c8ef949969c4f7cb9a9344181b92486b23c79995bdaa4"
-dependencies = [
- "base64",
- "bitflags",
- "serde",
-]
 
 [[package]]
 name = "ron"

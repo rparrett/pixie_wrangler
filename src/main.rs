@@ -11,6 +11,7 @@ use crate::radio_button::{
 };
 use crate::save::SavePlugin;
 
+use bevy::log::LogSettings;
 use bevy::render::options::WgpuOptions;
 use bevy::utils::{Duration, HashMap};
 //use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
@@ -53,6 +54,10 @@ fn main() {
             height: 720.,
             #[cfg(target_arch = "wasm32")]
             canvas: Some("#bevy".to_string()),
+            ..Default::default()
+        })
+        .insert_resource(LogSettings {
+            //filter: "wgpu=trace".to_string(),
             ..Default::default()
         });
 
