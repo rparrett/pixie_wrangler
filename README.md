@@ -27,16 +27,6 @@ It's entirely possible that there's a playable demo at [itch.io](https://euclide
 - [ ] Completely rethink scoring
 - [ ] Obstacles that only affect particular layers
 
-## Troubleshooting
-
-> thread 'main' panicked at 'index out of bounds: the len is 0 but the index is 0', /Users/robparrett/.cargo/registry/src/github.com-1ecc6299db9ec823/wasm-bindgen-cli-support-0.2.78/src/descriptor.rs:205:15
-
-Use a version of wasm-bindgen-cli that matches `bevy_webgl2`'s dependency.
-
-```
-cargo install --force wasm-bindgen-cli --version 0.2.69
-```
-
 ## Contributing
 
 Do it! Throw some code at me!
