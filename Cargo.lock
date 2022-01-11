@@ -2428,7 +2428,7 @@ dependencies = [
 [[package]]
 name = "wgpu"
 version = "0.12.0"
-source = "git+https://github.com/rparrett/wgpu.git?branch=fix-taipo#e025a8281c06b16606966afd77cc126fce53f407"
+source = "git+https://github.com/rparrett/wgpu.git?branch=fix-pixie-wrangler#e025a8281c06b16606966afd77cc126fce53f407"
 dependencies = [
  "arrayvec 0.7.2",
  "js-sys",
@@ -2448,7 +2448,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core"
 version = "0.12.0"
-source = "git+https://github.com/rparrett/wgpu.git?branch=fix-taipo#e025a8281c06b16606966afd77cc126fce53f407"
+source = "git+https://github.com/rparrett/wgpu.git?branch=fix-pixie-wrangler#e025a8281c06b16606966afd77cc126fce53f407"
 dependencies = [
  "arrayvec 0.7.2",
  "bitflags",
@@ -2470,7 +2470,7 @@ dependencies = [
 [[package]]
 name = "wgpu-hal"
 version = "0.12.0"
-source = "git+https://github.com/rparrett/wgpu.git?branch=fix-taipo#e025a8281c06b16606966afd77cc126fce53f407"
+source = "git+https://github.com/rparrett/wgpu.git?branch=fix-pixie-wrangler#e025a8281c06b16606966afd77cc126fce53f407"
 dependencies = [
  "arrayvec 0.7.2",
  "ash",
@@ -2507,7 +2507,7 @@ dependencies = [
 [[package]]
 name = "wgpu-types"
 version = "0.12.0"
-source = "git+https://github.com/rparrett/wgpu.git?branch=fix-taipo#e025a8281c06b16606966afd77cc126fce53f407"
+source = "git+https://github.com/rparrett/wgpu.git?branch=fix-pixie-wrangler#e025a8281c06b16606966afd77cc126fce53f407"
 dependencies = [
  "bitflags",
 ]
