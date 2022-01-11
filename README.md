@@ -25,6 +25,7 @@ It's entirely possible that there's a playable demo at [itch.io](https://euclide
 - [ ] More Levels
 - [ ] Pixie-combiners
 - [ ] Completely rethink scoring
+- [ ] Obstacles that only affect particular layers
 
 ## Troubleshooting
 
