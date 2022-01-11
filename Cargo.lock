@@ -100,9 +100,9 @@ checksum = "8da52d66c7071e2e3fa2a1e5c6d088fec47b593032b254f5e980de8ea54454d6"
 
 [[package]]
 name = "ash"
-version = "0.34.0+1.2.203"
+version = "0.35.0+1.2.203"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0f780da53d0063880d45554306489f09dd8d1bda47688b4a57bc579119356df"
+checksum = "5a7638ce84f8c84d6fd6faa63aa267574d345181ba591c0eeb5550d4c30cd600"
 dependencies = [
  "libloading",
 ]
@@ -522,7 +522,7 @@ dependencies = [
  "hex",
  "hexasphere",
  "image",
- "naga",
+ "naga 0.8.1",
  "once_cell",
  "parking_lot",
  "regex",
@@ -1603,6 +1603,24 @@ checksum = "162e591484b4b8fe9e1ca16ebf07ab584fdc3334508d76a788cd54d89cfc20dc"
 
 [[package]]
 name = "naga"
+version = "0.8.0"
+source = "git+https://github.com/gfx-rs/naga?rev=09d35f3#09d35f363134920a9a477cefa32b29bb4416092b"
+dependencies = [
+ "bit-set",
+ "bitflags",
+ "codespan-reporting",
+ "hexf-parse",
+ "indexmap",
+ "log",
+ "num-traits",
+ "petgraph",
+ "rustc-hash",
+ "spirv",
+ "thiserror",
+]
+
+[[package]]
+name = "naga"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4419062f8aa39fb25938169486341945758679e260ddbc1f94bfd1f33924dc2"
@@ -2410,13 +2428,12 @@ dependencies = [
 [[package]]
 name = "wgpu"
 version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b97cd781ff044d6d697b632a2e212032c2e957d1afaa21dbf58069cbb8f78567"
+source = "git+https://github.com/rparrett/wgpu.git?branch=fix-taipo#e025a8281c06b16606966afd77cc126fce53f407"
 dependencies = [
  "arrayvec 0.7.2",
  "js-sys",
  "log",
- "naga",
+ "naga 0.8.0",
  "parking_lot",
  "raw-window-handle",
  "smallvec",
@@ -2430,9 +2447,8 @@ dependencies = [
 
 [[package]]
 name = "wgpu-core"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfe9cb9c9d728c0f7ea0c309f1b3d5e9d5c7d379890d0a4e3df3103323ff7a84"
+version = "0.12.0"
+source = "git+https://github.com/rparrett/wgpu.git?branch=fix-taipo#e025a8281c06b16606966afd77cc126fce53f407"
 dependencies = [
  "arrayvec 0.7.2",
  "bitflags",
@@ -2441,7 +2457,7 @@ dependencies = [
  "copyless",
  "fxhash",
  "log",
- "naga",
+ "naga 0.8.0",
  "parking_lot",
  "profiling",
  "raw-window-handle",
@@ -2453,9 +2469,8 @@ dependencies = [
 
 [[package]]
 name = "wgpu-hal"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "742ec904d0577e1a88b82dba6cf0347c12197cd664b859b05f868bceb8cfff4d"
+version = "0.12.0"
+source = "git+https://github.com/rparrett/wgpu.git?branch=fix-taipo#e025a8281c06b16606966afd77cc126fce53f407"
 dependencies = [
  "arrayvec 0.7.2",
  "ash",
@@ -2475,7 +2490,7 @@ dependencies = [
  "libloading",
  "log",
  "metal",
- "naga",
+ "naga 0.8.0",
  "objc",
  "parking_lot",
  "profiling",
@@ -2492,8 +2507,7 @@ dependencies = [
 [[package]]
 name = "wgpu-types"
 version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "549533d9e1cdd4b4cda7718d33ff500fc4c34b5467b71d76b547ae0324f3b2a2"
+source = "git+https://github.com/rparrett/wgpu.git?branch=fix-taipo#e025a8281c06b16606966afd77cc126fce53f407"
 dependencies = [
  "bitflags",
 ]

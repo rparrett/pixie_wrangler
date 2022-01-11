@@ -35,3 +35,6 @@ opt-level = 1
 [profile.release]
 # lto = true
 # opt-level = 's'
+
+[patch.crates-io]
+wgpu = { git = "https://github.com/rparrett/wgpu.git", branch="fix-taipo" }
