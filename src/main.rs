@@ -12,7 +12,6 @@ use crate::radio_button::{
 use crate::save::SavePlugin;
 
 use bevy::log::LogSettings;
-use bevy::render::options::WgpuOptions;
 use bevy::utils::{Duration, HashMap};
 //use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::{prelude::*, utils::HashSet, window::CursorMoved};
