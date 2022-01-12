@@ -1,34 +1,40 @@
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
-use crate::collision::{point_segment_collision, segment_collision, SegmentCollision};
-use crate::debug::DebugLinesPlugin;
-use crate::level::{Level, Obstacle, Terminus};
-use crate::level_select::LevelSelectPlugin;
-use crate::lines::{possible_lines, Axis};
-use crate::loading::LoadingPlugin;
-use crate::pixie::{Pixie, PixieEmitter, PixieFlavor, PixiePlugin, PIXIE_COLORS};
-use crate::radio_button::{
-    RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonPlugin,
+use crate::{
+    collision::{point_segment_collision, segment_collision, SegmentCollision},
+    debug::DebugLinesPlugin,
+    level::{Level, Obstacle, Terminus},
+    level_select::LevelSelectPlugin,
+    lines::{possible_lines, Axis},
+    loading::LoadingPlugin,
+    pixie::{Pixie, PixieEmitter, PixieFlavor, PixiePlugin, PIXIE_COLORS},
+    radio_button::{RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonPlugin},
+    save::{BestScores, SavePlugin, Solution, Solutions},
+    sim::{
+        SimulationPlugin, SimulationSettings, SimulationSpeed, SimulationState, SIMULATION_TIMESTEP,
+    },
 };
-use crate::save::SavePlugin;
 
-use bevy::log::LogSettings;
-use bevy::utils::{Duration, HashMap};
-//use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
-use bevy::{prelude::*, utils::HashSet, window::CursorMoved};
+use bevy::{
+    log::LogSettings,
+    //diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+    prelude::*,
+    utils::HashSet,
+    utils::{Duration, HashMap},
+    window::CursorMoved,
+};
 
 use bevy_asset_ron::*;
 use bevy_easings::*;
 use bevy_prototype_lyon::prelude::*;
 use itertools::Itertools;
-use petgraph::algo::astar;
-use petgraph::dot::{Config, Dot};
-use petgraph::stable_graph::{NodeIndex, StableUnGraph};
-use petgraph::visit::{DfsPostOrder, Walker};
-use save::{BestScores, Solution, Solutions};
-use serde::{Deserialize, Serialize};
-use sim::{
-    SimulationPlugin, SimulationSettings, SimulationSpeed, SimulationState, SIMULATION_TIMESTEP,
+use petgraph::{
+    algo::astar,
+    dot::{Config, Dot},
+    stable_graph::{NodeIndex, StableUnGraph},
+    visit::{DfsPostOrder, Walker},
 };
+
+use serde::{Deserialize, Serialize};
 
 mod collision;
 mod debug;

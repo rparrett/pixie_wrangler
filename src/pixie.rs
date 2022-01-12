@@ -1,12 +1,18 @@
 use std::time::Duration;
 
-use crate::layer;
-use crate::lines::{distance_on_path, travel, traveled_segments};
-use crate::sim::SIMULATION_TIMESTEP;
-use crate::{lines::corner_angle, GameState, PixieCount, RoadSegment, SimulationState, GRID_SIZE};
+use crate::{
+    layer,
+    lines::corner_angle,
+    lines::{distance_on_path, travel, traveled_segments},
+    sim::SIMULATION_TIMESTEP,
+    GameState, PixieCount, RoadSegment, SimulationState, GRID_SIZE,
+};
 
-use bevy::prelude::*;
-use bevy::utils::{HashMap, HashSet};
+use bevy::{
+    prelude::*,
+    utils::{HashMap, HashSet},
+};
+
 use bevy_prototype_lyon::prelude::*;
 use rand::Rng;
 use serde::Deserialize;
