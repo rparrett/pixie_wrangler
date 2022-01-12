@@ -54,7 +54,7 @@ fn level_select_enter(
     handles: Res<Handles>,
     levels: Res<Assets<Level>>,
 ) {
-    let total_score: u32 = best_scores.0.iter().map(|(_, v)| v.clone()).sum();
+    let total_score: u32 = best_scores.0.iter().map(|(_, v)| v).sum();
 
     commands
         .spawn_bundle(NodeBundle {

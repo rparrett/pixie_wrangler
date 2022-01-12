@@ -328,8 +328,7 @@ pub fn move_pixies_system(
         let prev_layer = if let Some(seg) = pixie
             .path_index
             .checked_sub(1)
-            .map(|i| pixie.path.get(i))
-            .flatten()
+            .and_then(|i| pixie.path.get(i))
         {
             seg.layer
         } else {

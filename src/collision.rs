@@ -54,7 +54,7 @@ pub fn in_collinear_segment(p: Vec2, s1: Vec2, s2: Vec2) -> bool {
         }
     }
 
-    return false;
+    false
 }
 
 // for reference, this is helpful
