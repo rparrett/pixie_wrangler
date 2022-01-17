@@ -29,12 +29,13 @@ getrandom = { version = "0.1" }
 getrandom = { version = "0.1", features = ["wasm-bindgen"] }
 web-sys = {version="0.3", features = ["console", "Window", "Storage"]}
 
+# Enable only a small amount of optimization in debug mode
 [profile.dev]
 opt-level = 1
 
-[profile.release]
-# lto = true
-# opt-level = 's'
+# Enable high optimizations for dependencies (incl. Bevy), but not for our code:
+[profile.dev.package."*"]
+opt-level = 3
 
 [patch.crates-io]
 wgpu = { git = "https://github.com/rparrett/wgpu.git", branch="fix-pixie-wrangler" }
