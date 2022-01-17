@@ -1,3 +1,4 @@
+use rstar::{RTree, RTreeObject, AABB};
 use std::time::Duration;
 
 use crate::{
@@ -183,10 +184,37 @@ pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixi
     }
 }
 
+struct PixiePoint {
+    entity: Entity,
+    pos: Vec2,
+}
+
+impl RTreeObject for PixiePoint {
+    type Envelope = AABB<[f32; 2]>;
+
+    fn envelope(&self) -> Self::Envelope {
+        AABB::from_point([self.pos.x, self.pos.y])
+    }
+}
+
 pub fn collide_pixies_system(
     query: Query<(Entity, &Transform), With<Pixie>>,
     mut pixie_query: Query<&mut Pixie>,
 ) {
+    // rather than attempt to correctly maintain our spatial index when
+    // pixies move and spawn and despawn, we're just going to create a
+    // new index on every frame.
+    //
+    // this turns out ot be a huge win vs. no spatial index at all.
+
+    let mut tree = RTree::new();
+    for (ent, transform) in query.iter() {
+        tree.insert(PixiePoint {
+            entity: ent,
+            pos: transform.translation.truncate(),
+        });
+    }
+
     let mut collisions = vec![];
     let mut explosions = vec![];
 
@@ -217,7 +245,19 @@ pub fn collide_pixies_system(
 
         let mut potential_cols = vec![];
 
-        for (e2, t2) in query.iter() {
+        let collision_rect = AABB::from_corners(
+            [
+                t1.translation.x - PIXIE_VISION_DISTANCE,
+                t1.translation.y - PIXIE_VISION_DISTANCE,
+            ],
+            [
+                t1.translation.x + PIXIE_VISION_DISTANCE,
+                t1.translation.y + PIXIE_VISION_DISTANCE,
+            ],
+        );
+
+        for obj in tree.locate_in_envelope(&collision_rect) {
+            let (e2, t2) = query.get(obj.entity).unwrap();
             let p2 = pixie_query.get(e2).unwrap();
 
             if e2 == e1 {

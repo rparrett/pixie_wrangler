@@ -15,7 +15,7 @@ use crate::{
 };
 
 use bevy::{
-    //diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
+    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     log::LogSettings,
     prelude::*,
     utils::HashSet,
@@ -180,8 +180,8 @@ fn main() {
     app.init_resource::<Cost>();
     app.init_resource::<BestScores>();
     app.init_resource::<Solutions>();
-    //app.add_plugin(LogDiagnosticsPlugin::default());
-    //app.add_plugin(FrameTimeDiagnosticsPlugin::default());
+    app.add_plugin(LogDiagnosticsPlugin::default());
+    app.add_plugin(FrameTimeDiagnosticsPlugin::default());
     app.run();
 }
 

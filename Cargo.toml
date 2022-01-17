@@ -1,6 +1,6 @@
 [package]
 name = "pixie_wrangler"
-version = "0.2.0"
+version = "0.2.1"
 authors = []
 edition = "2021"
 repository = "https://github.com/rparrett/pixie_wrangler"
@@ -19,6 +19,7 @@ petgraph = "0.6"
 itertools = "0.10"
 serde = {version = "1", features = ["derive"]}
 ron = "*"
+rstar = "0.9"
 
 # Dependencies for native only.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
