@@ -15,8 +15,8 @@ use crate::{
 };
 
 use bevy::{
+    //diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     log::LogSettings,
-    //diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
     prelude::*,
     utils::HashSet,
     utils::{Duration, HashMap},
