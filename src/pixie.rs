@@ -206,16 +206,16 @@ pub fn collide_pixies_system(
     // new index on every frame.
     //
     // this turns out ot be a huge win vs. no spatial index at all.
-    //
-    // TODO profile using tree.bulk_load
 
-    let mut tree = RTree::new();
-    for (ent, transform) in query.iter() {
-        tree.insert(PixiePoint {
-            entity: ent,
-            pos: transform.translation.truncate(),
-        });
-    }
+    let tree = RTree::<PixiePoint>::bulk_load(
+        query
+            .iter()
+            .map(|(ent, transform)| PixiePoint {
+                entity: ent,
+                pos: transform.translation.truncate(),
+            })
+            .collect::<Vec<_>>(),
+    );
 
     let mut collisions = vec![];
     let mut explosions = vec![];
