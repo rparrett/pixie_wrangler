@@ -205,7 +205,7 @@ pub fn collide_pixies_system(
     // pixies move and spawn and despawn, we're just going to create a
     // new index on every frame.
     //
-    // this turns out ot be a huge win vs. no spatial index at all.
+    // this turns out to be a huge win vs. no spatial index at all.
 
     let tree = RTree::<PixiePoint>::bulk_load(
         query
