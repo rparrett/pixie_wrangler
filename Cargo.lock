@@ -112,9 +112,9 @@ dependencies = [
 
 [[package]]
 name = "ash"
-version = "0.35.0+1.2.203"
+version = "0.34.0+1.2.203"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a7638ce84f8c84d6fd6faa63aa267574d345181ba591c0eeb5550d4c30cd600"
+checksum = "b0f780da53d0063880d45554306489f09dd8d1bda47688b4a57bc579119356df"
 dependencies = [
  "libloading",
 ]
@@ -534,7 +534,7 @@ dependencies = [
  "hex",
  "hexasphere",
  "image",
- "naga 0.8.2",
+ "naga",
  "once_cell",
  "parking_lot",
  "regex",
@@ -1670,24 +1670,6 @@ checksum = "162e591484b4b8fe9e1ca16ebf07ab584fdc3334508d76a788cd54d89cfc20dc"
 
 [[package]]
 name = "naga"
-version = "0.8.0"
-source = "git+https://github.com/gfx-rs/naga?rev=09d35f3#09d35f363134920a9a477cefa32b29bb4416092b"
-dependencies = [
- "bit-set",
- "bitflags",
- "codespan-reporting",
- "hexf-parse",
- "indexmap",
- "log",
- "num-traits",
- "petgraph",
- "rustc-hash",
- "spirv",
- "thiserror",
-]
-
-[[package]]
-name = "naga"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1dfa3912b150e6bfb38a7e94d3f53b950a456a905bb8858590af02006e2e78be"
@@ -2526,12 +2508,12 @@ dependencies = [
 [[package]]
 name = "wgpu"
 version = "0.12.0"
-source = "git+https://github.com/rparrett/wgpu.git?branch=fix-pixie-wrangler#12ea780997cb48a5e75c30a2d07600c77fd0d8b3"
+source = "git+https://github.com/rparrett/wgpu.git?branch=12.2-with-pixie-fix#cfe9abd8e7cfb173c1019b478f77647776b90625"
 dependencies = [
  "arrayvec 0.7.2",
  "js-sys",
  "log",
- "naga 0.8.0",
+ "naga",
  "parking_lot",
  "raw-window-handle",
  "smallvec",
@@ -2545,8 +2527,8 @@ dependencies = [
 
 [[package]]
 name = "wgpu-core"
-version = "0.12.0"
-source = "git+https://github.com/rparrett/wgpu.git?branch=fix-pixie-wrangler#12ea780997cb48a5e75c30a2d07600c77fd0d8b3"
+version = "0.12.2"
+source = "git+https://github.com/rparrett/wgpu.git?branch=12.2-with-pixie-fix#cfe9abd8e7cfb173c1019b478f77647776b90625"
 dependencies = [
  "arrayvec 0.7.2",
  "bitflags",
@@ -2555,7 +2537,7 @@ dependencies = [
  "copyless",
  "fxhash",
  "log",
- "naga 0.8.0",
+ "naga",
  "parking_lot",
  "profiling",
  "raw-window-handle",
@@ -2567,8 +2549,8 @@ dependencies = [
 
 [[package]]
 name = "wgpu-hal"
-version = "0.12.0"
-source = "git+https://github.com/rparrett/wgpu.git?branch=fix-pixie-wrangler#12ea780997cb48a5e75c30a2d07600c77fd0d8b3"
+version = "0.12.2"
+source = "git+https://github.com/rparrett/wgpu.git?branch=12.2-with-pixie-fix#cfe9abd8e7cfb173c1019b478f77647776b90625"
 dependencies = [
  "arrayvec 0.7.2",
  "ash",
@@ -2588,7 +2570,7 @@ dependencies = [
  "libloading",
  "log",
  "metal",
- "naga 0.8.0",
+ "naga",
  "objc",
  "parking_lot",
  "profiling",
@@ -2605,7 +2587,7 @@ dependencies = [
 [[package]]
 name = "wgpu-types"
 version = "0.12.0"
-source = "git+https://github.com/rparrett/wgpu.git?branch=fix-pixie-wrangler#12ea780997cb48a5e75c30a2d07600c77fd0d8b3"
+source = "git+https://github.com/rparrett/wgpu.git?branch=12.2-with-pixie-fix#cfe9abd8e7cfb173c1019b478f77647776b90625"
 dependencies = [
  "bitflags",
 ]
