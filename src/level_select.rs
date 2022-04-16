@@ -12,16 +12,16 @@ pub struct LevelSelectButton(u32);
 impl Plugin for LevelSelectPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
-            SystemSet::on_enter(GameState::LevelSelect).with_system(level_select_enter.system()),
+            SystemSet::on_enter(GameState::LevelSelect).with_system(level_select_enter),
         );
         app.add_system_set(
             SystemSet::on_update(GameState::LevelSelect)
-                .with_system(level_select_update.system())
-                .with_system(crate::button_system.system())
-                .with_system(level_select_button_system.system()),
+                .with_system(level_select_update)
+                .with_system(crate::button_system)
+                .with_system(level_select_button_system),
         );
         app.add_system_set(
-            SystemSet::on_exit(GameState::LevelSelect).with_system(level_select_exit.system()),
+            SystemSet::on_exit(GameState::LevelSelect).with_system(level_select_exit),
         );
     }
 }

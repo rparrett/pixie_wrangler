@@ -8,11 +8,12 @@ repository = "https://github.com/rparrett/pixie_wrangler"
 
 [dependencies]
 
-bevy = { version = "0.6", default-features=false, features = ["bevy_winit", "render", "png"] }
+bevy = { version = "0.7", default-features=false, features = ["bevy_winit", "render", "png"] }
 
-bevy_prototype_lyon = "0.4"
-bevy_easings = "0.5"
-bevy_asset_ron = "0.3"
+bevy_prototype_lyon = "0.5"
+#bevy_easings = "0.7"
+bevy_easings = { path = "../bevy_easings" }
+bevy_asset_ron = "0.4"
 
 rand = "0.8"
 petgraph = "0.6"

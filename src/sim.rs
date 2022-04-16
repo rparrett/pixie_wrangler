@@ -20,19 +20,13 @@ impl Plugin for SimulationPlugin {
                     // to be deterministic. probably.
                     .with_system(
                         collide_pixies_system
-                            .system()
                             .label("collide_pixies")
                             .before("move_pixies"),
                     )
-                    .with_system(move_pixies_system.system().label("move_pixies"))
-                    .with_system(
-                        emit_pixies_system
-                            .system()
-                            .label("emit_pixies")
-                            .after("move_pixies"),
-                    )
-                    .with_system(explode_pixies_system.system().after("collide_pixies"))
-                    .with_system(update_sim_state_system.system().after("emit_pixies")),
+                    .with_system(move_pixies_system.label("move_pixies"))
+                    .with_system(emit_pixies_system.label("emit_pixies").after("move_pixies"))
+                    .with_system(explode_pixies_system.after("collide_pixies"))
+                    .with_system(update_sim_state_system.after("emit_pixies")),
             },
         );
     }

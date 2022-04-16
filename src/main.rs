@@ -83,74 +83,70 @@ fn main() {
     app.add_stage_after(CoreStage::Update, "after_update", SystemStage::parallel());
     app.add_state_to_stage("after_update", GameState::Loading);
 
-    app.add_system_set(
-        SystemSet::on_enter(GameState::Playing).with_system(playing_enter_system.system()),
-    );
-    app.add_system_set(
-        SystemSet::on_exit(GameState::Playing).with_system(playing_exit_system.system()),
-    );
+    app.add_system_set(SystemSet::on_enter(GameState::Playing).with_system(playing_enter_system));
+    app.add_system_set(SystemSet::on_exit(GameState::Playing).with_system(playing_exit_system));
     app.add_system_set(
         SystemSet::on_update(GameState::Playing)
             .label("drawing_input")
-            .with_system(keyboard_system.system().before("mouse"))
-            .with_system(mouse_movement_system.system().label("mouse")),
+            .with_system(keyboard_system.before("mouse"))
+            .with_system(mouse_movement_system.label("mouse")),
     );
     app.add_system_set(
         SystemSet::on_update(GameState::Playing)
             .after("drawing_input")
             .label("drawing_mouse_movement")
-            .with_system(net_ripping_mouse_movement_system.system())
-            .with_system(not_drawing_mouse_movement_system.system())
-            .with_system(drawing_mouse_movement_system.system()),
+            .with_system(net_ripping_mouse_movement_system)
+            .with_system(not_drawing_mouse_movement_system)
+            .with_system(drawing_mouse_movement_system),
     );
     app.add_system_set(
         SystemSet::on_update(GameState::Playing)
             .before("drawing_interaction")
             .before("radio_button_group_system")
-            .with_system(tool_button_system.system())
-            .with_system(tool_button_display_system.system())
-            .with_system(drawing_mode_change_system.system()),
+            .with_system(tool_button_system)
+            .with_system(tool_button_display_system)
+            .with_system(drawing_mode_change_system),
     );
     app.add_system_set(
         SystemSet::on_update(GameState::Playing)
             .after("drawing_mouse_movement")
             .label("drawing_interaction")
-            .with_system(drawing_mouse_click_system.system())
-            .with_system(net_ripping_mouse_click_system.system())
-            .with_system(draw_mouse_system.system())
-            .with_system(draw_net_ripping_system.system())
-            .with_system(button_system.system()),
+            .with_system(drawing_mouse_click_system)
+            .with_system(net_ripping_mouse_click_system)
+            .with_system(draw_mouse_system)
+            .with_system(draw_net_ripping_system)
+            .with_system(button_system),
     );
     app.add_system_set(
         SystemSet::on_update(GameState::Playing)
             .after("drawing_interaction")
-            .with_system(dismiss_score_dialog_button_system.system()),
+            .with_system(dismiss_score_dialog_button_system),
     );
     // whenever
     app.add_system_set(
         SystemSet::on_update(GameState::Playing)
-            .with_system(pixie_button_system.system())
-            .with_system(reset_button_system.system())
-            .with_system(speed_button_system.system())
-            .with_system(back_button_system.system()),
+            .with_system(pixie_button_system)
+            .with_system(reset_button_system)
+            .with_system(speed_button_system)
+            .with_system(back_button_system),
     );
     app.add_system_set_to_stage(
         "after_update",
         SystemSet::on_update(GameState::Playing)
             .label("score_calc")
-            .with_system(pathfinding_system.system())
-            .with_system(update_cost_system.system())
-            .with_system(save_solution_system.system()),
+            .with_system(pathfinding_system)
+            .with_system(update_cost_system)
+            .with_system(save_solution_system),
     );
     app.add_system_set_to_stage(
         "after_update",
         SystemSet::on_update(GameState::Playing)
             .label("score_ui")
             .after("score_calc")
-            .with_system(pixie_button_text_system.system())
-            .with_system(update_pixie_count_text_system.system())
-            .with_system(update_elapsed_text_system.system())
-            .with_system(update_score_text_system.system()),
+            .with_system(pixie_button_text_system)
+            .with_system(update_pixie_count_text_system)
+            .with_system(update_elapsed_text_system)
+            .with_system(update_score_text_system),
     );
     // TODO: This needs to run after update_score_text. It would be
     // nice to move the important bits to score_calc.
@@ -158,7 +154,7 @@ fn main() {
         "after_update",
         SystemSet::on_update(GameState::Playing)
             .after("score_ui")
-            .with_system(show_score_dialog_system.system()),
+            .with_system(show_score_dialog_system),
     );
 
     app.add_stage_after(

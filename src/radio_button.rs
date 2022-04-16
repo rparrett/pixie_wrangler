@@ -14,10 +14,9 @@ pub struct RadioButtonGroupRelation(pub Entity);
 
 impl Plugin for RadioButtonPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(radio_button_system.system().label("radio_button_system"));
+        app.add_system(radio_button_system.label("radio_button_system"));
         app.add_system(
             radio_button_group_system
-                .system()
                 .label("radio_button_group_system")
                 .after("radio_button_system"),
         );
@@ -25,14 +24,14 @@ impl Plugin for RadioButtonPlugin {
 }
 
 fn radio_button_group_system(
-    mut q: QuerySet<(
-        QueryState<(Entity, &RadioButton, &RadioButtonGroupRelation), Changed<RadioButton>>,
-        QueryState<&mut RadioButton>,
+    mut q: ParamSet<(
+        Query<(Entity, &RadioButton, &RadioButtonGroupRelation), Changed<RadioButton>>,
+        Query<&mut RadioButton>,
     )>,
     q_radio_group: Query<&RadioButtonGroup>,
 ) {
     let mut unselect = vec![];
-    for (entity, radio, group_rel) in q.q0().iter() {
+    for (entity, radio, group_rel) in q.p0().iter() {
         if let Ok(radio_group) = q_radio_group.get(group_rel.0) {
             if radio.selected {
                 for other_entity in radio_group.entities.iter() {
@@ -45,7 +44,7 @@ fn radio_button_group_system(
     }
 
     for entity in unselect.iter() {
-        if let Ok(mut other_radio) = q.q1().get_mut(*entity) {
+        if let Ok(mut other_radio) = q.p1().get_mut(*entity) {
             other_radio.selected = false;
         }
     }
