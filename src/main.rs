@@ -58,7 +58,7 @@ fn main() {
             width: 1280.,
             height: 720.,
             #[cfg(target_arch = "wasm32")]
-            canvas: Some("#bevy".to_string()),
+            canvas: Some("#bevy-canvas".to_string()),
             ..Default::default()
         })
         .insert_resource(LogSettings {

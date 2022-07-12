@@ -1,4 +1,8 @@
 /target
 **/*.rs.bk
 
+/wasm/assets
+/wasm/bevy_game.js
+/wasm/bevy_game_bg.wasm
+
 save.ron

@@ -8,7 +8,7 @@ repository = "https://github.com/rparrett/pixie_wrangler"
 
 [dependencies]
 
-bevy = { version = "0.7", default-features=false, features = ["bevy_winit", "render", "png"] }
+bevy = { version = "0.7" }
 
 bevy_prototype_lyon = "0.5"
 bevy_easings = "0.7"
@@ -21,13 +21,8 @@ serde = {version = "1", features = ["derive"]}
 ron = "*"
 rstar = "0.9"
 
-# Dependencies for native only.
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-getrandom = { version = "0.2" }
-
 # Dependencies for WASM only.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = { version = "0.2", features = ["js"] }
 web-sys = {version="0.3", features = ["console", "Window", "Storage"]}
 
 # Enable only a small amount of optimization in debug mode
