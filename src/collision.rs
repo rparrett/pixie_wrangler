@@ -37,26 +37,6 @@ pub fn point_segment_collision(p: Vec2, a: Vec2, b: Vec2) -> SegmentCollision {
     }
 }
 
-pub fn in_collinear_segment(p: Vec2, s1: Vec2, s2: Vec2) -> bool {
-    if s1.x != s2.x {
-        if s1.x <= p.x && p.x <= s2.x {
-            return true;
-        }
-        if s1.x >= p.x && p.x >= s2.x {
-            return true;
-        }
-    } else {
-        if s1.y <= p.y && p.y <= s2.y {
-            return true;
-        }
-        if s1.y >= p.y && p.y >= s2.y {
-            return true;
-        }
-    }
-
-    false
-}
-
 // for reference, this is helpful
 // https://github.com/pgkelley4/line-segments-intersect/blob/master/js/line-segments-intersect.js
 // but we're differing pretty wildly in how we choose to deal with collinearities, and
@@ -112,7 +92,7 @@ pub fn segment_collision(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> SegmentColli
         return SegmentCollision::Connecting;
     }
 
-    let col = t >= 0.0 && t <= 1.0 && u >= 0.0 && u <= 1.0;
+    let col = (0.0..=1.0).contains(&t) && (0.0..=1.0).contains(&u);
 
     if col && (t == 0.0 || u == 0.0 || t == 1.0 || u == 1.0) {
         return SegmentCollision::Touching;
