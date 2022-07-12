@@ -4,13 +4,42 @@ Help the Pixies overcome The Resistance¹ in their journey from Source to Sink.
 
 An exciting² blend of traffic simulation games and printed circuit board design.
 
-It's entirely possible that there's a playable demo at [itch.io](https://euclidean-whale.itch.io/pixie-wrangler) or [pixiewrangler.robparrett.com](https://pixiewrangler.robparrett.com).
-
 ---
 
 ¹Super janky circuit design software
 
 ²Debatable
+
+## Play Online
+
+A web build is hosted on [itch.io](https://euclidean-whale.itch.io/pixie-wrangler).
+
+## Build
+
+Pixie wrangler uses the [Bevy 0.7](https://bevyengine.org/) engine and is pretty easy to build.
+
+### Dependencies
+
+- [Rust](https://www.rust-lang.org/tools/install)
+
+Bevy also has a few [dependencies](https://bevyengine.org/learn/book/getting-started/setup/) on windows and linux that you may need.
+
+### Native
+
+```bash
+cargo run --profile release
+```
+
+### Web
+
+```bash
+cargo install cargo-make
+cargo make serve
+```
+
+## Contributing
+
+Do it! Throw some code at me!
 
 ## TODO
 
@@ -26,29 +55,3 @@ It's entirely possible that there's a playable demo at [itch.io](https://euclide
 - [ ] Pixie-combiners
 - [ ] Completely rethink scoring
 - [ ] Obstacles that only affect particular layers
-
-## Contributing
-
-Do it! Throw some code at me!
-
-## Prerequisites
-
-```bash
-cargo install cargo-make
-```
-
-## Build and serve WASM version
-
-```bash
-cargo make serve
-cargo make --profile release serve
-```
-
-then point your browser to [http://127.0.0.1:4001/](http://127.0.0.1:4001/)
-
-## Build and run native version
-
-```bash
-cargo make run
-cargo make --profile release run
-```
