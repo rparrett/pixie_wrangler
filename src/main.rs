@@ -1,4 +1,6 @@
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
+#![allow(clippy::forget_non_drop)] // https://github.com/bevyengine/bevy/issues/4601
+
 use crate::{
     collision::{point_segment_collision, segment_collision, SegmentCollision},
     debug::DebugLinesPlugin,
