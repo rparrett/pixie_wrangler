@@ -37,7 +37,7 @@ fn level_select_button_system(
         if handles
             .levels
             .get(button.0 as usize - 1)
-            .and_then(|h| levels.get(h.clone()))
+            .and_then(|h| levels.get(h))
             .is_none()
         {
             continue;
@@ -85,16 +85,12 @@ fn level_select_enter(
                             align_self: AlignSelf::Center,
                             ..Default::default()
                         },
-                        text: Text::with_section(
+                        text: Text::from_section(
                             "₽IXIE WRANGLER",
                             TextStyle {
                                 font: handles.fonts[0].clone(),
                                 font_size: 60.0,
                                 color: PIXIE_COLORS[1],
-                            },
-                            TextAlignment {
-                                vertical: VerticalAlign::Center,
-                                horizontal: HorizontalAlign::Center,
                             },
                         ),
                         ..Default::default()
@@ -104,14 +100,13 @@ fn level_select_enter(
                             align_self: AlignSelf::Center,
                             ..Default::default()
                         },
-                        text: Text::with_section(
+                        text: Text::from_section(
                             format!("Æ{}", total_score),
                             TextStyle {
                                 font: handles.fonts[0].clone(),
                                 font_size: 30.0,
                                 color: crate::FINISHED_ROAD_COLORS[1],
                             },
-                            Default::default(),
                         ),
                         ..Default::default()
                     });
@@ -157,7 +152,7 @@ fn level_select_enter(
                                                 justify_content: JustifyContent::Center,
                                                 // vertically center child text
                                                 align_items: AlignItems::Center,
-                                                margin: Rect {
+                                                margin: UiRect {
                                                     left: Val::Px(10.0),
                                                     bottom: Val::Px(10.0),
                                                     ..Default::default()
@@ -172,7 +167,7 @@ fn level_select_enter(
                                             let level = handles
                                                 .levels
                                                 .get(i as usize - 1)
-                                                .and_then(|h| levels.get(h.clone()));
+                                                .and_then(|h| levels.get(h));
 
                                             let level_color = match level {
                                                 Some(_) => crate::UI_WHITE_COLOR,
@@ -224,27 +219,25 @@ fn level_select_enter(
                                             });
 
                                             parent.spawn_bundle(TextBundle {
-                                                text: Text::with_section(
+                                                text: Text::from_section(
                                                     format!("{}", i),
                                                     TextStyle {
                                                         font: handles.fonts[0].clone(),
                                                         font_size: 60.0,
                                                         color: level_color,
                                                     },
-                                                    Default::default(),
                                                 ),
                                                 ..Default::default()
                                             });
 
                                             parent.spawn_bundle(TextBundle {
-                                                text: Text::with_section(
+                                                text: Text::from_section(
                                                     score_text,
                                                     TextStyle {
                                                         font: handles.fonts[0].clone(),
                                                         font_size: 30.0,
                                                         color: crate::FINISHED_ROAD_COLORS[1],
                                                     },
-                                                    Default::default(),
                                                 ),
                                                 ..Default::default()
                                             });

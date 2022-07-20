@@ -1,4 +1,4 @@
-use crate::{GameState, Handles, UiCamera};
+use crate::{GameState, Handles, MainCamera};
 use bevy::{asset::LoadState, prelude::*};
 
 pub struct LoadingPlugin;
@@ -17,9 +17,10 @@ fn loading_setup(
     mut handles: ResMut<Handles>,
     asset_server: Res<AssetServer>,
 ) {
-    commands
-        .spawn_bundle(UiCameraBundle::default())
-        .insert(UiCamera);
+    let mut camera = Camera2dBundle::default();
+    camera.transform.translation.y -= 10.0;
+
+    commands.spawn_bundle(camera).insert(MainCamera);
 
     for i in 1..=NUM_LEVELS {
         handles

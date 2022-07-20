@@ -25,7 +25,7 @@ use bevy::{
     window::CursorMoved,
 };
 
-use bevy_asset_ron::*;
+use bevy_common_assets::ron::RonAssetPlugin;
 use bevy_easings::*;
 use bevy_prototype_lyon::prelude::*;
 use itertools::Itertools;
@@ -157,12 +157,6 @@ fn main() {
         SystemSet::on_update(GameState::Playing)
             .after("score_ui")
             .with_system(show_score_dialog_system),
-    );
-
-    app.add_stage_after(
-        bevy_prototype_lyon::plugin::Stage::Shape,
-        "after_shape",
-        SystemStage::parallel(),
     );
 
     app.init_resource::<Handles>();
@@ -574,7 +568,7 @@ fn show_score_dialog_system(
     let level = match handles
         .levels
         .get(selected_level.0 as usize - 1)
-        .and_then(|h| levels.get(h.clone()))
+        .and_then(|h| levels.get(h))
     {
         Some(level) => level,
         None => return,
@@ -593,11 +587,11 @@ fn show_score_dialog_system(
 
     let dialog_style = Style {
         size: Size::new(Val::Px(320.0), Val::Px(300.0)),
-        margin: Rect {
+        margin: UiRect {
             top: Val::Px(-1000.0),
             ..Default::default()
         },
-        padding: Rect::all(Val::Px(20.0)),
+        padding: UiRect::all(Val::Px(20.0)),
         flex_direction: FlexDirection::ColumnReverse,
         justify_content: JustifyContent::SpaceBetween,
         align_items: AlignItems::Center,
@@ -646,14 +640,13 @@ fn show_score_dialog_system(
                 ..Default::default()
             });
             parent.spawn_bundle(TextBundle {
-                text: Text::with_section(
+                text: Text::from_section(
                     format!("Æ{}", score),
                     TextStyle {
                         font: handles.fonts[0].clone(),
                         font_size: 100.0,
                         color: FINISHED_ROAD_COLORS[1],
                     },
-                    Default::default(),
                 ),
                 ..Default::default()
             });
@@ -690,14 +683,13 @@ fn show_score_dialog_system(
                         .insert(DismissScoreDialogButton)
                         .with_children(|parent| {
                             parent.spawn_bundle(TextBundle {
-                                text: Text::with_section(
+                                text: Text::from_section(
                                     "DISMISS",
                                     TextStyle {
                                         font: handles.fonts[0].clone(),
                                         font_size: 30.0,
                                         color: Color::rgb(0.9, 0.9, 0.9),
                                     },
-                                    Default::default(),
                                 ),
                                 ..Default::default()
                             });
@@ -710,7 +702,7 @@ fn show_score_dialog_system(
                                 justify_content: JustifyContent::Center,
                                 // vertically center child text
                                 align_items: AlignItems::Center,
-                                margin: Rect {
+                                margin: UiRect {
                                     left: Val::Px(10.0),
                                     ..Default::default()
                                 },
@@ -722,14 +714,13 @@ fn show_score_dialog_system(
                         .insert(BackButton)
                         .with_children(|parent| {
                             parent.spawn_bundle(TextBundle {
-                                text: Text::with_section(
+                                text: Text::from_section(
                                     "ONWARD →",
                                     TextStyle {
                                         font: handles.fonts[0].clone(),
                                         font_size: 30.0,
                                         color: Color::rgb(0.9, 0.9, 0.9),
                                     },
-                                    Default::default(),
                                 ),
                                 ..Default::default()
                             });
@@ -807,7 +798,7 @@ fn pixie_button_system(
         } else {
             if !pathfinding.valid {
                 for (mut visibility, parent) in q_indicator.iter_mut() {
-                    visibility.is_visible = pathfinding.invalid_nodes.contains(&parent.0);
+                    visibility.is_visible = pathfinding.invalid_nodes.contains(&parent.get());
                 }
 
                 return;
@@ -1076,7 +1067,7 @@ fn keyboard_system(
         };
 
         let level = levels
-            .get(handles.levels[selected_level.0 as usize - 1].clone())
+            .get(&handles.levels[selected_level.0 as usize - 1])
             .unwrap();
 
         if layer <= level.layers {
@@ -1476,7 +1467,7 @@ fn net_ripping_mouse_movement_system(
                         if layer.0 == 0 {
                             None
                         } else {
-                            Some((parent.0, layer.0))
+                            Some((parent.get(), layer.0))
                         }
                     }
                 }
@@ -1671,11 +1662,11 @@ fn drawing_mouse_movement_system(
                                 }
 
                                 if start_touching {
-                                    connections.0.push(SegmentConnection::Split(parent.0));
+                                    connections.0.push(SegmentConnection::Split(parent.get()));
                                     split_layers.0.insert(layer.0);
                                 }
                                 if end_touching {
-                                    connections.1.push(SegmentConnection::Split(parent.0));
+                                    connections.1.push(SegmentConnection::Split(parent.get()));
                                     split_layers.1.insert(layer.0);
                                 }
                             }
@@ -1711,9 +1702,11 @@ fn drawing_mouse_movement_system(
                                     if matches!(collision, SegmentCollision::ConnectingParallel)
                                         && layer.0 == line_state.layer
                                     {
-                                        connections.0.push(SegmentConnection::TryExtend(parent.0))
+                                        connections
+                                            .0
+                                            .push(SegmentConnection::TryExtend(parent.get()))
                                     } else {
-                                        connections.0.push(SegmentConnection::Add(parent.0))
+                                        connections.0.push(SegmentConnection::Add(parent.get()))
                                     }
                                 }
                                 if (line_state.start == *b && start_touching)
@@ -1722,9 +1715,11 @@ fn drawing_mouse_movement_system(
                                     if matches!(collision, SegmentCollision::ConnectingParallel)
                                         && layer.0 == line_state.layer
                                     {
-                                        connections.1.push(SegmentConnection::TryExtend(parent.0))
+                                        connections
+                                            .1
+                                            .push(SegmentConnection::TryExtend(parent.get()))
                                     } else {
-                                        connections.1.push(SegmentConnection::Add(parent.0))
+                                        connections.1.push(SegmentConnection::Add(parent.get()))
                                     }
                                 }
                             }
@@ -1746,10 +1741,10 @@ fn drawing_mouse_movement_system(
                             }
 
                             if *a == *p {
-                                connections.0.push(SegmentConnection::Add(parent.0));
+                                connections.0.push(SegmentConnection::Add(parent.get()));
                             }
                             if *b == *p {
-                                connections.1.push(SegmentConnection::Add(parent.0));
+                                connections.1.push(SegmentConnection::Add(parent.get()));
                             }
                         }
                         SegmentCollision::None => {}
@@ -1935,16 +1930,12 @@ fn spawn_terminus(
                 };
 
                 parent.spawn_bundle(Text2dBundle {
-                    text: Text::with_section(
+                    text: Text::from_section(
                         label,
                         TextStyle {
                             font: handles.fonts[0].clone(),
                             font_size: 30.0,
                             color: PIXIE_COLORS[flavor.color as usize],
-                        },
-                        TextAlignment {
-                            vertical: VerticalAlign::Center,
-                            horizontal: HorizontalAlign::Center,
                         },
                     ),
                     transform: Transform::from_translation(label_pos.extend(layer::TERMINUS)),
@@ -1965,16 +1956,12 @@ fn spawn_terminus(
                 };
 
                 parent.spawn_bundle(Text2dBundle {
-                    text: Text::with_section(
+                    text: Text::from_section(
                         label,
                         TextStyle {
                             font: handles.fonts[0].clone(),
                             font_size: 30.0,
                             color: PIXIE_COLORS[flavor.color as usize],
-                        },
-                        TextAlignment {
-                            vertical: VerticalAlign::Center,
-                            horizontal: HorizontalAlign::Center,
                         },
                     ),
                     transform: Transform::from_translation(label_pos.extend(layer::TERMINUS)),
@@ -2128,7 +2115,7 @@ fn update_elapsed_text_system(
     }
 }
 
-fn playing_exit_system(mut commands: Commands, query: Query<Entity, Without<UiCamera>>) {
+fn playing_exit_system(mut commands: Commands, query: Query<Entity, Without<MainCamera>>) {
     for entity in query.iter() {
         commands.entity(entity).despawn();
     }
@@ -2171,11 +2158,6 @@ fn playing_enter_system(
 
     // Build arena
 
-    let mut camera = OrthographicCameraBundle::new_2d();
-    camera.transform.translation.y -= 10.0;
-
-    commands.spawn_bundle(camera).insert(MainCamera);
-
     for x in ((-25 * (GRID_SIZE as i32))..=25 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
         for y in (-15 * (GRID_SIZE as i32)..=15 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
             commands
@@ -2196,7 +2178,7 @@ fn playing_enter_system(
     let mut connections: Vec<(Vec2, NodeIndex)> = vec![];
 
     let level = levels
-        .get(handles.levels[selected_level.0 as usize - 1].clone())
+        .get(&handles.levels[selected_level.0 as usize - 1])
         .unwrap();
 
     for t in level.terminuses.iter() {
@@ -2253,7 +2235,7 @@ fn playing_enter_system(
             parent
                 .spawn_bundle(NodeBundle {
                     style: Style {
-                        padding: Rect::all(Val::Px(10.0)),
+                        padding: UiRect::all(Val::Px(10.0)),
                         size: Size::new(Val::Percent(100.0), Val::Px(BOTTOM_BAR_HEIGHT)),
                         flex_direction: FlexDirection::Row,
                         justify_content: JustifyContent::SpaceBetween,
@@ -2286,7 +2268,7 @@ fn playing_enter_system(
                                         justify_content: JustifyContent::Center,
                                         // vertically center child text
                                         align_items: AlignItems::Center,
-                                        margin: Rect {
+                                        margin: UiRect {
                                             right: Val::Px(20.0),
                                             ..Default::default()
                                         },
@@ -2298,14 +2280,13 @@ fn playing_enter_system(
                                 .insert(BackButton)
                                 .with_children(|parent| {
                                     parent.spawn_bundle(TextBundle {
-                                        text: Text::with_section(
+                                        text: Text::from_section(
                                             "←",
                                             TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
                                                 color: Color::rgb(0.9, 0.9, 0.9),
                                             },
-                                            Default::default(),
                                         ),
                                         ..Default::default()
                                     });
@@ -2323,7 +2304,7 @@ fn playing_enter_system(
                                             justify_content: JustifyContent::Center,
                                             // vertically center child text
                                             align_items: AlignItems::Center,
-                                            margin: Rect {
+                                            margin: UiRect {
                                                 left: Val::Px(10.0),
                                                 ..Default::default()
                                             },
@@ -2339,14 +2320,13 @@ fn playing_enter_system(
                                     })
                                     .with_children(|parent| {
                                         parent.spawn_bundle(TextBundle {
-                                            text: Text::with_section(
+                                            text: Text::from_section(
                                                 format!("{}", layer),
                                                 TextStyle {
                                                     font: handles.fonts[0].clone(),
                                                     font_size: 30.0,
                                                     color: Color::rgb(0.9, 0.9, 0.9),
                                                 },
-                                                Default::default(),
                                             ),
                                             ..Default::default()
                                         });
@@ -2364,7 +2344,7 @@ fn playing_enter_system(
                                         justify_content: JustifyContent::Center,
                                         // vertically center child text
                                         align_items: AlignItems::Center,
-                                        margin: Rect {
+                                        margin: UiRect {
                                             left: Val::Px(10.0),
                                             ..Default::default()
                                         },
@@ -2378,14 +2358,13 @@ fn playing_enter_system(
                                 .insert(RadioButton { selected: false })
                                 .with_children(|parent| {
                                     parent.spawn_bundle(TextBundle {
-                                        text: Text::with_section(
+                                        text: Text::from_section(
                                             "R",
                                             TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
                                                 color: Color::rgb(0.9, 0.9, 0.9),
                                             },
-                                            Default::default(),
                                         ),
                                         ..Default::default()
                                     });
@@ -2461,14 +2440,13 @@ fn playing_enter_system(
                                         size: Size::new(Val::Px(100.0), Val::Px(30.0)),
                                         ..Default::default()
                                     },
-                                    text: Text::with_section(
+                                    text: Text::from_section(
                                         "0",
                                         TextStyle {
                                             font: handles.fonts[0].clone(),
                                             font_size: 30.0,
                                             color: PIXIE_COLORS[1],
                                         },
-                                        Default::default(),
                                     ),
                                     ..Default::default()
                                 })
@@ -2548,14 +2526,13 @@ fn playing_enter_system(
                                 .insert(ResetButton)
                                 .with_children(|parent| {
                                     parent.spawn_bundle(TextBundle {
-                                        text: Text::with_section(
+                                        text: Text::from_section(
                                             "RESET",
                                             TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
                                                 color: Color::rgb(0.9, 0.9, 0.9),
                                             },
-                                            Default::default(),
                                         ),
                                         ..Default::default()
                                     });
@@ -2568,7 +2545,7 @@ fn playing_enter_system(
                                         justify_content: JustifyContent::Center,
                                         // vertically center child text
                                         align_items: AlignItems::Center,
-                                        margin: Rect {
+                                        margin: UiRect {
                                             left: Val::Px(10.0),
                                             ..Default::default()
                                         },
@@ -2580,14 +2557,13 @@ fn playing_enter_system(
                                 .insert(SpeedButton)
                                 .with_children(|parent| {
                                     parent.spawn_bundle(TextBundle {
-                                        text: Text::with_section(
+                                        text: Text::from_section(
                                             simulation_settings.speed.label(),
                                             TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
                                                 color: Color::rgb(0.9, 0.9, 0.9),
                                             },
-                                            Default::default(),
                                         ),
                                         ..Default::default()
                                     });
@@ -2600,7 +2576,7 @@ fn playing_enter_system(
                                         justify_content: JustifyContent::Center,
                                         // vertically center child text
                                         align_items: AlignItems::Center,
-                                        margin: Rect {
+                                        margin: UiRect {
                                             left: Val::Px(10.0),
                                             ..Default::default()
                                         },
@@ -2612,14 +2588,13 @@ fn playing_enter_system(
                                 .insert(PixieButton)
                                 .with_children(|parent| {
                                     parent.spawn_bundle(TextBundle {
-                                        text: Text::with_section(
+                                        text: Text::from_section(
                                             "RELEASE THE PIXIES",
                                             TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
                                                 color: Color::rgb(0.9, 0.9, 0.9),
                                             },
-                                            Default::default(),
                                         ),
                                         ..Default::default()
                                     });
