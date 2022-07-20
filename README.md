@@ -27,14 +27,14 @@ Bevy also has a few [dependencies](https://bevyengine.org/learn/book/getting-sta
 ### Native
 
 ```bash
-cargo run --profile release
+cargo run --elease
 ```
 
 ### Web
 
 ```bash
 cargo install cargo-make
-cargo make serve
+cargo make --profile release serve
 ```
 
 ## Contributing
