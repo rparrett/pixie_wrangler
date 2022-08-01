@@ -22,12 +22,12 @@ Pixie wrangler uses the [Bevy 0.8](https://bevyengine.org/) engine and is pretty
 
 - [Rust](https://www.rust-lang.org/tools/install)
 
-Bevy also has a few [dependencies](https://bevyengine.org/learn/book/getting-started/setup/) on windows and linux that you may need.
+Bevy also has a few [dependencies](https://bevyengine.org/learn/book/getting-started/setup/) on Windows and Linux that you may need.
 
 ### Native
 
 ```bash
-cargo run --elease
+cargo run --release
 ```
 
 ### Web
