@@ -373,14 +373,13 @@ fn tool_button_display_system(
     q_button: Query<(&RadioButton, &Children), (Changed<RadioButton>, With<ToolButton>)>,
 ) {
     for (button, children) in q_button.iter() {
-        for child in children.iter() {
-            if let Ok(mut text) = q_text.get_mut(*child) {
-                text.sections[0].style.color = if button.selected {
-                    Color::GREEN
-                } else {
-                    UI_WHITE_COLOR
-                };
-            }
+        let mut iter = q_text.iter_many_mut(children);
+        while let Some(mut text) = iter.fetch_next() {
+            text.sections[0].style.color = if button.selected {
+                Color::GREEN
+            } else {
+                UI_WHITE_COLOR
+            };
         }
     }
 }
@@ -526,17 +525,16 @@ fn pixie_button_text_system(
     }
 
     for children in q_pixie_button.iter() {
-        for child in children.iter() {
-            if let Ok(mut text) = q_text.get_mut(*child) {
-                if sim_state.started && !sim_state.done {
-                    text.sections[0].value = "NO WAIT STOP".to_string();
+        let mut iter = q_text.iter_many_mut(children);
+        while let Some(mut text) = iter.fetch_next() {
+            if sim_state.started && !sim_state.done {
+                text.sections[0].value = "NO WAIT STOP".to_string();
+            } else {
+                text.sections[0].value = "RELEASE THE PIXIES".to_string();
+                text.sections[0].style.color = if pathfinding.valid {
+                    UI_WHITE_COLOR
                 } else {
-                    text.sections[0].value = "RELEASE THE PIXIES".to_string();
-                    text.sections[0].style.color = if pathfinding.valid {
-                        UI_WHITE_COLOR
-                    } else {
-                        UI_GREY_RED_COLOR
-                    }
+                    UI_GREY_RED_COLOR
                 }
             }
         }
@@ -921,10 +919,9 @@ fn speed_button_system(
             SimulationSpeed::Fast => SimulationSpeed::Normal,
         };
 
-        for child in children.iter() {
-            if let Ok(mut text) = q_text.get_mut(*child) {
-                text.sections[0].value = simulation_settings.speed.label();
-            }
+        let mut iter = q_text.iter_many_mut(children);
+        while let Some(mut text) = iter.fetch_next() {
+            text.sections[0].value = simulation_settings.speed.label();
         }
     }
 }
