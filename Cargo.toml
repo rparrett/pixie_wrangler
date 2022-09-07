@@ -8,7 +8,15 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 
-bevy = "0.8"
+bevy = { version = "0.8", default-features = false, features = [
+    "bevy_asset",
+    "bevy_winit",
+    "bevy_core_pipeline",
+    "bevy_sprite",
+    "bevy_text",
+    "bevy_ui",
+    "x11",
+] }
 
 bevy_prototype_lyon = "0.6"
 bevy_easings = "0.8"
