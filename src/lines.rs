@@ -71,7 +71,7 @@ pub fn possible_lines(
         return vec![vec![(from, a), (a, to)], vec![(from, b), (b, to)]];
     }
 
-    return vec![vec![(from, b), (b, to)], vec![(from, a), (a, to)]];
+    vec![vec![(from, b), (b, to)], vec![(from, a), (a, to)]]
 }
 
 pub fn distance_on_path(start: Vec2, point: Vec2, segments: &[(Vec2, Vec2)]) -> Option<f32> {
