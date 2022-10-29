@@ -34,7 +34,7 @@ impl Plugin for SimulationPlugin {
 
 pub const SIMULATION_TIMESTEP: f32 = 0.016_666_668;
 
-#[derive(Default)]
+#[derive(Resource, Default)]
 pub struct SimulationState {
     pub started: bool,
     pub tick: u32,
@@ -111,7 +111,7 @@ impl SimulationSpeed {
         }
     }
 }
-#[derive(Default)]
+#[derive(Resource, Default)]
 pub struct SimulationSettings {
     pub speed: SimulationSpeed,
 }

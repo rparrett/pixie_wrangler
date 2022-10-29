@@ -52,7 +52,7 @@ fn radio_button_group_system(
 
 fn radio_button_system(
     mut interaction_query: Query<
-        (&mut RadioButton, &Interaction, &mut UiColor),
+        (&mut RadioButton, &Interaction, &mut BackgroundColor),
         (Changed<Interaction>, With<Button>, With<RadioButton>),
     >,
 ) {

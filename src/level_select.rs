@@ -57,30 +57,30 @@ fn level_select_enter(
     let total_score: u32 = best_scores.0.iter().map(|(_, v)| v).sum();
 
     commands
-        .spawn_bundle(NodeBundle {
-            style: Style {
-                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-                flex_direction: FlexDirection::ColumnReverse,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::SpaceEvenly,
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::SpaceEvenly,
+                    ..Default::default()
+                },
                 ..Default::default()
             },
-            color: Color::NONE.into(),
-            ..Default::default()
-        })
-        .insert(LevelSelectScreen)
+            LevelSelectScreen,
+        ))
         .with_children(|parent| {
             parent
-                .spawn_bundle(NodeBundle {
+                .spawn(NodeBundle {
                     style: Style {
-                        flex_direction: FlexDirection::ColumnReverse,
+                        flex_direction: FlexDirection::Column,
                         ..Default::default()
                     },
-                    color: Color::NONE.into(),
                     ..Default::default()
                 })
                 .with_children(|parent| {
-                    parent.spawn_bundle(TextBundle {
+                    parent.spawn(TextBundle {
                         style: Style {
                             align_self: AlignSelf::Center,
                             ..Default::default()
@@ -95,7 +95,7 @@ fn level_select_enter(
                         ),
                         ..Default::default()
                     });
-                    parent.spawn_bundle(TextBundle {
+                    parent.spawn(TextBundle {
                         style: Style {
                             align_self: AlignSelf::Center,
                             ..Default::default()
@@ -113,15 +113,14 @@ fn level_select_enter(
                 });
 
             parent
-                .spawn_bundle(NodeBundle {
+                .spawn(NodeBundle {
                     style: Style {
                         size: Size::new(Val::Percent(100.0), Val::Auto),
-                        flex_direction: FlexDirection::ColumnReverse,
+                        flex_direction: FlexDirection::Column,
                         align_items: AlignItems::Center,
                         justify_content: JustifyContent::Center,
                         ..Default::default()
                     },
-                    color: Color::NONE.into(),
                     ..Default::default()
                 })
                 .with_children(|parent| {
@@ -130,39 +129,40 @@ fn level_select_enter(
 
                     for row in 0..rows {
                         parent
-                            .spawn_bundle(NodeBundle {
+                            .spawn(NodeBundle {
                                 style: Style {
                                     flex_direction: FlexDirection::Row,
                                     align_items: AlignItems::Center,
                                     justify_content: JustifyContent::Center,
                                     ..Default::default()
                                 },
-                                color: Color::NONE.into(),
                                 ..Default::default()
                             })
                             .with_children(|parent| {
                                 for col in 0..cols {
                                     let i = row * cols + col + 1;
                                     parent
-                                        .spawn_bundle(ButtonBundle {
-                                            style: Style {
-                                                size: Size::new(Val::Px(150.0), Val::Px(150.0)),
-                                                flex_direction: FlexDirection::ColumnReverse,
-                                                // horizontally center child text
-                                                justify_content: JustifyContent::Center,
-                                                // vertically center child text
-                                                align_items: AlignItems::Center,
-                                                margin: UiRect {
-                                                    left: Val::Px(10.0),
-                                                    bottom: Val::Px(10.0),
+                                        .spawn((
+                                            ButtonBundle {
+                                                style: Style {
+                                                    size: Size::new(Val::Px(150.0), Val::Px(150.0)),
+                                                    flex_direction: FlexDirection::Column,
+                                                    // horizontally center child text
+                                                    justify_content: JustifyContent::Center,
+                                                    // vertically center child text
+                                                    align_items: AlignItems::Center,
+                                                    margin: UiRect {
+                                                        left: Val::Px(10.0),
+                                                        bottom: Val::Px(10.0),
+                                                        ..Default::default()
+                                                    },
                                                     ..Default::default()
                                                 },
+                                                background_color: crate::NORMAL_BUTTON.into(),
                                                 ..Default::default()
                                             },
-                                            color: crate::NORMAL_BUTTON.into(),
-                                            ..Default::default()
-                                        })
-                                        .insert(LevelSelectButton(i))
+                                            LevelSelectButton(i),
+                                        ))
                                         .with_children(|parent| {
                                             let level = handles
                                                 .levels
@@ -193,7 +193,7 @@ fn level_select_enter(
                                                     ("".to_string(), "".to_string(), "".to_string())
                                                 };
 
-                                            parent.spawn_bundle(TextBundle {
+                                            parent.spawn(TextBundle {
                                                 text: Text {
                                                     sections: vec![
                                                         TextSection {
@@ -218,7 +218,7 @@ fn level_select_enter(
                                                 ..Default::default()
                                             });
 
-                                            parent.spawn_bundle(TextBundle {
+                                            parent.spawn(TextBundle {
                                                 text: Text::from_section(
                                                     format!("{}", i),
                                                     TextStyle {
@@ -230,7 +230,7 @@ fn level_select_enter(
                                                 ..Default::default()
                                             });
 
-                                            parent.spawn_bundle(TextBundle {
+                                            parent.spawn(TextBundle {
                                                 text: Text::from_section(
                                                     score_text,
                                                     TextStyle {

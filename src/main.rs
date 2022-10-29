@@ -18,7 +18,7 @@ use crate::{
 
 use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    log::LogSettings,
+    log::LogPlugin,
     prelude::*,
     utils::HashSet,
     utils::{Duration, HashMap},
@@ -54,31 +54,36 @@ fn main() {
     let mut app = App::new();
 
     app.insert_resource(ClearColor(BACKGROUND_COLOR))
-        .insert_resource(Msaa { samples: 4 })
-        .insert_resource(WindowDescriptor {
-            title: String::from("Pixie Wrangler"),
-            width: 1280.,
-            height: 720.,
-            #[cfg(target_arch = "wasm32")]
-            canvas: Some("#bevy-canvas".to_string()),
-            ..Default::default()
-        })
-        .insert_resource(LogSettings {
-            //filter: "wgpu=trace".to_string(),
-            ..Default::default()
-        });
+        .insert_resource(Msaa { samples: 4 });
 
-    app.add_plugins(DefaultPlugins)
-        .add_plugin(ShapePlugin)
-        .add_plugin(RadioButtonPlugin)
-        .add_plugin(PixiePlugin)
-        .add_plugin(SimulationPlugin)
-        .add_plugin(LoadingPlugin)
-        .add_plugin(LevelSelectPlugin)
-        .add_plugin(SavePlugin)
-        .add_plugin(DebugLinesPlugin)
-        .add_plugin(EasingsPlugin)
-        .add_plugin(RonAssetPlugin::<Level>::new(&["level.ron"]));
+    app.add_plugins(
+        DefaultPlugins
+            .set(LogPlugin {
+                //filter: "wgpu=trace".to_string(),
+                ..Default::default()
+            })
+            .set(WindowPlugin {
+                window: WindowDescriptor {
+                    title: String::from("Pixie Wrangler"),
+                    width: 1280.,
+                    height: 720.,
+                    #[cfg(target_arch = "wasm32")]
+                    canvas: Some("#bevy-canvas".to_string()),
+                    ..Default::default()
+                },
+                ..default()
+            }),
+    )
+    .add_plugin(ShapePlugin)
+    .add_plugin(RadioButtonPlugin)
+    .add_plugin(PixiePlugin)
+    .add_plugin(SimulationPlugin)
+    .add_plugin(LoadingPlugin)
+    .add_plugin(LevelSelectPlugin)
+    .add_plugin(SavePlugin)
+    .add_plugin(DebugLinesPlugin)
+    .add_plugin(EasingsPlugin)
+    .add_plugin(RonAssetPlugin::<Level>::new(&["level.ron"]));
 
     app.add_state(GameState::Loading);
 
@@ -184,7 +189,7 @@ enum GameState {
     Playing,
 }
 
-#[derive(Default)]
+#[derive(Resource, Default)]
 struct Handles {
     levels: Vec<Handle<Level>>,
     fonts: Vec<Handle<Font>>,
@@ -231,13 +236,13 @@ struct PlayAreaNode;
 #[derive(Component)]
 struct ScoreDialog;
 
-#[derive(Default)]
+#[derive(Resource, Default)]
 struct SelectedLevel(u32);
-#[derive(Default)]
+#[derive(Resource, Default)]
 pub struct PixieCount(u32);
-#[derive(Default)]
+#[derive(Resource, Default)]
 struct Cost(u32);
-#[derive(Default)]
+#[derive(Resource, Default)]
 struct Score(Option<u32>);
 #[derive(Default)]
 struct BestScore(Option<u32>);
@@ -261,11 +266,11 @@ impl Default for DrawingMode {
         DrawingMode::LineDrawing
     }
 }
-#[derive(Default)]
+#[derive(Resource, Default)]
 struct DrawingState {
     mode: DrawingMode,
 }
-
+#[derive(Resource)]
 struct LineDrawingState {
     drawing: bool,
     start: Vec2,
@@ -294,14 +299,14 @@ impl Default for LineDrawingState {
         }
     }
 }
-#[derive(Default)]
+#[derive(Resource, Default)]
 struct NetRippingState {
     entities: Vec<Entity>,
     nodes: Vec<NodeIndex>,
     segments: Vec<(Vec2, Vec2)>,
 }
 
-#[derive(Default)]
+#[derive(Resource, Default)]
 struct PathfindingState {
     valid: bool,
     paths: Vec<(PixieFlavor, Entity, Vec<RoadSegment>)>,
@@ -311,12 +316,12 @@ struct PathfindingState {
 #[derive(Component)]
 struct TerminusIssueIndicator;
 
-#[derive(Default)]
+#[derive(Resource, Default)]
 struct RoadGraph {
     graph: StableUnGraph<Entity, f32>,
 }
 
-#[derive(Default, Debug)]
+#[derive(Resource, Default, Debug)]
 struct MouseState {
     position: Vec2,
     snapped: Vec2,
@@ -412,7 +417,7 @@ fn tool_button_system(
 
 fn button_system(
     mut q_interaction: Query<
-        (&Interaction, &mut UiColor),
+        (&Interaction, &mut BackgroundColor),
         (Changed<Interaction>, With<Button>, Without<RadioButton>),
     >,
 ) {
@@ -548,7 +553,7 @@ fn show_score_dialog_system(
     selected_level: Res<SelectedLevel>,
     levels: Res<Assets<Level>>,
     score: Res<Score>,
-    mut q_node: Query<(Entity, &mut UiColor), With<PlayAreaNode>>,
+    mut q_node: Query<(Entity, &mut BackgroundColor), With<PlayAreaNode>>,
     q_dialog: Query<Entity, With<ScoreDialog>>,
 ) {
     if !sim_state.is_changed() && !score.is_changed() {
@@ -590,7 +595,7 @@ fn show_score_dialog_system(
             ..Default::default()
         },
         padding: UiRect::all(Val::Px(20.0)),
-        flex_direction: FlexDirection::ColumnReverse,
+        flex_direction: FlexDirection::Column,
         justify_content: JustifyContent::SpaceBetween,
         align_items: AlignItems::Center,
         ..Default::default()
@@ -599,21 +604,23 @@ fn show_score_dialog_system(
     dialog_style_to.margin.top = Val::Px(0.0);
 
     let dialog_entity = commands
-        .spawn_bundle(NodeBundle {
-            style: dialog_style.clone(),
-            color: Color::rgb(0.2, 0.2, 0.2).into(),
-            ..Default::default()
-        })
-        .insert(dialog_style.ease_to(
-            dialog_style_to,
-            EaseFunction::QuadraticInOut,
-            EasingType::Once {
-                duration: Duration::from_secs_f32(0.7),
+        .spawn((
+            NodeBundle {
+                style: dialog_style.clone(),
+                background_color: Color::rgb(0.2, 0.2, 0.2).into(),
+                ..Default::default()
             },
+            dialog_style.ease_to(
+                dialog_style_to,
+                EaseFunction::QuadraticInOut,
+                EasingType::Once {
+                    duration: Duration::from_secs_f32(0.7),
+                },
+            ),
+            ScoreDialog,
         ))
-        .insert(ScoreDialog)
         .with_children(|parent| {
-            parent.spawn_bundle(TextBundle {
+            parent.spawn(TextBundle {
                 text: Text {
                     sections: vec![
                         TextSection {
@@ -637,7 +644,7 @@ fn show_score_dialog_system(
                 },
                 ..Default::default()
             });
-            parent.spawn_bundle(TextBundle {
+            parent.spawn(TextBundle {
                 text: Text::from_section(
                     format!("Æ{}", score),
                     TextStyle {
@@ -651,7 +658,7 @@ fn show_score_dialog_system(
 
             // bottom buttons
             parent
-                .spawn_bundle(NodeBundle {
+                .spawn(NodeBundle {
                     style: Style {
                         size: Size::new(Val::Percent(100.0), Val::Px(70.0)),
                         flex_direction: FlexDirection::Row,
@@ -661,26 +668,27 @@ fn show_score_dialog_system(
                         align_items: AlignItems::Center,
                         ..Default::default()
                     },
-                    color: Color::NONE.into(),
                     ..Default::default()
                 })
                 .with_children(|parent| {
                     parent
-                        .spawn_bundle(ButtonBundle {
-                            style: Style {
-                                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-                                // horizontally center child text
-                                justify_content: JustifyContent::Center,
-                                // vertically center child text
-                                align_items: AlignItems::Center,
+                        .spawn((
+                            ButtonBundle {
+                                style: Style {
+                                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                                    // horizontally center child text
+                                    justify_content: JustifyContent::Center,
+                                    // vertically center child text
+                                    align_items: AlignItems::Center,
+                                    ..Default::default()
+                                },
+                                background_color: NORMAL_BUTTON.into(),
                                 ..Default::default()
                             },
-                            color: NORMAL_BUTTON.into(),
-                            ..Default::default()
-                        })
-                        .insert(DismissScoreDialogButton)
+                            DismissScoreDialogButton,
+                        ))
                         .with_children(|parent| {
-                            parent.spawn_bundle(TextBundle {
+                            parent.spawn(TextBundle {
                                 text: Text::from_section(
                                     "DISMISS",
                                     TextStyle {
@@ -693,25 +701,27 @@ fn show_score_dialog_system(
                             });
                         });
                     parent
-                        .spawn_bundle(ButtonBundle {
-                            style: Style {
-                                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-                                // horizontally center child text
-                                justify_content: JustifyContent::Center,
-                                // vertically center child text
-                                align_items: AlignItems::Center,
-                                margin: UiRect {
-                                    left: Val::Px(10.0),
+                        .spawn((
+                            ButtonBundle {
+                                style: Style {
+                                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                                    // horizontally center child text
+                                    justify_content: JustifyContent::Center,
+                                    // vertically center child text
+                                    align_items: AlignItems::Center,
+                                    margin: UiRect {
+                                        left: Val::Px(10.0),
+                                        ..Default::default()
+                                    },
                                     ..Default::default()
                                 },
+                                background_color: NORMAL_BUTTON.into(),
                                 ..Default::default()
                             },
-                            color: NORMAL_BUTTON.into(),
-                            ..Default::default()
-                        })
-                        .insert(BackButton)
+                            BackButton,
+                        ))
                         .with_children(|parent| {
-                            parent.spawn_bundle(TextBundle {
+                            parent.spawn(TextBundle {
                                 text: Text::from_section(
                                     "ONWARD →",
                                     TextStyle {
@@ -753,7 +763,7 @@ fn dismiss_score_dialog_button_system(
         ),
     >,
     q_dialog: Query<Entity, With<ScoreDialog>>,
-    mut q_node: Query<&mut UiColor, With<PlayAreaNode>>,
+    mut q_node: Query<&mut BackgroundColor, With<PlayAreaNode>>,
 ) {
     for _ in q_interaction.iter().filter(|i| **i == Interaction::Clicked) {
         if let Ok(entity) = q_dialog.get_single() {
@@ -831,10 +841,10 @@ fn pixie_button_system(
                 // point, stagger their emitters evenly. this prevents some
                 // awkward bunching up at the start of the path.
 
-                let mut timer = Timer::from_seconds(duration * *count as f32, true);
+                let mut timer = Timer::from_seconds(duration * *count as f32, TimerMode::Repeating);
                 timer.set_elapsed(Duration::from_secs_f32((*i + 1) as f32 * duration));
 
-                commands.spawn().insert(PixieEmitter {
+                commands.spawn(PixieEmitter {
                     flavor: *flavor,
                     path: world_path.clone(),
                     remaining: pixies,
@@ -954,13 +964,14 @@ fn draw_mouse_system(
         } else {
             Color::RED
         };
-        commands
-            .spawn_bundle(GeometryBuilder::build_as(
+        commands.spawn((
+            GeometryBuilder::build_as(
                 &shape,
                 DrawMode::Stroke(StrokeMode::new(color, 2.0)),
                 Transform::from_translation(snapped.extend(layer::CURSOR)),
-            ))
-            .insert(Cursor);
+            ),
+            Cursor,
+        ));
     }
 
     if !line_drawing.is_changed() {
@@ -979,13 +990,14 @@ fn draw_mouse_system(
         };
 
         for (a, b) in line_drawing.segments.iter() {
-            commands
-                .spawn_bundle(GeometryBuilder::build_as(
+            commands.spawn((
+                GeometryBuilder::build_as(
                     &shapes::Line(*a, *b),
                     DrawMode::Stroke(StrokeMode::new(color, 2.0)),
                     Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
-                ))
-                .insert(DrawingLine);
+                ),
+                DrawingLine,
+            ));
         }
     }
 }
@@ -1004,13 +1016,14 @@ fn draw_net_ripping_system(
     }
 
     for (a, b) in ripping_state.segments.iter() {
-        commands
-            .spawn_bundle(GeometryBuilder::build_as(
+        commands.spawn((
+            GeometryBuilder::build_as(
                 &shapes::Line(*a, *b),
                 DrawMode::Stroke(StrokeMode::new(Color::RED, 2.0)),
                 Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
-            ))
-            .insert(RippingLine);
+            ),
+            RippingLine,
+        ));
     }
 }
 
@@ -1403,10 +1416,9 @@ fn mouse_movement_system(
     mut cursor_moved_events: EventReader<CursorMoved>,
     mut mouse: ResMut<MouseState>,
     windows: Res<Windows>,
-    q_camera: Query<&Transform, With<MainCamera>>,
+    q_camera: Query<&GlobalTransform, With<MainCamera>>,
 ) {
-    // assuming there is exactly one main camera entity, so this is OK
-    let camera_transform = q_camera.iter().next().unwrap();
+    let camera_transform = q_camera.single();
 
     for event in cursor_moved_events.iter() {
         let window = windows.get(event.id).unwrap();
@@ -1805,17 +1817,19 @@ fn spawn_road_segment(
 ) -> (Entity, NodeIndex, NodeIndex) {
     let color = FINISHED_ROAD_COLORS[segment.layer as usize - 1];
     let ent = commands
-        .spawn_bundle(GeometryBuilder::build_as(
-            &shapes::Line(segment.points.0, segment.points.1),
-            DrawMode::Stroke(StrokeMode::new(color, 2.0)),
-            Transform::from_xyz(0.0, 0.0, layer::ROAD - segment.layer as f32),
+        .spawn((
+            GeometryBuilder::build_as(
+                &shapes::Line(segment.points.0, segment.points.1),
+                DrawMode::Stroke(StrokeMode::new(color, 2.0)),
+                Transform::from_xyz(0.0, 0.0, layer::ROAD - segment.layer as f32),
+            ),
+            segment.clone(),
         ))
-        .insert(segment.clone())
         .with_children(|parent| {
-            parent
-                .spawn()
-                .insert(Collider::Segment(segment.points))
-                .insert(ColliderLayer(segment.layer));
+            parent.spawn((
+                Collider::Segment(segment.points),
+                ColliderLayer(segment.layer),
+            ));
         })
         .id();
 
@@ -1841,7 +1855,7 @@ fn spawn_obstacle(commands: &mut Commands, obstacle: &Obstacle) {
             let origin = (*top_left + *bottom_right) / 2.0;
 
             commands
-                .spawn_bundle(GeometryBuilder::build_as(
+                .spawn(GeometryBuilder::build_as(
                     &shapes::Rectangle {
                         extents: Vec2::new(diff.x.abs(), diff.y.abs()),
                         ..Default::default()
@@ -1850,34 +1864,34 @@ fn spawn_obstacle(commands: &mut Commands, obstacle: &Obstacle) {
                     Transform::from_translation(origin.extend(layer::OBSTACLE)),
                 ))
                 .with_children(|parent| {
-                    parent
-                        .spawn()
-                        .insert(Collider::Segment((
+                    parent.spawn((
+                        Collider::Segment((
                             Vec2::new(top_left.x, top_left.y),
                             Vec2::new(bottom_right.x, top_left.y),
-                        )))
-                        .insert(ColliderLayer(0));
-                    parent
-                        .spawn()
-                        .insert(Collider::Segment((
+                        )),
+                        ColliderLayer(0),
+                    ));
+                    parent.spawn((
+                        Collider::Segment((
                             Vec2::new(bottom_right.x, top_left.y),
                             Vec2::new(bottom_right.x, bottom_right.y),
-                        )))
-                        .insert(ColliderLayer(0));
-                    parent
-                        .spawn()
-                        .insert(Collider::Segment((
+                        )),
+                        ColliderLayer(0),
+                    ));
+                    parent.spawn((
+                        Collider::Segment((
                             Vec2::new(bottom_right.x, bottom_right.y),
                             Vec2::new(top_left.x, bottom_right.y),
-                        )))
-                        .insert(ColliderLayer(0));
-                    parent
-                        .spawn()
-                        .insert(Collider::Segment((
+                        )),
+                        ColliderLayer(0),
+                    ));
+                    parent.spawn((
+                        Collider::Segment((
                             Vec2::new(top_left.x, bottom_right.y),
                             Vec2::new(top_left.x, top_left.y),
-                        )))
-                        .insert(ColliderLayer(0));
+                        )),
+                        ColliderLayer(0),
+                    ));
                 });
         }
         _ => {
@@ -1896,23 +1910,22 @@ fn spawn_terminus(
     let label_spacing = 22.0;
 
     let ent = commands
-        .spawn_bundle(GeometryBuilder::build_as(
-            &shapes::Circle {
-                radius: 5.5,
-                center: Vec2::splat(0.0),
-            },
-            DrawMode::Outlined {
-                fill_mode: FillMode::color(BACKGROUND_COLOR),
-                outline_mode: StrokeMode::new(FINISHED_ROAD_COLORS[0], 2.0),
-            },
-            Transform::from_translation(terminus.point.extend(layer::TERMINUS)),
+        .spawn((
+            GeometryBuilder::build_as(
+                &shapes::Circle {
+                    radius: 5.5,
+                    center: Vec2::splat(0.0),
+                },
+                DrawMode::Outlined {
+                    fill_mode: FillMode::color(BACKGROUND_COLOR),
+                    outline_mode: StrokeMode::new(FINISHED_ROAD_COLORS[0], 2.0),
+                },
+                Transform::from_translation(terminus.point.extend(layer::TERMINUS)),
+            ),
+            terminus.clone(),
         ))
-        .insert(terminus.clone())
         .with_children(|parent| {
-            parent
-                .spawn()
-                .insert(Collider::Point(terminus.point))
-                .insert(ColliderLayer(1));
+            parent.spawn((Collider::Point(terminus.point), ColliderLayer(1)));
 
             let mut i = 0;
 
@@ -1926,7 +1939,7 @@ fn spawn_terminus(
                     "OUT".to_string()
                 };
 
-                parent.spawn_bundle(Text2dBundle {
+                parent.spawn(Text2dBundle {
                     text: Text::from_section(
                         label,
                         TextStyle {
@@ -1952,7 +1965,7 @@ fn spawn_terminus(
                     "IN".to_string()
                 };
 
-                parent.spawn_bundle(Text2dBundle {
+                parent.spawn(Text2dBundle {
                     text: Text::from_section(
                         label,
                         TextStyle {
@@ -1972,16 +1985,18 @@ fn spawn_terminus(
             // assumes a single emitter.
 
             parent
-                .spawn_bundle(GeometryBuilder::build_as(
-                    &shapes::Circle {
-                        radius: 5.5,
-                        center: Vec2::splat(0.0),
-                    },
-                    DrawMode::Fill(FillMode::color(Color::RED)),
-                    Transform::from_xyz(-30.0, -1.0 * label_offset, layer::TERMINUS),
+                .spawn((
+                    GeometryBuilder::build_as(
+                        &shapes::Circle {
+                            radius: 5.5,
+                            center: Vec2::splat(0.0),
+                        },
+                        DrawMode::Fill(FillMode::color(Color::RED)),
+                        Transform::from_xyz(-30.0, -1.0 * label_offset, layer::TERMINUS),
+                    ),
+                    TerminusIssueIndicator,
                 ))
-                .insert(Visibility { is_visible: false })
-                .insert(TerminusIssueIndicator);
+                .insert(Visibility { is_visible: false });
         })
         .id();
 
@@ -2157,16 +2172,17 @@ fn playing_enter_system(
 
     for x in ((-25 * (GRID_SIZE as i32))..=25 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
         for y in (-15 * (GRID_SIZE as i32)..=15 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
-            commands
-                .spawn_bundle(GeometryBuilder::build_as(
+            commands.spawn((
+                GeometryBuilder::build_as(
                     &shapes::Circle {
                         radius: 2.5,
                         ..Default::default()
                     },
                     DrawMode::Fill(FillMode::color(GRID_COLOR)),
                     Transform::from_xyz(x as f32, y as f32, layer::GRID),
-                ))
-                .insert(GridPoint);
+                ),
+                GridPoint,
+            ));
         }
     }
 
@@ -2216,21 +2232,20 @@ fn playing_enter_system(
     // Build UI
 
     commands
-        .spawn_bundle(NodeBundle {
+        .spawn(NodeBundle {
             style: Style {
                 size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-                flex_direction: FlexDirection::Column,
+                flex_direction: FlexDirection::ColumnReverse,
                 justify_content: JustifyContent::FlexStart,
                 align_items: AlignItems::Center,
                 ..Default::default()
             },
-            color: Color::NONE.into(),
             ..Default::default()
         })
         .with_children(|parent| {
             // bottom bar
             parent
-                .spawn_bundle(NodeBundle {
+                .spawn(NodeBundle {
                     style: Style {
                         padding: UiRect::all(Val::Px(10.0)),
                         size: Size::new(Val::Percent(100.0), Val::Px(BOTTOM_BAR_HEIGHT)),
@@ -2239,12 +2254,12 @@ fn playing_enter_system(
                         align_items: AlignItems::Center,
                         ..Default::default()
                     },
-                    color: Color::rgb(0.09, 0.11, 0.13).into(),
+                    background_color: Color::rgb(0.09, 0.11, 0.13).into(),
                     ..Default::default()
                 })
                 .with_children(|parent| {
                     parent
-                        .spawn_bundle(NodeBundle {
+                        .spawn(NodeBundle {
                             style: Style {
                                 size: Size::new(Val::Auto, Val::Percent(100.0)),
                                 flex_direction: FlexDirection::Row,
@@ -2252,31 +2267,32 @@ fn playing_enter_system(
                                 align_items: AlignItems::Center,
                                 ..Default::default()
                             },
-                            color: Color::NONE.into(),
                             ..Default::default()
                         })
                         .with_children(|parent| {
                             // Back button
                             parent
-                                .spawn_bundle(ButtonBundle {
-                                    style: Style {
-                                        size: Size::new(Val::Px(50.0), Val::Percent(100.0)),
-                                        // horizontally center child text
-                                        justify_content: JustifyContent::Center,
-                                        // vertically center child text
-                                        align_items: AlignItems::Center,
-                                        margin: UiRect {
-                                            right: Val::Px(20.0),
+                                .spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            size: Size::new(Val::Px(50.0), Val::Percent(100.0)),
+                                            // horizontally center child text
+                                            justify_content: JustifyContent::Center,
+                                            // vertically center child text
+                                            align_items: AlignItems::Center,
+                                            margin: UiRect {
+                                                right: Val::Px(20.0),
+                                                ..Default::default()
+                                            },
                                             ..Default::default()
                                         },
+                                        background_color: NORMAL_BUTTON.into(),
                                         ..Default::default()
                                     },
-                                    color: NORMAL_BUTTON.into(),
-                                    ..Default::default()
-                                })
-                                .insert(BackButton)
+                                    BackButton,
+                                ))
                                 .with_children(|parent| {
-                                    parent.spawn_bundle(TextBundle {
+                                    parent.spawn(TextBundle {
                                         text: Text::from_section(
                                             "←",
                                             TextStyle {
@@ -2294,29 +2310,31 @@ fn playing_enter_system(
 
                             for layer in 1..=level.layers {
                                 let id = parent
-                                    .spawn_bundle(ButtonBundle {
-                                        style: Style {
-                                            size: Size::new(Val::Px(50.0), Val::Percent(100.0)),
-                                            // horizontally center child text
-                                            justify_content: JustifyContent::Center,
-                                            // vertically center child text
-                                            align_items: AlignItems::Center,
-                                            margin: UiRect {
-                                                left: Val::Px(10.0),
+                                    .spawn((
+                                        ButtonBundle {
+                                            style: Style {
+                                                size: Size::new(Val::Px(50.0), Val::Percent(100.0)),
+                                                // horizontally center child text
+                                                justify_content: JustifyContent::Center,
+                                                // vertically center child text
+                                                align_items: AlignItems::Center,
+                                                margin: UiRect {
+                                                    left: Val::Px(10.0),
+                                                    ..Default::default()
+                                                },
                                                 ..Default::default()
                                             },
+                                            background_color: NORMAL_BUTTON.into(),
                                             ..Default::default()
                                         },
-                                        color: NORMAL_BUTTON.into(),
-                                        ..Default::default()
-                                    })
-                                    .insert(LayerButton(layer))
-                                    .insert(ToolButton)
-                                    .insert(RadioButton {
-                                        selected: layer == 1,
-                                    })
+                                        LayerButton(layer),
+                                        ToolButton,
+                                        RadioButton {
+                                            selected: layer == 1,
+                                        },
+                                    ))
                                     .with_children(|parent| {
-                                        parent.spawn_bundle(TextBundle {
+                                        parent.spawn(TextBundle {
                                             text: Text::from_section(
                                                 format!("{}", layer),
                                                 TextStyle {
@@ -2334,27 +2352,29 @@ fn playing_enter_system(
                             }
 
                             let net_ripping_id = parent
-                                .spawn_bundle(ButtonBundle {
-                                    style: Style {
-                                        size: Size::new(Val::Px(50.0), Val::Percent(100.0)),
-                                        // horizontally center child text
-                                        justify_content: JustifyContent::Center,
-                                        // vertically center child text
-                                        align_items: AlignItems::Center,
-                                        margin: UiRect {
-                                            left: Val::Px(10.0),
+                                .spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            size: Size::new(Val::Px(50.0), Val::Percent(100.0)),
+                                            // horizontally center child text
+                                            justify_content: JustifyContent::Center,
+                                            // vertically center child text
+                                            align_items: AlignItems::Center,
+                                            margin: UiRect {
+                                                left: Val::Px(10.0),
+                                                ..Default::default()
+                                            },
                                             ..Default::default()
                                         },
+                                        background_color: NORMAL_BUTTON.into(),
                                         ..Default::default()
                                     },
-                                    color: NORMAL_BUTTON.into(),
-                                    ..Default::default()
-                                })
-                                .insert(NetRippingButton)
-                                .insert(ToolButton)
-                                .insert(RadioButton { selected: false })
+                                    NetRippingButton,
+                                    ToolButton,
+                                    RadioButton { selected: false },
+                                ))
                                 .with_children(|parent| {
-                                    parent.spawn_bundle(TextBundle {
+                                    parent.spawn(TextBundle {
                                         text: Text::from_section(
                                             "R",
                                             TextStyle {
@@ -2371,8 +2391,7 @@ fn playing_enter_system(
                             tool_button_ids.push(net_ripping_id);
 
                             let tool_group_id = more_commands
-                                .spawn()
-                                .insert(RadioButtonGroup {
+                                .spawn(RadioButtonGroup {
                                     entities: tool_button_ids.clone(),
                                 })
                                 .id();
@@ -2386,7 +2405,7 @@ fn playing_enter_system(
 
                     // Score, etc
                     parent
-                        .spawn_bundle(NodeBundle {
+                        .spawn(NodeBundle {
                             style: Style {
                                 size: Size::new(Val::Auto, Val::Percent(100.0)),
                                 flex_direction: FlexDirection::Row,
@@ -2394,18 +2413,16 @@ fn playing_enter_system(
                                 align_items: AlignItems::Center,
                                 ..Default::default()
                             },
-                            color: Color::NONE.into(),
                             ..Default::default()
                         })
                         .with_children(|parent| {
                             // Score etc
-                            parent
-                                .spawn_bundle(TextBundle {
+                            parent.spawn((
+                                TextBundle {
                                     style: Style {
                                         size: Size::new(Val::Px(120.0), Val::Px(30.0)),
                                         ..Default::default()
                                     },
-
                                     text: Text {
                                         sections: vec![
                                             TextSection {
@@ -2428,11 +2445,12 @@ fn playing_enter_system(
                                         ..Default::default()
                                     },
                                     ..Default::default()
-                                })
-                                .insert(CostText);
+                                },
+                                CostText,
+                            ));
 
-                            parent
-                                .spawn_bundle(TextBundle {
+                            parent.spawn((
+                                TextBundle {
                                     style: Style {
                                         size: Size::new(Val::Px(100.0), Val::Px(30.0)),
                                         ..Default::default()
@@ -2446,11 +2464,12 @@ fn playing_enter_system(
                                         },
                                     ),
                                     ..Default::default()
-                                })
-                                .insert(PixieCountText);
+                                },
+                                PixieCountText,
+                            ));
 
-                            parent
-                                .spawn_bundle(TextBundle {
+                            parent.spawn((
+                                TextBundle {
                                     style: Style {
                                         size: Size::new(Val::Px(100.0), Val::Px(30.0)),
                                         ..Default::default()
@@ -2467,11 +2486,12 @@ fn playing_enter_system(
                                         ..Default::default()
                                     },
                                     ..Default::default()
-                                })
-                                .insert(ElapsedText);
+                                },
+                                ElapsedText,
+                            ));
 
-                            parent
-                                .spawn_bundle(TextBundle {
+                            parent.spawn((
+                                TextBundle {
                                     style: Style {
                                         size: Size::new(Val::Px(200.0), Val::Px(30.0)),
                                         ..Default::default()
@@ -2488,14 +2508,15 @@ fn playing_enter_system(
                                         ..Default::default()
                                     },
                                     ..Default::default()
-                                })
-                                .insert(ScoreText);
+                                },
+                                ScoreText,
+                            ));
                         });
 
                     // right-aligned bar items
 
                     parent
-                        .spawn_bundle(NodeBundle {
+                        .spawn(NodeBundle {
                             style: Style {
                                 size: Size::new(Val::Auto, Val::Percent(100.0)),
                                 flex_direction: FlexDirection::Row,
@@ -2503,26 +2524,27 @@ fn playing_enter_system(
                                 align_items: AlignItems::Center,
                                 ..Default::default()
                             },
-                            color: Color::NONE.into(),
                             ..Default::default()
                         })
                         .with_children(|parent| {
                             parent
-                                .spawn_bundle(ButtonBundle {
-                                    style: Style {
-                                        size: Size::new(Val::Px(110.0), Val::Percent(100.0)),
-                                        // horizontally center child text
-                                        justify_content: JustifyContent::Center,
-                                        // vertically center child text
-                                        align_items: AlignItems::Center,
+                                .spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            size: Size::new(Val::Px(110.0), Val::Percent(100.0)),
+                                            // horizontally center child text
+                                            justify_content: JustifyContent::Center,
+                                            // vertically center child text
+                                            align_items: AlignItems::Center,
+                                            ..Default::default()
+                                        },
+                                        background_color: NORMAL_BUTTON.into(),
                                         ..Default::default()
                                     },
-                                    color: NORMAL_BUTTON.into(),
-                                    ..Default::default()
-                                })
-                                .insert(ResetButton)
+                                    ResetButton,
+                                ))
                                 .with_children(|parent| {
-                                    parent.spawn_bundle(TextBundle {
+                                    parent.spawn(TextBundle {
                                         text: Text::from_section(
                                             "RESET",
                                             TextStyle {
@@ -2535,25 +2557,27 @@ fn playing_enter_system(
                                     });
                                 });
                             parent
-                                .spawn_bundle(ButtonBundle {
-                                    style: Style {
-                                        size: Size::new(Val::Px(50.0), Val::Percent(100.0)),
-                                        // horizontally center child text
-                                        justify_content: JustifyContent::Center,
-                                        // vertically center child text
-                                        align_items: AlignItems::Center,
-                                        margin: UiRect {
-                                            left: Val::Px(10.0),
+                                .spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            size: Size::new(Val::Px(50.0), Val::Percent(100.0)),
+                                            // horizontally center child text
+                                            justify_content: JustifyContent::Center,
+                                            // vertically center child text
+                                            align_items: AlignItems::Center,
+                                            margin: UiRect {
+                                                left: Val::Px(10.0),
+                                                ..Default::default()
+                                            },
                                             ..Default::default()
                                         },
+                                        background_color: NORMAL_BUTTON.into(),
                                         ..Default::default()
                                     },
-                                    color: NORMAL_BUTTON.into(),
-                                    ..Default::default()
-                                })
-                                .insert(SpeedButton)
+                                    SpeedButton,
+                                ))
                                 .with_children(|parent| {
-                                    parent.spawn_bundle(TextBundle {
+                                    parent.spawn(TextBundle {
                                         text: Text::from_section(
                                             simulation_settings.speed.label(),
                                             TextStyle {
@@ -2566,25 +2590,27 @@ fn playing_enter_system(
                                     });
                                 });
                             parent
-                                .spawn_bundle(ButtonBundle {
-                                    style: Style {
-                                        size: Size::new(Val::Px(250.0), Val::Percent(100.0)),
-                                        // horizontally center child text
-                                        justify_content: JustifyContent::Center,
-                                        // vertically center child text
-                                        align_items: AlignItems::Center,
-                                        margin: UiRect {
-                                            left: Val::Px(10.0),
+                                .spawn((
+                                    ButtonBundle {
+                                        style: Style {
+                                            size: Size::new(Val::Px(250.0), Val::Percent(100.0)),
+                                            // horizontally center child text
+                                            justify_content: JustifyContent::Center,
+                                            // vertically center child text
+                                            align_items: AlignItems::Center,
+                                            margin: UiRect {
+                                                left: Val::Px(10.0),
+                                                ..Default::default()
+                                            },
                                             ..Default::default()
                                         },
+                                        background_color: NORMAL_BUTTON.into(),
                                         ..Default::default()
                                     },
-                                    color: NORMAL_BUTTON.into(),
-                                    ..Default::default()
-                                })
-                                .insert(PixieButton)
+                                    PixieButton,
+                                ))
                                 .with_children(|parent| {
-                                    parent.spawn_bundle(TextBundle {
+                                    parent.spawn(TextBundle {
                                         text: Text::from_section(
                                             "RELEASE THE PIXIES",
                                             TextStyle {
@@ -2600,8 +2626,8 @@ fn playing_enter_system(
                 });
 
             // the rest of the space over the play area
-            parent
-                .spawn_bundle(NodeBundle {
+            parent.spawn((
+                NodeBundle {
                     style: Style {
                         size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
                         flex_direction: FlexDirection::Column,
@@ -2609,9 +2635,9 @@ fn playing_enter_system(
                         align_items: AlignItems::Center,
                         ..Default::default()
                     },
-                    color: Color::NONE.into(),
                     ..Default::default()
-                })
-                .insert(PlayAreaNode);
+                },
+                PlayAreaNode,
+            ));
         });
 }

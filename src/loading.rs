@@ -20,7 +20,7 @@ fn loading_setup(
     let mut camera = Camera2dBundle::default();
     camera.transform.translation.y -= 10.0;
 
-    commands.spawn_bundle(camera).insert(MainCamera);
+    commands.spawn((camera, MainCamera));
 
     for i in 1..=NUM_LEVELS {
         handles
@@ -39,14 +39,14 @@ fn loading_update(
     mut state: ResMut<State<GameState>>,
 ) {
     if !matches!(
-        asset_server.get_group_load_state(handles.levels.iter().cloned().map(|h| h.id)),
+        asset_server.get_group_load_state(handles.levels.iter().cloned().map(|h| h.id())),
         LoadState::Loaded
     ) {
         return;
     }
 
     if !matches!(
-        asset_server.get_group_load_state(handles.fonts.iter().cloned().map(|h| h.id)),
+        asset_server.get_group_load_state(handles.fonts.iter().cloned().map(|h| h.id())),
         LoadState::Loaded
     ) {
         return;

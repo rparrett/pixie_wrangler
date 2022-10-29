@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 
 pub struct DebugLinesPlugin;
-#[derive(Default)]
+#[derive(Resource, Default)]
 pub struct DebugLines(pub Vec<((Vec2, Vec2), Color, f32)>);
 #[derive(Component)]
 struct DebugLine;
@@ -25,12 +25,13 @@ fn debug_lines_despawn_system(mut commands: Commands, query: Query<Entity, With<
 
 fn debug_lines_spawn_system(mut commands: Commands, mut debug_lines: ResMut<DebugLines>) {
     for (line, color, width) in debug_lines.0.drain(..) {
-        commands
-            .spawn_bundle(GeometryBuilder::build_as(
+        commands.spawn((
+            GeometryBuilder::build_as(
                 &shapes::Line(line.0, line.1),
                 DrawMode::Stroke(StrokeMode::new(color, width)),
                 Transform::from_xyz(0.0, 0.0, 999.0),
-            ))
-            .insert(DebugLine);
+            ),
+            DebugLine,
+        ));
     }
 }

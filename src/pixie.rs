@@ -170,16 +170,17 @@ pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixi
         for _ in 0..2 {
             let theta = rng.gen_range(0.0..std::f32::consts::TAU);
 
-            commands
-                .spawn_bundle(GeometryBuilder::build_as(
+            commands.spawn((
+                GeometryBuilder::build_as(
                     &shape,
                     DrawMode::Fill(FillMode::color(PIXIE_COLORS[(pixie.flavor.color) as usize])),
                     *transform,
-                ))
-                .insert(PixieFragment {
+                ),
+                PixieFragment {
                     direction: Vec2::new(theta.cos(), theta.sin()),
                     ..Default::default()
-                });
+                },
+            ));
         }
     }
 }
@@ -519,8 +520,8 @@ pub fn emit_pixies_system(
 
         let first_segment = emitter.path.first().unwrap();
 
-        commands
-            .spawn_bundle(GeometryBuilder::build_as(
+        commands.spawn((
+            GeometryBuilder::build_as(
                 &shape,
                 DrawMode::Fill(FillMode::color(
                     PIXIE_COLORS[(emitter.flavor.color) as usize],
@@ -531,13 +532,14 @@ pub fn emit_pixies_system(
                         .0
                         .extend(layer::PIXIE - first_segment.layer as f32),
                 ),
-            ))
-            .insert(Pixie {
+            ),
+            Pixie {
                 flavor: emitter.flavor,
                 path: emitter.path.clone(),
                 path_index: 0,
                 ..Default::default()
-            });
+            },
+        ));
 
         emitter.remaining -= 1;
     }

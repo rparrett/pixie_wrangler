@@ -11,9 +11,9 @@ struct SaveFile {
     scores: BestScores,
     solutions: Solutions,
 }
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Resource, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct BestScores(pub HashMap<u32, u32>);
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Resource, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Solutions(pub HashMap<u32, Solution>);
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Solution {
