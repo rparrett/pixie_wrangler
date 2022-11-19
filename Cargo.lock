@@ -231,7 +231,7 @@ checksum = "4f6b7df078908d118a55440470962f4393ac6a4ce89b13a3cd5bff49d4a06f29"
 dependencies = [
  "anyhow",
  "bevy",
- "ron 0.7.1",
+ "ron",
  "serde",
 ]
 
@@ -1858,7 +1858,7 @@ checksum = "e0a7ae3ac2f1173085d398531c705756c94a4c56843785df85a60c1a0afac116"
 
 [[package]]
 name = "pixie_wrangler"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bevy",
  "bevy_common_assets",
@@ -1867,7 +1867,7 @@ dependencies = [
  "itertools",
  "petgraph",
  "rand",
- "ron 0.8.0",
+ "ron",
  "rstar",
  "serde",
  "web-sys",
@@ -2062,17 +2062,6 @@ name = "ron"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "88073939a61e5b7680558e6be56b419e208420c2adb92be54921fa6b72283f1a"
-dependencies = [
- "base64",
- "bitflags",
- "serde",
-]
-
-[[package]]
-name = "ron"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "300a51053b1cb55c80b7a9fde4120726ddf25ca241a1cbb926626f62fb136bff"
 dependencies = [
  "base64",
  "bitflags",
