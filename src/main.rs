@@ -1947,7 +1947,8 @@ fn spawn_terminus(
                             font_size: 30.0,
                             color: PIXIE_COLORS[flavor.color as usize],
                         },
-                    ),
+                    )
+                    .with_alignment(TextAlignment::CENTER),
                     transform: Transform::from_translation(label_pos.extend(layer::TERMINUS)),
                     ..Default::default()
                 });
@@ -1973,7 +1974,9 @@ fn spawn_terminus(
                             font_size: 30.0,
                             color: PIXIE_COLORS[flavor.color as usize],
                         },
-                    ),
+                    )
+                    .with_alignment(TextAlignment::CENTER),
+
                     transform: Transform::from_translation(label_pos.extend(layer::TERMINUS)),
                     ..Default::default()
                 });
