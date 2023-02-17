@@ -153,37 +153,39 @@ fn main() {
     app.configure_set(
         ScoreCalc
             .run_if(in_state(GameState::Playing))
-            .after(AfterUpdate),
+            .in_base_set(AfterUpdate),
     );
     // TODO: Why does this panic?
-    // app.add_systems(
-    //     (pathfinding_system, update_cost_system, save_solution_system).in_set(ScoreCalc),
-    // );
+    app.add_systems(
+        (pathfinding_system, update_cost_system, save_solution_system).in_set(ScoreCalc),
+    );
 
     app.configure_set(
         ScoreUi
             .after(ScoreCalc)
+            .in_base_set(AfterUpdate)
             .run_if(in_state(GameState::Playing)),
     );
     // TODO why does this panic?
-    // app.add_systems(
-    //     (
-    //         pixie_button_text_system,
-    //         update_pixie_count_text_system,
-    //         update_elapsed_text_system,
-    //         update_score_text_system,
-    //     )
-    //         .in_set(ScoreUi),
-    // );
+    app.add_systems(
+        (
+            pixie_button_text_system,
+            update_pixie_count_text_system,
+            update_elapsed_text_system,
+            update_score_text_system,
+        )
+            .in_set(ScoreUi),
+    );
 
     // TODO why does this panic?
     // TODO: This needs to run after update_score_text. It would be
     // nice to move the important bits to score_calc.
-    // app.add_system(
-    //     show_score_dialog_system
-    //         .run_if(in_state(GameState::Playing))
-    //         .after(ScoreUi),
-    // );
+    app.add_system(
+        show_score_dialog_system
+            .run_if(in_state(GameState::Playing))
+            .in_base_set(AfterUpdate)
+            .after(ScoreUi),
+    );
 
     app.init_resource::<Handles>();
     app.init_resource::<SelectedLevel>();
@@ -203,6 +205,7 @@ fn main() {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+#[system_set(base)]
 struct AfterUpdate;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
