@@ -56,52 +56,6 @@ impl Default for SimulationSteps {
     }
 }
 
-// struct SimulationStage {
-//     step: f64,
-//     accumulator: f64,
-//     stage: SystemStage,
-// }
-
-// impl Stage for SimulationStage {
-//     fn run(&mut self, world: &mut World) {
-//         if let Some(state) = world.get_resource::<SimulationState>() {
-//             if !state.started || state.done {
-//                 return;
-//             }
-//         }
-
-//         let delta = match world.get_resource::<Time>() {
-//             Some(time) => time.delta_seconds_f64(),
-//             None => return,
-//         };
-
-//         let speed = match world.get_resource::<SimulationSettings>() {
-//             Some(settings) => settings.speed,
-//             None => return,
-//         };
-
-//         self.accumulator += delta * speed.scale();
-
-//         while self.accumulator > self.step {
-//             self.accumulator -= self.step;
-
-//             self.stage.run(world);
-
-//             match world.get_resource_mut::<SimulationState>() {
-//                 Some(mut state) => state.tick += 1,
-//                 None => return,
-//             };
-
-//             if let Some(state) = world.get_resource::<SimulationState>() {
-//                 if !state.started || state.done {
-//                     self.accumulator = 0.0;
-//                     return;
-//                 }
-//             }
-//         }
-//     }
-// }
-
 #[derive(Clone, Copy)]
 pub enum SimulationSpeed {
     Normal,
@@ -134,7 +88,14 @@ pub struct SimulationSettings {
 fn run_simulation(world: &mut World) {
     let state = world.resource::<SimulationState>();
     if !state.started || state.done {
-        // TODO reset accumulator
+        // If the sim just ended or was just stopped, reset the
+        // accumulator.
+        if world.is_resource_changed::<SimulationState>() {
+            info!("Resetting sim accumulator");
+            let mut steps = world.resource_mut::<SimulationSteps>();
+            steps.accumulator = 0.;
+        }
+
         return;
     }
 
@@ -152,10 +113,16 @@ fn run_simulation(world: &mut World) {
             steps.accumulator -= steps.step;
             world.run_schedule(SimulationSchedule);
 
-            let mut state = world.resource_mut::<SimulationState>();
-            state.tick += 1;
+            {
+                let mut state = world.resource_mut::<SimulationState>();
+                state.tick += 1;
+            }
 
-            // TODO bail if sim finished
+            // If sim finished, don't run schedule again.
+            let state = world.resource::<SimulationState>();
+            if state.done || !state.started {
+                check_again = false;
+            }
         } else {
             check_again = false;
         }
