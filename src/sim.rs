@@ -2,43 +2,58 @@ use crate::pixie::{
     collide_pixies_system, emit_pixies_system, explode_pixies_system, move_pixies_system, Pixie,
     PixieEmitter,
 };
-use bevy::prelude::*;
+use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
 
 pub struct SimulationPlugin;
 impl Plugin for SimulationPlugin {
     fn build(&self, app: &mut App) {
-        // app.init_resource::<SimulationSettings>();
-        // app.init_resource::<SimulationState>();
-        // app.add_stage_after(
-        //     CoreStage::Update,
-        //     "simulation",
-        //     SimulationStage {
-        //         step: SIMULATION_TIMESTEP as f64,
-        //         accumulator: 0.0,
-        //         stage: SystemStage::parallel()
-        //             // need to run these in the same order every time for scores
-        //             // to be deterministic. probably.
-        //             .with_system(
-        //                 collide_pixies_system
-        //                     .label("collide_pixies")
-        //                     .before("move_pixies"),
-        //             )
-        //             .with_system(move_pixies_system.label("move_pixies"))
-        //             .with_system(emit_pixies_system.label("emit_pixies").after("move_pixies"))
-        //             .with_system(explode_pixies_system.after("collide_pixies"))
-        //             .with_system(update_sim_state_system.after("emit_pixies")),
-        //     },
-        // );
+        let mut schedule = Schedule::new();
+
+        // explicit ordering for determinism
+        schedule.add_systems(
+            (
+                collide_pixies_system,
+                move_pixies_system,
+                emit_pixies_system,
+                explode_pixies_system,
+                update_sim_state_system,
+            )
+                .chain(),
+        );
+
+        app.add_schedule(SimulationSchedule, schedule);
+        app.init_resource::<SimulationSettings>();
+        app.init_resource::<SimulationState>();
+        app.init_resource::<SimulationSteps>();
+
+        app.add_system(run_simulation);
     }
 }
 
 pub const SIMULATION_TIMESTEP: f32 = 0.016_666_668;
+
+#[derive(ScheduleLabel, Debug, PartialEq, Eq, Clone, Hash)]
+pub struct SimulationSchedule;
 
 #[derive(Resource, Default)]
 pub struct SimulationState {
     pub started: bool,
     pub tick: u32,
     pub done: bool,
+}
+
+#[derive(Resource)]
+struct SimulationSteps {
+    step: f64,
+    accumulator: f64,
+}
+impl Default for SimulationSteps {
+    fn default() -> Self {
+        Self {
+            step: SIMULATION_TIMESTEP as f64,
+            accumulator: 0.,
+        }
+    }
 }
 
 // struct SimulationStage {
@@ -114,6 +129,31 @@ impl SimulationSpeed {
 #[derive(Resource, Default)]
 pub struct SimulationSettings {
     pub speed: SimulationSpeed,
+}
+
+fn run_simulation(world: &mut World) {
+    let state = world.resource::<SimulationState>();
+    if !state.started || state.done {
+        return;
+    }
+
+    let speed = world.resource::<SimulationSettings>().speed;
+    let delta = world.resource::<Time>().delta_seconds_f64();
+
+    let mut steps = world.resource_mut::<SimulationSteps>();
+    steps.accumulator += delta * speed.scale();
+
+    let mut check_again = true;
+    while check_again {
+        let mut steps = world.resource_mut::<SimulationSteps>();
+        steps.accumulator -= steps.step;
+
+        if steps.accumulator > steps.step {
+            world.run_schedule(SimulationSchedule);
+        } else {
+            check_again = false;
+        }
+    }
 }
 
 fn update_sim_state_system(

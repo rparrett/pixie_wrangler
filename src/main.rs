@@ -78,7 +78,7 @@ fn main() {
     .add_plugin(ShapePlugin)
     .add_plugin(RadioButtonPlugin)
     .add_plugin(PixiePlugin)
-    //.add_plugin(SimulationPlugin)
+    .add_plugin(SimulationPlugin)
     .add_plugin(LoadingPlugin)
     .add_plugin(LevelSelectPlugin)
     .add_plugin(SavePlugin)
