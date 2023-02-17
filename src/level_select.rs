@@ -33,6 +33,8 @@ fn level_select_button_system(
     handles: Res<Handles>,
     levels: Res<Assets<Level>>,
 ) {
+    info!("level select button system"); // XXX
+
     for (_, button) in query.iter().filter(|(i, _)| **i == Interaction::Clicked) {
         if handles
             .levels
@@ -42,6 +44,8 @@ fn level_select_button_system(
         {
             continue;
         };
+
+        info!("transitioning to Playing"); // XXX
 
         level.0 = button.0;
         next_state.set(GameState::Playing);
@@ -250,13 +254,16 @@ fn level_select_enter(
         });
 }
 
-fn level_select_update() {}
+fn level_select_update() {
+    info!("level_select_update");
+}
 
 fn level_select_exit(
     mut commands: Commands,
     query: Query<Entity, With<LevelSelectScreen>>,
     mut mouse: ResMut<Input<MouseButton>>,
 ) {
+    info!("level_select_exit");
     for entity in query.iter() {
         commands.entity(entity).despawn_recursive();
     }

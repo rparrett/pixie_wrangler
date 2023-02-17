@@ -456,6 +456,7 @@ fn button_system(
         (Changed<Interaction>, With<Button>, Without<RadioButton>),
     >,
 ) {
+    info!("button system"); // XXX;
     for (interaction, mut color) in q_interaction.iter_mut() {
         match *interaction {
             Interaction::Clicked => *color = PRESSED_BUTTON.into(),
@@ -2170,7 +2171,10 @@ fn update_elapsed_text_system(
     }
 }
 
-fn playing_exit_system(mut commands: Commands, query: Query<Entity, Without<MainCamera>>) {
+fn playing_exit_system(
+    mut commands: Commands,
+    query: Query<Entity, (Without<MainCamera>, Without<Window>)>,
+) {
     for entity in query.iter() {
         commands.entity(entity).despawn();
     }
