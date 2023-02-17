@@ -146,9 +146,9 @@ fn run_simulation(world: &mut World) {
     let mut check_again = true;
     while check_again {
         let mut steps = world.resource_mut::<SimulationSteps>();
-        steps.accumulator -= steps.step;
 
         if steps.accumulator > steps.step {
+            steps.accumulator -= steps.step;
             world.run_schedule(SimulationSchedule);
         } else {
             check_again = false;
