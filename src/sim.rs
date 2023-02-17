@@ -134,8 +134,7 @@ pub struct SimulationSettings {
 fn run_simulation(world: &mut World) {
     let state = world.resource::<SimulationState>();
     if !state.started || state.done {
-        // TODO if the sim was just started, we should reset
-        // the accumulator.
+        // TODO reset accumulator
         return;
     }
 
@@ -155,6 +154,8 @@ fn run_simulation(world: &mut World) {
 
             let mut state = world.resource_mut::<SimulationState>();
             state.tick += 1;
+
+            // TODO bail if sim finished
         } else {
             check_again = false;
         }
