@@ -23,7 +23,7 @@ impl Plugin for RadioButtonPlugin {
     }
 }
 
-fn radio_button_group_system(
+pub fn radio_button_group_system(
     mut q: ParamSet<(
         Query<(Entity, &RadioButton, &RadioButtonGroupRelation), Changed<RadioButton>>,
         Query<&mut RadioButton>,

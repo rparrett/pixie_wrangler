@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 
-bevy = { git = "https://github.com/bevyengine/bevy.git", default-features = false, features = [
+bevy = { git = "https://github.com/bevyengine/bevy.git", branch = "main", default-features = false, features = [
     "bevy_asset",
     "bevy_winit",
     "bevy_core_pipeline",
@@ -46,3 +46,9 @@ opt-level = 1
 # Enable high optimizations for dependencies (incl. Bevy), but not for our code:
 [profile.dev.package."*"]
 opt-level = 3
+
+[patch."https://github.com/bevyengine/bevy"]
+bevy = { git = "https://github.com/bevyengine/bevy.git?branch=bevy_main" }
+
+[patch."https://github.com/bevyengine/bevy.git"]
+bevy = { git = "https://github.com/bevyengine/bevy.git?branch=bevy_main" }

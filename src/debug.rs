@@ -12,8 +12,8 @@ impl Plugin for DebugLinesPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DebugLines>();
         // run despawn before spawn, ensuring that lines stick around for one frame
-        app.add_system(debug_lines_spawn_system.label("debug_lines_spawn"));
-        app.add_system(debug_lines_despawn_system.before("debug_lines_spawn"));
+        app.add_system(debug_lines_spawn_system);
+        app.add_system(debug_lines_despawn_system.before(debug_lines_spawn_system));
     }
 }
 

@@ -7,28 +7,28 @@ use bevy::prelude::*;
 pub struct SimulationPlugin;
 impl Plugin for SimulationPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<SimulationSettings>();
-        app.init_resource::<SimulationState>();
-        app.add_stage_after(
-            CoreStage::Update,
-            "simulation",
-            SimulationStage {
-                step: SIMULATION_TIMESTEP as f64,
-                accumulator: 0.0,
-                stage: SystemStage::parallel()
-                    // need to run these in the same order every time for scores
-                    // to be deterministic. probably.
-                    .with_system(
-                        collide_pixies_system
-                            .label("collide_pixies")
-                            .before("move_pixies"),
-                    )
-                    .with_system(move_pixies_system.label("move_pixies"))
-                    .with_system(emit_pixies_system.label("emit_pixies").after("move_pixies"))
-                    .with_system(explode_pixies_system.after("collide_pixies"))
-                    .with_system(update_sim_state_system.after("emit_pixies")),
-            },
-        );
+        // app.init_resource::<SimulationSettings>();
+        // app.init_resource::<SimulationState>();
+        // app.add_stage_after(
+        //     CoreStage::Update,
+        //     "simulation",
+        //     SimulationStage {
+        //         step: SIMULATION_TIMESTEP as f64,
+        //         accumulator: 0.0,
+        //         stage: SystemStage::parallel()
+        //             // need to run these in the same order every time for scores
+        //             // to be deterministic. probably.
+        //             .with_system(
+        //                 collide_pixies_system
+        //                     .label("collide_pixies")
+        //                     .before("move_pixies"),
+        //             )
+        //             .with_system(move_pixies_system.label("move_pixies"))
+        //             .with_system(emit_pixies_system.label("emit_pixies").after("move_pixies"))
+        //             .with_system(explode_pixies_system.after("collide_pixies"))
+        //             .with_system(update_sim_state_system.after("emit_pixies")),
+        //     },
+        // );
     }
 }
 
@@ -41,51 +41,51 @@ pub struct SimulationState {
     pub done: bool,
 }
 
-struct SimulationStage {
-    step: f64,
-    accumulator: f64,
-    stage: SystemStage,
-}
+// struct SimulationStage {
+//     step: f64,
+//     accumulator: f64,
+//     stage: SystemStage,
+// }
 
-impl Stage for SimulationStage {
-    fn run(&mut self, world: &mut World) {
-        if let Some(state) = world.get_resource::<SimulationState>() {
-            if !state.started || state.done {
-                return;
-            }
-        }
+// impl Stage for SimulationStage {
+//     fn run(&mut self, world: &mut World) {
+//         if let Some(state) = world.get_resource::<SimulationState>() {
+//             if !state.started || state.done {
+//                 return;
+//             }
+//         }
 
-        let delta = match world.get_resource::<Time>() {
-            Some(time) => time.delta_seconds_f64(),
-            None => return,
-        };
+//         let delta = match world.get_resource::<Time>() {
+//             Some(time) => time.delta_seconds_f64(),
+//             None => return,
+//         };
 
-        let speed = match world.get_resource::<SimulationSettings>() {
-            Some(settings) => settings.speed,
-            None => return,
-        };
+//         let speed = match world.get_resource::<SimulationSettings>() {
+//             Some(settings) => settings.speed,
+//             None => return,
+//         };
 
-        self.accumulator += delta * speed.scale();
+//         self.accumulator += delta * speed.scale();
 
-        while self.accumulator > self.step {
-            self.accumulator -= self.step;
+//         while self.accumulator > self.step {
+//             self.accumulator -= self.step;
 
-            self.stage.run(world);
+//             self.stage.run(world);
 
-            match world.get_resource_mut::<SimulationState>() {
-                Some(mut state) => state.tick += 1,
-                None => return,
-            };
+//             match world.get_resource_mut::<SimulationState>() {
+//                 Some(mut state) => state.tick += 1,
+//                 None => return,
+//             };
 
-            if let Some(state) = world.get_resource::<SimulationState>() {
-                if !state.started || state.done {
-                    self.accumulator = 0.0;
-                    return;
-                }
-            }
-        }
-    }
-}
+//             if let Some(state) = world.get_resource::<SimulationState>() {
+//                 if !state.started || state.done {
+//                     self.accumulator = 0.0;
+//                     return;
+//                 }
+//             }
+//         }
+//     }
+// }
 
 #[derive(Clone, Copy)]
 pub enum SimulationSpeed {

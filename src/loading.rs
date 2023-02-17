@@ -7,8 +7,8 @@ pub const NUM_LEVELS: u32 = 9;
 
 impl Plugin for LoadingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(SystemSet::on_enter(GameState::Loading).with_system(loading_setup));
-        app.add_system_set(SystemSet::on_update(GameState::Loading).with_system(loading_update));
+        app.add_system_to_schedule(OnEnter(GameState::Loading), loading_setup);
+        app.add_system(loading_update.in_set(OnUpdate(GameState::Loading)));
     }
 }
 

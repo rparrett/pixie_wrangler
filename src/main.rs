@@ -36,6 +36,7 @@ use petgraph::{
     visit::{DfsPostOrder, Walker},
 };
 
+use radio_button::radio_button_group_system;
 use serde::{Deserialize, Serialize};
 
 mod collision;
@@ -75,7 +76,7 @@ fn main() {
     .add_plugin(ShapePlugin)
     .add_plugin(RadioButtonPlugin)
     .add_plugin(PixiePlugin)
-    .add_plugin(SimulationPlugin)
+    //.add_plugin(SimulationPlugin)
     .add_plugin(LoadingPlugin)
     .add_plugin(LevelSelectPlugin)
     .add_plugin(SavePlugin)
@@ -85,55 +86,68 @@ fn main() {
 
     app.add_state::<GameState>();
 
-    app.add_stage_after(CoreStage::Update, "after_update", SystemStage::parallel());
-    app.add_state_to_stage("after_update", GameState::Loading);
+    app.configure_set(AfterUpdate.after(CoreSet::UpdateFlush));
 
-    app.add_system_set(SystemSet::on_enter(GameState::Playing).with_system(playing_enter_system));
-    app.add_system_set(SystemSet::on_exit(GameState::Playing).with_system(playing_exit_system));
-    app.add_system_set(
-        SystemSet::on_update(GameState::Playing)
-            .label("drawing_input")
-            .with_system(keyboard_system.before("mouse"))
-            .with_system(mouse_movement_system.label("mouse")),
+    app.add_system_to_schedule(OnEnter(GameState::Playing), playing_enter_system);
+    app.add_system_to_schedule(OnExit(GameState::Playing), playing_exit_system);
+    app.add_systems(
+        (
+            keyboard_system.before(mouse_movement_system),
+            mouse_movement_system,
+        )
+            .in_set(OnUpdate(GameState::Playing))
+            .in_set(DrawingInput),
     );
-    app.add_system_set(
-        SystemSet::on_update(GameState::Playing)
-            .after("drawing_input")
-            .label("drawing_mouse_movement")
-            .with_system(net_ripping_mouse_movement_system)
-            .with_system(not_drawing_mouse_movement_system)
-            .with_system(drawing_mouse_movement_system),
+    app.configure_set(DrawingMouseMovement.after(DrawingInput));
+    app.add_systems(
+        (
+            net_ripping_mouse_movement_system,
+            not_drawing_mouse_movement_system,
+            drawing_mouse_movement_system,
+        )
+            .in_set(OnUpdate(GameState::Playing))
+            .in_set(DrawingMouseMovement),
     );
-    app.add_system_set(
-        SystemSet::on_update(GameState::Playing)
-            .before("drawing_interaction")
-            .before("radio_button_group_system")
-            .with_system(tool_button_system)
-            .with_system(tool_button_display_system)
-            .with_system(drawing_mode_change_system),
+
+    app.add_systems(
+        (
+            tool_button_system,
+            tool_button_display_system,
+            drawing_mode_change_system,
+        )
+            .before(DrawingInteraction)
+            .before(radio_button_group_system)
+            .in_set(OnUpdate(GameState::Playing)),
     );
-    app.add_system_set(
-        SystemSet::on_update(GameState::Playing)
-            .after("drawing_mouse_movement")
-            .label("drawing_interaction")
-            .with_system(drawing_mouse_click_system)
-            .with_system(net_ripping_mouse_click_system)
-            .with_system(draw_mouse_system)
-            .with_system(draw_net_ripping_system)
-            .with_system(button_system),
+
+    app.configure_set(DrawingInteraction.after(DrawingMouseMovement));
+    app.add_systems(
+        (
+            drawing_mouse_click_system,
+            net_ripping_mouse_click_system,
+            draw_mouse_system,
+            draw_net_ripping_system,
+            button_system,
+        )
+            .in_set(OnUpdate(GameState::Playing))
+            .in_set(DrawingInteraction),
     );
-    app.add_system_set(
-        SystemSet::on_update(GameState::Playing)
-            .after("drawing_interaction")
-            .with_system(dismiss_score_dialog_button_system),
+
+    app.add_system(
+        dismiss_score_dialog_button_system
+            .in_set(OnUpdate(GameState::Playing))
+            .after(DrawingInteraction),
     );
+
     // whenever
-    app.add_system_set(
-        SystemSet::on_update(GameState::Playing)
-            .with_system(pixie_button_system)
-            .with_system(reset_button_system)
-            .with_system(speed_button_system)
-            .with_system(back_button_system),
+    app.add_systems(
+        (
+            pixie_button_system,
+            reset_button_system,
+            speed_button_system,
+            back_button_system,
+        )
+            .in_set(OnUpdate(GameState::Playing)),
     );
     app.add_system_set_to_stage(
         "after_update",
@@ -167,7 +181,6 @@ fn main() {
     app.init_resource::<DrawingState>();
     app.init_resource::<LineDrawingState>();
     app.init_resource::<NetRippingState>();
-    app.init_resource::<SimulationState>();
     app.init_resource::<PathfindingState>();
     app.init_resource::<MouseState>();
     app.init_resource::<RoadGraph>();
@@ -179,6 +192,16 @@ fn main() {
     app.add_plugin(FrameTimeDiagnosticsPlugin::default());
     app.run();
 }
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+struct AfterUpdate;
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+struct DrawingInput;
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+struct DrawingMouseMovement;
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+struct DrawingInteraction;
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 enum GameState {
