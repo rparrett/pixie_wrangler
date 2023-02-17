@@ -1013,6 +1013,7 @@ fn draw_mouse_system(
                 ..default()
             },
             Stroke::new(color, 2.0),
+            Cursor,
         ));
     }
 
