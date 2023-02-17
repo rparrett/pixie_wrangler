@@ -36,7 +36,7 @@ fn loading_setup(
 fn loading_update(
     handles: Res<Handles>,
     asset_server: Res<AssetServer>,
-    mut state: ResMut<State<GameState>>,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
     if !matches!(
         asset_server.get_group_load_state(handles.levels.iter().cloned().map(|h| h.id())),
@@ -52,5 +52,5 @@ fn loading_update(
         return;
     }
 
-    state.replace(GameState::LevelSelect).unwrap();
+    next_state.set(GameState::LevelSelect);
 }

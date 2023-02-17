@@ -14,12 +14,8 @@ pub struct RadioButtonGroupRelation(pub Entity);
 
 impl Plugin for RadioButtonPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(radio_button_system.label("radio_button_system"));
-        app.add_system(
-            radio_button_group_system
-                .label("radio_button_group_system")
-                .after("radio_button_system"),
-        );
+        app.add_system(radio_button_system);
+        app.add_system(radio_button_group_system.after(radio_button_system));
     }
 }
 

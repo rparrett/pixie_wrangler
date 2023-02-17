@@ -11,24 +11,24 @@ pub struct LevelSelectButton(u32);
 
 impl Plugin for LevelSelectPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(
-            SystemSet::on_enter(GameState::LevelSelect).with_system(level_select_enter),
+        app.add_system_to_schedule(OnEnter(GameState::LevelSelect), level_select_enter);
+
+        app.add_systems(
+            (
+                level_select_update,
+                crate::button_system,
+                level_select_button_system,
+            )
+                .in_set(OnUpdate(GameState::LevelSelect)),
         );
-        app.add_system_set(
-            SystemSet::on_update(GameState::LevelSelect)
-                .with_system(level_select_update)
-                .with_system(crate::button_system)
-                .with_system(level_select_button_system),
-        );
-        app.add_system_set(
-            SystemSet::on_exit(GameState::LevelSelect).with_system(level_select_exit),
-        );
+
+        app.add_system_to_schedule(OnExit(GameState::LevelSelect), level_select_exit);
     }
 }
 
 fn level_select_button_system(
     query: Query<(&Interaction, &LevelSelectButton), Changed<Interaction>>,
-    mut state: ResMut<State<GameState>>,
+    mut next_state: ResMut<NextState<GameState>>,
     mut level: ResMut<crate::SelectedLevel>,
     handles: Res<Handles>,
     levels: Res<Assets<Level>>,
@@ -44,7 +44,7 @@ fn level_select_button_system(
         };
 
         level.0 = button.0;
-        state.replace(GameState::Playing).unwrap();
+        next_state.set(GameState::Playing);
     }
 }
 

@@ -57,6 +57,8 @@ fn main() {
     app.insert_resource(ClearColor(BACKGROUND_COLOR))
         .insert_resource(Msaa::Sample4);
 
+    app.add_state::<GameState>();
+
     app.add_plugins(
         DefaultPlugins
             .set(LogPlugin {
@@ -83,8 +85,6 @@ fn main() {
     .add_plugin(DebugLinesPlugin)
     .add_plugin(EasingsPlugin)
     .add_plugin(RonAssetPlugin::<Level>::new(&["level.ron"]));
-
-    app.add_state::<GameState>();
 
     app.configure_set(AfterUpdate.after(CoreSet::UpdateFlush));
 
@@ -149,32 +149,41 @@ fn main() {
         )
             .in_set(OnUpdate(GameState::Playing)),
     );
-    app.add_system_set_to_stage(
-        "after_update",
-        SystemSet::on_update(GameState::Playing)
-            .label("score_calc")
-            .with_system(pathfinding_system)
-            .with_system(update_cost_system)
-            .with_system(save_solution_system),
+
+    app.configure_set(
+        ScoreCalc
+            .run_if(in_state(GameState::Playing))
+            .after(AfterUpdate),
     );
-    app.add_system_set_to_stage(
-        "after_update",
-        SystemSet::on_update(GameState::Playing)
-            .label("score_ui")
-            .after("score_calc")
-            .with_system(pixie_button_text_system)
-            .with_system(update_pixie_count_text_system)
-            .with_system(update_elapsed_text_system)
-            .with_system(update_score_text_system),
+    // TODO: Why does this panic?
+    // app.add_systems(
+    //     (pathfinding_system, update_cost_system, save_solution_system).in_set(ScoreCalc),
+    // );
+
+    app.configure_set(
+        ScoreUi
+            .after(ScoreCalc)
+            .run_if(in_state(GameState::Playing)),
     );
+    // TODO why does this panic?
+    // app.add_systems(
+    //     (
+    //         pixie_button_text_system,
+    //         update_pixie_count_text_system,
+    //         update_elapsed_text_system,
+    //         update_score_text_system,
+    //     )
+    //         .in_set(ScoreUi),
+    // );
+
+    // TODO why does this panic?
     // TODO: This needs to run after update_score_text. It would be
     // nice to move the important bits to score_calc.
-    app.add_system_set_to_stage(
-        "after_update",
-        SystemSet::on_update(GameState::Playing)
-            .after("score_ui")
-            .with_system(show_score_dialog_system),
-    );
+    // app.add_system(
+    //     show_score_dialog_system
+    //         .run_if(in_state(GameState::Playing))
+    //         .after(ScoreUi),
+    // );
 
     app.init_resource::<Handles>();
     app.init_resource::<SelectedLevel>();
@@ -202,6 +211,10 @@ struct DrawingInput;
 struct DrawingMouseMovement;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 struct DrawingInteraction;
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+struct ScoreCalc;
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+struct ScoreUi;
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 enum GameState {
@@ -766,10 +779,10 @@ fn show_score_dialog_system(
 
 fn back_button_system(
     q_interaction: Query<&Interaction, (Changed<Interaction>, With<Button>, With<BackButton>)>,
-    mut state: ResMut<State<GameState>>,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
     for _ in q_interaction.iter().filter(|i| **i == Interaction::Clicked) {
-        state.replace(GameState::LevelSelect).unwrap();
+        next_state.set(GameState::LevelSelect);
     }
 }
 
@@ -828,7 +841,11 @@ fn pixie_button_system(
         } else {
             if !pathfinding.valid {
                 for (mut visibility, parent) in q_indicator.iter_mut() {
-                    visibility.is_visible = pathfinding.invalid_nodes.contains(&parent.get());
+                    *visibility = if pathfinding.invalid_nodes.contains(&parent.get()) {
+                        Visibility::Visible
+                    } else {
+                        Visibility::Hidden
+                    }
                 }
 
                 return;
@@ -839,7 +856,7 @@ fn pixie_button_system(
             }
 
             for (mut visible, _) in q_indicator.iter_mut() {
-                visible.is_visible = false;
+                *visible = Visibility::Hidden;
             }
 
             let duration = 0.4;
@@ -913,7 +930,7 @@ fn reset_button_system(
         }
 
         for mut visibility in q_indicator.iter_mut() {
-            visibility.is_visible = false;
+            *visibility = Visibility::Hidden;
         }
 
         graph.graph.clear();
@@ -1444,11 +1461,13 @@ fn mouse_movement_system(
     let (camera, camera_transform) = q_camera.single();
 
     for event in cursor_moved_events.iter() {
-        mouse.position = camera.viewport_to_world_2d(camera_transform, event.position);
+        if let Some(pos) = camera.viewport_to_world_2d(camera_transform, event.position) {
+            mouse.position = pos;
 
-        mouse.snapped = snap_to_grid(mouse.position, GRID_SIZE);
+            mouse.snapped = snap_to_grid(mouse.position, GRID_SIZE);
 
-        mouse.window_position = event.position;
+            mouse.window_position = event.position;
+        }
     }
 }
 
@@ -1967,7 +1986,7 @@ fn spawn_terminus(
                             color: PIXIE_COLORS[flavor.color as usize],
                         },
                     )
-                    .with_alignment(TextAlignment::CENTER),
+                    .with_alignment(TextAlignment::Center),
                     transform: Transform::from_translation(label_pos.extend(layer::TERMINUS)),
                     ..Default::default()
                 });
@@ -1994,7 +2013,7 @@ fn spawn_terminus(
                             color: PIXIE_COLORS[flavor.color as usize],
                         },
                     )
-                    .with_alignment(TextAlignment::CENTER),
+                    .with_alignment(TextAlignment::Center),
 
                     transform: Transform::from_translation(label_pos.extend(layer::TERMINUS)),
                     ..Default::default()
