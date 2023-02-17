@@ -54,7 +54,7 @@ fn main() {
     let mut app = App::new();
 
     app.insert_resource(ClearColor(BACKGROUND_COLOR))
-        .insert_resource(Msaa { samples: 4 });
+        .insert_resource(Msaa::Sample4);
 
     app.add_plugins(
         DefaultPlugins
@@ -63,14 +63,12 @@ fn main() {
                 ..Default::default()
             })
             .set(WindowPlugin {
-                window: WindowDescriptor {
+                primary_window: Some(Window {
                     title: String::from("Pixie Wrangler"),
-                    width: 1280.,
-                    height: 720.,
                     #[cfg(target_arch = "wasm32")]
                     canvas: Some("#bevy-canvas".to_string()),
                     ..Default::default()
-                },
+                }),
                 ..default()
             }),
     )
@@ -85,7 +83,7 @@ fn main() {
     .add_plugin(EasingsPlugin)
     .add_plugin(RonAssetPlugin::<Level>::new(&["level.ron"]));
 
-    app.add_state(GameState::Loading);
+    app.add_state::<GameState>();
 
     app.add_stage_after(CoreStage::Update, "after_update", SystemStage::parallel());
     app.add_state_to_stage("after_update", GameState::Loading);
@@ -182,8 +180,9 @@ fn main() {
     app.run();
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 enum GameState {
+    #[default]
     Loading,
     LevelSelect,
     Playing,
@@ -965,12 +964,12 @@ fn draw_mouse_system(
             Color::RED
         };
         commands.spawn((
-            GeometryBuilder::build_as(
-                &shape,
-                DrawMode::Stroke(StrokeMode::new(color, 2.0)),
-                Transform::from_translation(snapped.extend(layer::CURSOR)),
-            ),
-            Cursor,
+            ShapeBundle {
+                path: GeometryBuilder::build_as(&shape),
+                transform: Transform::from_translation(snapped.extend(layer::CURSOR)),
+                ..default()
+            },
+            Stroke::new(color, 2.0),
         ));
     }
 
@@ -991,11 +990,12 @@ fn draw_mouse_system(
 
         for (a, b) in line_drawing.segments.iter() {
             commands.spawn((
-                GeometryBuilder::build_as(
-                    &shapes::Line(*a, *b),
-                    DrawMode::Stroke(StrokeMode::new(color, 2.0)),
-                    Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
-                ),
+                ShapeBundle {
+                    path: GeometryBuilder::build_as(&shapes::Line(*a, *b)),
+                    transform: Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
+                    ..default()
+                },
+                Stroke::new(color, 2.0),
                 DrawingLine,
             ));
         }
@@ -1017,11 +1017,12 @@ fn draw_net_ripping_system(
 
     for (a, b) in ripping_state.segments.iter() {
         commands.spawn((
-            GeometryBuilder::build_as(
-                &shapes::Line(*a, *b),
-                DrawMode::Stroke(StrokeMode::new(Color::RED, 2.0)),
-                Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
-            ),
+            ShapeBundle {
+                path: GeometryBuilder::build_as(&shapes::Line(*a, *b)),
+                transform: Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
+                ..default()
+            },
+            Stroke::new(Color::RED, 2.0),
             RippingLine,
         ));
     }
@@ -1415,20 +1416,12 @@ fn drawing_mouse_click_system(
 fn mouse_movement_system(
     mut cursor_moved_events: EventReader<CursorMoved>,
     mut mouse: ResMut<MouseState>,
-    windows: Res<Windows>,
-    q_camera: Query<&GlobalTransform, With<MainCamera>>,
+    q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
 ) {
-    let camera_transform = q_camera.single();
+    let (camera, camera_transform) = q_camera.single();
 
     for event in cursor_moved_events.iter() {
-        let window = windows.get(event.id).unwrap();
-        let size = Vec2::new(window.width() as f32, window.height() as f32);
-
-        let p = event.position - size / 2.0;
-
-        mouse.position = (camera_transform.compute_matrix() * p.extend(0.0).extend(1.0))
-            .truncate()
-            .truncate();
+        mouse.position = camera.viewport_to_world_2d(camera_transform, event.position);
 
         mouse.snapped = snap_to_grid(mouse.position, GRID_SIZE);
 
@@ -1818,11 +1811,12 @@ fn spawn_road_segment(
     let color = FINISHED_ROAD_COLORS[segment.layer as usize - 1];
     let ent = commands
         .spawn((
-            GeometryBuilder::build_as(
-                &shapes::Line(segment.points.0, segment.points.1),
-                DrawMode::Stroke(StrokeMode::new(color, 2.0)),
-                Transform::from_xyz(0.0, 0.0, layer::ROAD - segment.layer as f32),
-            ),
+            ShapeBundle {
+                path: GeometryBuilder::build_as(&shapes::Line(segment.points.0, segment.points.1)),
+                transform: Transform::from_xyz(0.0, 0.0, layer::ROAD - segment.layer as f32),
+                ..default()
+            },
+            Stroke::new(color, 2.0),
             segment.clone(),
         ))
         .with_children(|parent| {
@@ -1855,13 +1849,16 @@ fn spawn_obstacle(commands: &mut Commands, obstacle: &Obstacle) {
             let origin = (*top_left + *bottom_right) / 2.0;
 
             commands
-                .spawn(GeometryBuilder::build_as(
-                    &shapes::Rectangle {
-                        extents: Vec2::new(diff.x.abs(), diff.y.abs()),
-                        ..Default::default()
+                .spawn((
+                    ShapeBundle {
+                        path: GeometryBuilder::build_as(&shapes::Rectangle {
+                            extents: Vec2::new(diff.x.abs(), diff.y.abs()),
+                            ..Default::default()
+                        }),
+                        transform: Transform::from_translation(origin.extend(layer::OBSTACLE)),
+                        ..default()
                     },
-                    DrawMode::Fill(FillMode::color(Color::rgb(0.086, 0.105, 0.133))),
-                    Transform::from_translation(origin.extend(layer::OBSTACLE)),
+                    Fill::color(Color::rgb(0.086, 0.105, 0.133)),
                 ))
                 .with_children(|parent| {
                     parent.spawn((
@@ -1911,17 +1908,16 @@ fn spawn_terminus(
 
     let ent = commands
         .spawn((
-            GeometryBuilder::build_as(
-                &shapes::Circle {
+            ShapeBundle {
+                path: GeometryBuilder::build_as(&shapes::Circle {
                     radius: 5.5,
                     center: Vec2::splat(0.0),
-                },
-                DrawMode::Outlined {
-                    fill_mode: FillMode::color(BACKGROUND_COLOR),
-                    outline_mode: StrokeMode::new(FINISHED_ROAD_COLORS[0], 2.0),
-                },
-                Transform::from_translation(terminus.point.extend(layer::TERMINUS)),
-            ),
+                }),
+                transform: Transform::from_translation(terminus.point.extend(layer::TERMINUS)),
+                ..default()
+            },
+            Fill::color(BACKGROUND_COLOR),
+            Stroke::new(FINISHED_ROAD_COLORS[0], 2.0),
             terminus.clone(),
         ))
         .with_children(|parent| {
@@ -1987,19 +1983,19 @@ fn spawn_terminus(
             // TODO above code supports multiple emitters/collectors, but below
             // assumes a single emitter.
 
-            parent
-                .spawn((
-                    GeometryBuilder::build_as(
-                        &shapes::Circle {
-                            radius: 5.5,
-                            center: Vec2::splat(0.0),
-                        },
-                        DrawMode::Fill(FillMode::color(Color::RED)),
-                        Transform::from_xyz(-30.0, -1.0 * label_offset, layer::TERMINUS),
-                    ),
-                    TerminusIssueIndicator,
-                ))
-                .insert(Visibility { is_visible: false });
+            parent.spawn((
+                ShapeBundle {
+                    path: GeometryBuilder::build_as(&shapes::Circle {
+                        radius: 5.5,
+                        center: Vec2::splat(0.0),
+                    }),
+                    transform: Transform::from_xyz(-30.0, -1.0 * label_offset, layer::TERMINUS),
+                    visibility: Visibility::Hidden,
+                    ..default()
+                },
+                Fill::color(Color::RED),
+                TerminusIssueIndicator,
+            ));
         })
         .id();
 
@@ -2176,14 +2172,15 @@ fn playing_enter_system(
     for x in ((-25 * (GRID_SIZE as i32))..=25 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
         for y in (-15 * (GRID_SIZE as i32)..=15 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
             commands.spawn((
-                GeometryBuilder::build_as(
-                    &shapes::Circle {
+                ShapeBundle {
+                    path: GeometryBuilder::build_as(&shapes::Circle {
                         radius: 2.5,
                         ..Default::default()
-                    },
-                    DrawMode::Fill(FillMode::color(GRID_COLOR)),
-                    Transform::from_xyz(x as f32, y as f32, layer::GRID),
-                ),
+                    }),
+                    transform: Transform::from_xyz(x as f32, y as f32, layer::GRID),
+                    ..default()
+                },
+                Fill::color(GRID_COLOR),
                 GridPoint,
             ));
         }

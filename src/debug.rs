@@ -26,11 +26,12 @@ fn debug_lines_despawn_system(mut commands: Commands, query: Query<Entity, With<
 fn debug_lines_spawn_system(mut commands: Commands, mut debug_lines: ResMut<DebugLines>) {
     for (line, color, width) in debug_lines.0.drain(..) {
         commands.spawn((
-            GeometryBuilder::build_as(
-                &shapes::Line(line.0, line.1),
-                DrawMode::Stroke(StrokeMode::new(color, width)),
-                Transform::from_xyz(0.0, 0.0, 999.0),
-            ),
+            ShapeBundle {
+                path: GeometryBuilder::build_as(&shapes::Line(line.0, line.1)),
+                transform: Transform::from_xyz(0.0, 0.0, 999.0),
+                ..default()
+            },
+            Stroke::new(color, width),
             DebugLine,
         ));
     }

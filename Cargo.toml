@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 
-bevy = { version = "0.9", default-features = false, features = [
+bevy = { git = "https://github.com/bevyengine/bevy.git", default-features = false, features = [
     "bevy_asset",
     "bevy_winit",
     "bevy_core_pipeline",
@@ -19,9 +19,14 @@ bevy = { version = "0.9", default-features = false, features = [
 ] }
 
 
-bevy_prototype_lyon = "0.7"
-bevy_easings = "0.9"
-bevy_common_assets = { version = "0.4", features=["ron"] }
+#bevy_prototype_lyon = "0.7"
+bevy_prototype_lyon = { git = "https://github.com/Nilirad/bevy_prototype_lyon" }
+#bevy_easings = "0.9"
+#bevy_easings = { git = "https://github.com/vleue/bevy_easings.git" }
+bevy_easings = { path = "../bevy_easings" }
+#bevy_common_assets = { version = "0.4", features=["ron"] }
+bevy_common_assets = { git = "https://github.com/NiklasEi/bevy_common_assets.git", branch = "bevy_main", features=["ron"] }
+
 
 rand = "0.8"
 petgraph = "0.6"
