@@ -1,89 +1,98 @@
-use crate::pixie::{
-    collide_pixies_system, emit_pixies_system, explode_pixies_system, move_pixies_system, Pixie,
-    PixieEmitter,
+use std::time::Duration;
+
+use crate::{
+    pixie::{
+        collide_pixies_system, emit_pixies_system, explode_pixies_system, move_pixies_system,
+        Pixie, PixieEmitter,
+    },
+    pixie_button_system,
 };
-use bevy::prelude::*;
+use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
 
 pub struct SimulationPlugin;
 impl Plugin for SimulationPlugin {
     fn build(&self, app: &mut App) {
+        let mut schedule = Schedule::new();
+
+        // explicit ordering for determinism
+        schedule.add_systems(
+            (
+                collide_pixies_system,
+                move_pixies_system,
+                emit_pixies_system,
+                explode_pixies_system,
+                update_sim_state_system,
+            )
+                .chain(),
+        );
+
+        app.add_schedule(SimulationSchedule, schedule);
+
         app.init_resource::<SimulationSettings>();
         app.init_resource::<SimulationState>();
-        app.add_stage_after(
-            CoreStage::Update,
-            "simulation",
-            SimulationStage {
-                step: SIMULATION_TIMESTEP as f64,
-                accumulator: 0.0,
-                stage: SystemStage::parallel()
-                    // need to run these in the same order every time for scores
-                    // to be deterministic. probably.
-                    .with_system(
-                        collide_pixies_system
-                            .label("collide_pixies")
-                            .before("move_pixies"),
-                    )
-                    .with_system(move_pixies_system.label("move_pixies"))
-                    .with_system(emit_pixies_system.label("emit_pixies").after("move_pixies"))
-                    .with_system(explode_pixies_system.after("collide_pixies"))
-                    .with_system(update_sim_state_system.after("emit_pixies")),
-            },
+        app.init_resource::<SimulationSteps>();
+
+        // TODO this must run after buffers from pixie_button_system are applied
+        // so that emitters are created on time. It might be nice to move sim entity
+        // initialization into the sim schedule.
+        app.add_systems(
+            (apply_system_buffers, run_simulation)
+                .chain()
+                .after(pixie_button_system),
         );
     }
 }
 
 pub const SIMULATION_TIMESTEP: f32 = 0.016_666_668;
 
-#[derive(Resource, Default)]
-pub struct SimulationState {
-    pub started: bool,
-    pub tick: u32,
-    pub done: bool,
+#[derive(ScheduleLabel, Debug, PartialEq, Eq, Clone, Hash)]
+pub struct SimulationSchedule;
+
+#[derive(Resource, Default, PartialEq)]
+pub enum SimulationState {
+    #[default]
+    NotStarted,
+    Running,
+    Finished,
 }
 
-struct SimulationStage {
-    step: f64,
-    accumulator: f64,
-    stage: SystemStage,
+#[derive(Resource)]
+pub struct SimulationSteps {
+    timestep: Duration,
+    accumulator: Duration,
+    step: u32,
 }
-
-impl Stage for SimulationStage {
-    fn run(&mut self, world: &mut World) {
-        if let Some(state) = world.get_resource::<SimulationState>() {
-            if !state.started || state.done {
-                return;
-            }
+impl Default for SimulationSteps {
+    fn default() -> Self {
+        Self {
+            timestep: Duration::from_secs_f32(SIMULATION_TIMESTEP),
+            accumulator: Duration::ZERO,
+            step: 0,
         }
+    }
+}
+impl SimulationSteps {
+    fn expend(&mut self) -> bool {
+        if let Some(new_value) = self.accumulator.checked_sub(self.timestep) {
+            self.accumulator = new_value;
+            self.step += 1;
 
-        let delta = match world.get_resource::<Time>() {
-            Some(time) => time.delta_seconds_f64(),
-            None => return,
-        };
-
-        let speed = match world.get_resource::<SimulationSettings>() {
-            Some(settings) => settings.speed,
-            None => return,
-        };
-
-        self.accumulator += delta * speed.scale();
-
-        while self.accumulator > self.step {
-            self.accumulator -= self.step;
-
-            self.stage.run(world);
-
-            match world.get_resource_mut::<SimulationState>() {
-                Some(mut state) => state.tick += 1,
-                None => return,
-            };
-
-            if let Some(state) = world.get_resource::<SimulationState>() {
-                if !state.started || state.done {
-                    self.accumulator = 0.0;
-                    return;
-                }
-            }
+            true
+        } else {
+            false
         }
+    }
+
+    fn tick(&mut self, delta: Duration) {
+        self.accumulator += delta;
+    }
+
+    fn reset(&mut self) {
+        *self = Self::default();
+    }
+
+    pub fn get_elapsed_f32(&self) -> f32 {
+        self.step as f32 * SIMULATION_TIMESTEP
     }
 }
 
@@ -98,10 +107,10 @@ impl Default for SimulationSpeed {
     }
 }
 impl SimulationSpeed {
-    fn scale(&self) -> f64 {
+    fn scale(&self) -> u32 {
         match self {
-            Self::Normal => 1.0,
-            Self::Fast => 4.0,
+            Self::Normal => 1,
+            Self::Fast => 4,
         }
     }
     pub fn label(&self) -> String {
@@ -110,18 +119,61 @@ impl SimulationSpeed {
             Self::Fast => "4X".to_string(),
         }
     }
+    pub fn next(&self) -> Self {
+        match self {
+            SimulationSpeed::Normal => SimulationSpeed::Fast,
+            SimulationSpeed::Fast => SimulationSpeed::Normal,
+        }
+    }
 }
 #[derive(Resource, Default)]
 pub struct SimulationSettings {
     pub speed: SimulationSpeed,
 }
 
+fn run_simulation(world: &mut World) {
+    let state = world.resource_mut::<SimulationState>();
+    if *state != SimulationState::Running {
+        return;
+    }
+
+    if state.is_changed() {
+        world.resource_mut::<SimulationSteps>().reset();
+    }
+
+    let speed = world.resource::<SimulationSettings>().speed;
+    let delta = world.resource::<Time>().delta();
+
+    world
+        .resource_mut::<SimulationSteps>()
+        .tick(delta * speed.scale());
+
+    let mut check_again = true;
+    while check_again {
+        let mut steps = world.resource_mut::<SimulationSteps>();
+
+        if steps.expend() {
+            world.run_schedule(SimulationSchedule);
+
+            // If the sim finished, don't run schedule again, even if there is
+            // enough time in the accumulator.
+            let state = world.resource::<SimulationState>();
+            if *state != SimulationState::Running {
+                check_again = false;
+            }
+        } else {
+            check_again = false;
+        }
+    }
+}
+
 fn update_sim_state_system(
     mut sim_state: ResMut<SimulationState>,
+    sim_steps: Res<SimulationSteps>,
     q_emitter: Query<&PixieEmitter>,
     q_pixie: Query<Entity, With<Pixie>>,
 ) {
-    if sim_state.done {
+    if *sim_state != SimulationState::Running {
         return;
     }
 
@@ -139,5 +191,7 @@ fn update_sim_state_system(
         return;
     }
 
-    sim_state.done = true;
+    info!("Sim finished in {} ticks", sim_steps.step);
+
+    *sim_state = SimulationState::Finished;
 }

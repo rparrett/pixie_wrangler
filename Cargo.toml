@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 
-bevy = { version = "0.9", default-features = false, features = [
+bevy = { version = "0.10", default-features = false, features = [
     "bevy_asset",
     "bevy_winit",
     "bevy_core_pipeline",
@@ -19,9 +19,9 @@ bevy = { version = "0.9", default-features = false, features = [
 ] }
 
 
-bevy_prototype_lyon = "0.7"
-bevy_easings = "0.9"
-bevy_common_assets = { version = "0.4", features=["ron"] }
+bevy_prototype_lyon = "0.8"
+bevy_easings = "0.10"
+bevy_common_assets = { version = "0.5", features=["ron"] }
 
 rand = "0.8"
 petgraph = "0.6"

@@ -1,6 +1,4 @@
-use crate::{
-    level::Level, pixie::PIXIE_COLORS, save::BestScores, GameState, Handles, UI_GREY_RED_COLOR,
-};
+use crate::{color, level::Level, save::BestScores, GameState, Handles};
 use bevy::prelude::*;
 
 pub struct LevelSelectPlugin;
@@ -11,24 +9,24 @@ pub struct LevelSelectButton(u32);
 
 impl Plugin for LevelSelectPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(
-            SystemSet::on_enter(GameState::LevelSelect).with_system(level_select_enter),
+        app.add_system(level_select_enter.in_schedule(OnEnter(GameState::LevelSelect)));
+
+        app.add_systems(
+            (
+                level_select_update,
+                crate::button_system,
+                level_select_button_system,
+            )
+                .in_set(OnUpdate(GameState::LevelSelect)),
         );
-        app.add_system_set(
-            SystemSet::on_update(GameState::LevelSelect)
-                .with_system(level_select_update)
-                .with_system(crate::button_system)
-                .with_system(level_select_button_system),
-        );
-        app.add_system_set(
-            SystemSet::on_exit(GameState::LevelSelect).with_system(level_select_exit),
-        );
+
+        app.add_system(level_select_exit.in_schedule(OnExit(GameState::LevelSelect)));
     }
 }
 
 fn level_select_button_system(
     query: Query<(&Interaction, &LevelSelectButton), Changed<Interaction>>,
-    mut state: ResMut<State<GameState>>,
+    mut next_state: ResMut<NextState<GameState>>,
     mut level: ResMut<crate::SelectedLevel>,
     handles: Res<Handles>,
     levels: Res<Assets<Level>>,
@@ -44,7 +42,7 @@ fn level_select_button_system(
         };
 
         level.0 = button.0;
-        state.replace(GameState::Playing).unwrap();
+        next_state.set(GameState::Playing);
     }
 }
 
@@ -90,7 +88,7 @@ fn level_select_enter(
                             TextStyle {
                                 font: handles.fonts[0].clone(),
                                 font_size: 60.0,
-                                color: PIXIE_COLORS[1],
+                                color: color::PIXIE[1],
                             },
                         ),
                         ..Default::default()
@@ -101,11 +99,11 @@ fn level_select_enter(
                             ..Default::default()
                         },
                         text: Text::from_section(
-                            format!("Æ{}", total_score),
+                            format!("Æ{total_score}"),
                             TextStyle {
                                 font: handles.fonts[0].clone(),
                                 font_size: 30.0,
-                                color: crate::FINISHED_ROAD_COLORS[1],
+                                color: color::FINISHED_ROAD[1],
                             },
                         ),
                         ..Default::default()
@@ -158,7 +156,7 @@ fn level_select_enter(
                                                     },
                                                     ..Default::default()
                                                 },
-                                                background_color: crate::NORMAL_BUTTON.into(),
+                                                background_color: color::UI_NORMAL_BUTTON.into(),
                                                 ..Default::default()
                                             },
                                             LevelSelectButton(i),
@@ -170,8 +168,8 @@ fn level_select_enter(
                                                 .and_then(|h| levels.get(h));
 
                                             let level_color = match level {
-                                                Some(_) => crate::UI_WHITE_COLOR,
-                                                None => UI_GREY_RED_COLOR,
+                                                Some(_) => color::UI_WHITE,
+                                                None => color::UI_GREY_RED,
                                             };
 
                                             let (score_text, star_text_one, star_text_two) =
@@ -185,7 +183,7 @@ fn level_select_enter(
                                                         .count();
 
                                                     (
-                                                        format!("Æ{}", score),
+                                                        format!("Æ{score}"),
                                                         "★".repeat(stars),
                                                         "★".repeat(3 - stars),
                                                     )
@@ -201,7 +199,7 @@ fn level_select_enter(
                                                             style: TextStyle {
                                                                 font: handles.fonts[0].clone(),
                                                                 font_size: 30.0,
-                                                                color: crate::UI_WHITE_COLOR,
+                                                                color: color::UI_WHITE,
                                                             },
                                                         },
                                                         TextSection {
@@ -220,7 +218,7 @@ fn level_select_enter(
 
                                             parent.spawn(TextBundle {
                                                 text: Text::from_section(
-                                                    format!("{}", i),
+                                                    format!("{i}"),
                                                     TextStyle {
                                                         font: handles.fonts[0].clone(),
                                                         font_size: 60.0,
@@ -236,7 +234,7 @@ fn level_select_enter(
                                                     TextStyle {
                                                         font: handles.fonts[0].clone(),
                                                         font_size: 30.0,
-                                                        color: crate::FINISHED_ROAD_COLORS[1],
+                                                        color: color::FINISHED_ROAD[1],
                                                     },
                                                 ),
                                                 ..Default::default()

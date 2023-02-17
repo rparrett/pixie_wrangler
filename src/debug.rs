@@ -12,8 +12,8 @@ impl Plugin for DebugLinesPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DebugLines>();
         // run despawn before spawn, ensuring that lines stick around for one frame
-        app.add_system(debug_lines_spawn_system.label("debug_lines_spawn"));
-        app.add_system(debug_lines_despawn_system.before("debug_lines_spawn"));
+        app.add_system(debug_lines_spawn_system);
+        app.add_system(debug_lines_despawn_system.before(debug_lines_spawn_system));
     }
 }
 
@@ -26,11 +26,12 @@ fn debug_lines_despawn_system(mut commands: Commands, query: Query<Entity, With<
 fn debug_lines_spawn_system(mut commands: Commands, mut debug_lines: ResMut<DebugLines>) {
     for (line, color, width) in debug_lines.0.drain(..) {
         commands.spawn((
-            GeometryBuilder::build_as(
-                &shapes::Line(line.0, line.1),
-                DrawMode::Stroke(StrokeMode::new(color, width)),
-                Transform::from_xyz(0.0, 0.0, 999.0),
-            ),
+            ShapeBundle {
+                path: GeometryBuilder::build_as(&shapes::Line(line.0, line.1)),
+                transform: Transform::from_xyz(0.0, 0.0, 999.0),
+                ..default()
+            },
+            Stroke::new(color, width),
             DebugLine,
         ));
     }

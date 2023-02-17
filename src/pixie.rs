@@ -2,11 +2,11 @@ use rstar::{RTree, RTreeObject, AABB};
 use std::time::Duration;
 
 use crate::{
-    layer,
+    color, layer,
     lines::corner_angle,
     lines::{distance_on_path, travel, traveled_segments},
     sim::SIMULATION_TIMESTEP,
-    GameState, PixieCount, RoadSegment, SimulationState, GRID_SIZE,
+    GameState, PixieCount, RoadSegment, GRID_SIZE,
 };
 
 use bevy::{
@@ -24,7 +24,9 @@ pub const PIXIE_BRAKING_DISTANCE: f32 = PIXIE_RADIUS * 3.0;
 pub const PIXIE_EXPLOSION_DISTANCE: f32 = PIXIE_RADIUS * 0.5;
 pub const PIXIE_MIN_SPEED: f32 = 10.0;
 pub const PIXIE_MAX_SPEED: f32 = 60.0;
+/// A pixie's maximum speed when traveling through a 45 degree angle.
 pub const PIXIE_MAX_SPEED_45: f32 = 10.0;
+/// A pixie's maximum speed when traveling through a 90 degree angle.
 pub const PIXIE_MAX_SPEED_90: f32 = 30.0;
 pub const PIXIE_MAX_SPEED_ATTRACTED: f32 = 120.0;
 pub const CORNER_DEBUFF_ACTIVATION_DISTANCE: f32 = GRID_SIZE;
@@ -33,9 +35,7 @@ pub const CORNER_DEBUFF_DISTANCE: f32 = 24.0;
 pub struct PixiePlugin;
 impl Plugin for PixiePlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(
-            SystemSet::on_update(GameState::Playing).with_system(move_fragments_system),
-        );
+        app.add_system(move_fragments_system.in_set(OnUpdate(GameState::Playing)));
     }
 }
 
@@ -116,15 +116,6 @@ pub struct PixieFlavor {
     pub net: u32,
 }
 
-pub const PIXIE_COLORS: [Color; 6] = [
-    Color::AQUAMARINE,
-    Color::PINK,
-    Color::ORANGE,
-    Color::PURPLE,
-    Color::DARK_GREEN,
-    Color::YELLOW,
-];
-
 pub fn move_fragments_system(
     mut commands: Commands,
     mut query: Query<(Entity, &mut PixieFragment, &mut Transform)>,
@@ -171,11 +162,12 @@ pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixi
             let theta = rng.gen_range(0.0..std::f32::consts::TAU);
 
             commands.spawn((
-                GeometryBuilder::build_as(
-                    &shape,
-                    DrawMode::Fill(FillMode::color(PIXIE_COLORS[(pixie.flavor.color) as usize])),
-                    *transform,
-                ),
+                ShapeBundle {
+                    path: GeometryBuilder::build_as(&shape),
+                    transform: *transform,
+                    ..default()
+                },
+                Fill::color(color::PIXIE[(pixie.flavor.color) as usize]),
                 PixieFragment {
                     direction: Vec2::new(theta.cos(), theta.sin()),
                     ..Default::default()
@@ -452,8 +444,8 @@ pub fn move_pixies_system(
         transform.translation.y = to.y;
 
         if segments_traveled == 0 {
-            // pixies travelling uphill should stay above the next road as they approach it.
-            // pixies travelling downhill should stay above the previous road as they leave it.
+            // pixies traveling uphill should stay above the next road as they approach it.
+            // pixies traveling downhill should stay above the previous road as they leave it.
             if next_layer < current_layer && dist < PIXIE_RADIUS {
                 transform.translation.z = layer::PIXIE - next_layer as f32;
             } else if prev_layer < current_layer && last_dist < PIXIE_RADIUS {
@@ -490,15 +482,7 @@ pub fn move_pixies_system(
     }
 }
 
-pub fn emit_pixies_system(
-    testing_state: Res<SimulationState>,
-    mut q_emitters: Query<&mut PixieEmitter>,
-    mut commands: Commands,
-) {
-    if !testing_state.started {
-        return;
-    }
-
+pub fn emit_pixies_system(mut q_emitters: Query<&mut PixieEmitter>, mut commands: Commands) {
     for mut emitter in q_emitters.iter_mut() {
         if emitter.remaining == 0 {
             continue;
@@ -521,18 +505,17 @@ pub fn emit_pixies_system(
         let first_segment = emitter.path.first().unwrap();
 
         commands.spawn((
-            GeometryBuilder::build_as(
-                &shape,
-                DrawMode::Fill(FillMode::color(
-                    PIXIE_COLORS[(emitter.flavor.color) as usize],
-                )),
-                Transform::from_translation(
+            ShapeBundle {
+                path: GeometryBuilder::build_as(&shape),
+                transform: Transform::from_translation(
                     first_segment
                         .points
                         .0
                         .extend(layer::PIXIE - first_segment.layer as f32),
                 ),
-            ),
+                ..default()
+            },
+            Fill::color(color::PIXIE[(emitter.flavor.color) as usize]),
             Pixie {
                 flavor: emitter.flavor,
                 path: emitter.path.clone(),

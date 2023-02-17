@@ -7,8 +7,9 @@ pub const NUM_LEVELS: u32 = 9;
 
 impl Plugin for LoadingPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(SystemSet::on_enter(GameState::Loading).with_system(loading_setup));
-        app.add_system_set(SystemSet::on_update(GameState::Loading).with_system(loading_update));
+        app.init_resource::<Handles>();
+        app.add_system(loading_setup.in_schedule(OnEnter(GameState::Loading)));
+        app.add_system(loading_update.in_set(OnUpdate(GameState::Loading)));
     }
 }
 
@@ -25,7 +26,7 @@ fn loading_setup(
     for i in 1..=NUM_LEVELS {
         handles
             .levels
-            .push(asset_server.load(format!("levels/{}.level.ron", i).as_str()));
+            .push(asset_server.load(format!("levels/{i}.level.ron").as_str()));
     }
 
     handles
@@ -36,7 +37,7 @@ fn loading_setup(
 fn loading_update(
     handles: Res<Handles>,
     asset_server: Res<AssetServer>,
-    mut state: ResMut<State<GameState>>,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
     if !matches!(
         asset_server.get_group_load_state(handles.levels.iter().cloned().map(|h| h.id())),
@@ -52,5 +53,5 @@ fn loading_update(
         return;
     }
 
-    state.replace(GameState::LevelSelect).unwrap();
+    next_state.set(GameState::LevelSelect);
 }

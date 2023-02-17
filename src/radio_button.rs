@@ -1,3 +1,4 @@
+use crate::color;
 use bevy::prelude::*;
 
 pub struct RadioButtonPlugin;
@@ -12,13 +13,16 @@ pub struct RadioButton {
 #[derive(Component)]
 pub struct RadioButtonGroupRelation(pub Entity);
 
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+pub struct RadioButtonSet;
+
 impl Plugin for RadioButtonPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(radio_button_system.label("radio_button_system"));
+        app.add_system(radio_button_system.in_set(RadioButtonSet));
         app.add_system(
             radio_button_group_system
-                .label("radio_button_group_system")
-                .after("radio_button_system"),
+                .after(radio_button_system)
+                .in_set(RadioButtonSet),
         );
     }
 }
@@ -59,12 +63,12 @@ fn radio_button_system(
     for (mut radio, interaction, mut color) in interaction_query.iter_mut() {
         match *interaction {
             Interaction::Clicked => {
-                *color = crate::PRESSED_BUTTON.into();
+                *color = color::UI_PRESSED_BUTTON.into();
 
                 radio.selected = true;
             }
-            Interaction::Hovered => *color = crate::HOVERED_BUTTON.into(),
-            Interaction::None => *color = crate::NORMAL_BUTTON.into(),
+            Interaction::Hovered => *color = color::UI_HOVERED_BUTTON.into(),
+            Interaction::None => *color = color::UI_NORMAL_BUTTON.into(),
         }
     }
 }

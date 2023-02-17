@@ -8,17 +8,13 @@ use crate::{
     level_select::LevelSelectPlugin,
     lines::{possible_lines, Axis},
     loading::LoadingPlugin,
-    pixie::{Pixie, PixieEmitter, PixieFlavor, PixiePlugin, PIXIE_COLORS},
+    pixie::{Pixie, PixieEmitter, PixieFlavor, PixiePlugin},
     radio_button::{RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonPlugin},
     save::{BestScores, SavePlugin, Solution, Solutions},
-    sim::{
-        SimulationPlugin, SimulationSettings, SimulationSpeed, SimulationState, SIMULATION_TIMESTEP,
-    },
+    sim::{SimulationPlugin, SimulationSettings, SimulationState},
 };
 
 use bevy::{
-    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    log::LogPlugin,
     prelude::*,
     utils::HashSet,
     utils::{Duration, HashMap},
@@ -36,9 +32,12 @@ use petgraph::{
     visit::{DfsPostOrder, Walker},
 };
 
+use radio_button::RadioButtonSet;
 use serde::{Deserialize, Serialize};
+use sim::SimulationSteps;
 
 mod collision;
+mod color;
 mod debug;
 mod layer;
 mod level;
@@ -53,27 +52,19 @@ mod sim;
 fn main() {
     let mut app = App::new();
 
-    app.insert_resource(ClearColor(BACKGROUND_COLOR))
-        .insert_resource(Msaa { samples: 4 });
+    app.insert_resource(ClearColor(color::BACKGROUND))
+        .insert_resource(Msaa::Sample4);
 
-    app.add_plugins(
-        DefaultPlugins
-            .set(LogPlugin {
-                //filter: "wgpu=trace".to_string(),
-                ..Default::default()
-            })
-            .set(WindowPlugin {
-                window: WindowDescriptor {
-                    title: String::from("Pixie Wrangler"),
-                    width: 1280.,
-                    height: 720.,
-                    #[cfg(target_arch = "wasm32")]
-                    canvas: Some("#bevy-canvas".to_string()),
-                    ..Default::default()
-                },
-                ..default()
-            }),
-    )
+    app.add_state::<GameState>();
+
+    app.add_plugins(DefaultPlugins.set(WindowPlugin {
+        primary_window: Some(Window {
+            title: String::from("Pixie Wrangler"),
+            canvas: Some("#bevy-canvas".to_string()),
+            ..Default::default()
+        }),
+        ..default()
+    }))
     .add_plugin(ShapePlugin)
     .add_plugin(RadioButtonPlugin)
     .add_plugin(PixiePlugin)
@@ -85,91 +76,111 @@ fn main() {
     .add_plugin(EasingsPlugin)
     .add_plugin(RonAssetPlugin::<Level>::new(&["level.ron"]));
 
-    app.add_state(GameState::Loading);
+    app.configure_set(
+        AfterUpdate
+            .after(CoreSet::UpdateFlush)
+            .before(CoreSet::PostUpdate),
+    );
 
-    app.add_stage_after(CoreStage::Update, "after_update", SystemStage::parallel());
-    app.add_state_to_stage("after_update", GameState::Loading);
+    app.add_system(playing_enter_system.in_schedule(OnEnter(GameState::Playing)));
+    app.add_system(playing_exit_system.in_schedule(OnExit(GameState::Playing)));
+    app.add_systems(
+        (
+            keyboard_system.before(mouse_movement_system),
+            mouse_movement_system,
+        )
+            .before(RadioButtonSet)
+            .in_set(OnUpdate(GameState::Playing))
+            .in_set(DrawingInput),
+    );
+    app.configure_set(DrawingMouseMovement.after(DrawingInput));
+    app.add_systems(
+        (
+            net_ripping_mouse_movement_system,
+            not_drawing_mouse_movement_system,
+            drawing_mouse_movement_system,
+        )
+            .in_set(OnUpdate(GameState::Playing))
+            .in_set(DrawingMouseMovement),
+    );
 
-    app.add_system_set(SystemSet::on_enter(GameState::Playing).with_system(playing_enter_system));
-    app.add_system_set(SystemSet::on_exit(GameState::Playing).with_system(playing_exit_system));
-    app.add_system_set(
-        SystemSet::on_update(GameState::Playing)
-            .label("drawing_input")
-            .with_system(keyboard_system.before("mouse"))
-            .with_system(mouse_movement_system.label("mouse")),
+    app.add_systems(
+        (
+            tool_button_system,
+            tool_button_display_system,
+            drawing_mode_change_system,
+        )
+            .before(DrawingInteraction)
+            .before(RadioButtonSet)
+            .in_set(OnUpdate(GameState::Playing)),
     );
-    app.add_system_set(
-        SystemSet::on_update(GameState::Playing)
-            .after("drawing_input")
-            .label("drawing_mouse_movement")
-            .with_system(net_ripping_mouse_movement_system)
-            .with_system(not_drawing_mouse_movement_system)
-            .with_system(drawing_mouse_movement_system),
+
+    app.configure_set(DrawingInteraction.after(DrawingMouseMovement));
+    app.add_systems(
+        (
+            drawing_mouse_click_system,
+            net_ripping_mouse_click_system,
+            draw_mouse_system,
+            draw_net_ripping_system,
+            button_system,
+        )
+            .in_set(OnUpdate(GameState::Playing))
+            .in_set(DrawingInteraction),
     );
-    app.add_system_set(
-        SystemSet::on_update(GameState::Playing)
-            .before("drawing_interaction")
-            .before("radio_button_group_system")
-            .with_system(tool_button_system)
-            .with_system(tool_button_display_system)
-            .with_system(drawing_mode_change_system),
+
+    app.add_system(
+        dismiss_score_dialog_button_system
+            .in_set(OnUpdate(GameState::Playing))
+            .after(DrawingInteraction),
     );
-    app.add_system_set(
-        SystemSet::on_update(GameState::Playing)
-            .after("drawing_mouse_movement")
-            .label("drawing_interaction")
-            .with_system(drawing_mouse_click_system)
-            .with_system(net_ripping_mouse_click_system)
-            .with_system(draw_mouse_system)
-            .with_system(draw_net_ripping_system)
-            .with_system(button_system),
-    );
-    app.add_system_set(
-        SystemSet::on_update(GameState::Playing)
-            .after("drawing_interaction")
-            .with_system(dismiss_score_dialog_button_system),
-    );
+
     // whenever
-    app.add_system_set(
-        SystemSet::on_update(GameState::Playing)
-            .with_system(pixie_button_system)
-            .with_system(reset_button_system)
-            .with_system(speed_button_system)
-            .with_system(back_button_system),
-    );
-    app.add_system_set_to_stage(
-        "after_update",
-        SystemSet::on_update(GameState::Playing)
-            .label("score_calc")
-            .with_system(pathfinding_system)
-            .with_system(update_cost_system)
-            .with_system(save_solution_system),
-    );
-    app.add_system_set_to_stage(
-        "after_update",
-        SystemSet::on_update(GameState::Playing)
-            .label("score_ui")
-            .after("score_calc")
-            .with_system(pixie_button_text_system)
-            .with_system(update_pixie_count_text_system)
-            .with_system(update_elapsed_text_system)
-            .with_system(update_score_text_system),
-    );
-    // TODO: This needs to run after update_score_text. It would be
-    // nice to move the important bits to score_calc.
-    app.add_system_set_to_stage(
-        "after_update",
-        SystemSet::on_update(GameState::Playing)
-            .after("score_ui")
-            .with_system(show_score_dialog_system),
+    app.add_systems(
+        (
+            pixie_button_system,
+            reset_button_system,
+            speed_button_system,
+            back_button_system,
+        )
+            .in_set(OnUpdate(GameState::Playing)),
     );
 
-    app.init_resource::<Handles>();
+    app.configure_set(
+        ScoreCalc
+            .run_if(in_state(GameState::Playing))
+            .in_base_set(AfterUpdate),
+    );
+    app.add_systems(
+        (
+            pathfinding_system,
+            update_cost_system,
+            save_solution_system,
+            update_score_system.after(update_cost_system),
+        )
+            .in_set(ScoreCalc),
+    );
+
+    app.configure_set(
+        ScoreUi
+            .after(ScoreCalc)
+            .in_base_set(AfterUpdate)
+            .run_if(in_state(GameState::Playing)),
+    );
+    app.add_systems(
+        (
+            pixie_button_text_system,
+            update_pixie_count_text_system,
+            update_elapsed_text_system,
+            update_score_text_system,
+            show_score_dialog_system,
+        )
+            .in_set(ScoreUi),
+    );
+
     app.init_resource::<SelectedLevel>();
     app.init_resource::<DrawingState>();
     app.init_resource::<LineDrawingState>();
     app.init_resource::<NetRippingState>();
-    app.init_resource::<SimulationState>();
     app.init_resource::<PathfindingState>();
     app.init_resource::<MouseState>();
     app.init_resource::<RoadGraph>();
@@ -177,13 +188,28 @@ fn main() {
     app.init_resource::<Cost>();
     app.init_resource::<BestScores>();
     app.init_resource::<Solutions>();
-    app.add_plugin(LogDiagnosticsPlugin::default());
-    app.add_plugin(FrameTimeDiagnosticsPlugin::default());
+
     app.run();
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+#[system_set(base)]
+struct AfterUpdate;
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+struct DrawingInput;
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+struct DrawingMouseMovement;
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+struct DrawingInteraction;
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+struct ScoreCalc;
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+struct ScoreUi;
+
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 enum GameState {
+    #[default]
     Loading,
     LevelSelect,
     Playing,
@@ -348,28 +374,8 @@ enum SegmentConnection {
     Split(Entity),
 }
 
-pub const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
-pub const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
-pub const PRESSED_BUTTON: Color = Color::rgb(0.35, 0.75, 0.35);
-
 const GRID_SIZE: f32 = 48.0;
 const BOTTOM_BAR_HEIGHT: f32 = 70.0;
-
-const FINISHED_ROAD_COLORS: [Color; 3] = [
-    Color::rgb(0.251, 0.435, 0.729),
-    Color::rgb(0.247, 0.725, 0.314),
-    Color::rgb(0.247, 0.725, 0.714),
-];
-const DRAWING_ROAD_COLORS: [Color; 3] = [
-    Color::rgb(0.102, 0.18, 0.298),
-    Color::rgb(0.102, 0.298, 0.125),
-    Color::rgb(0.102, 0.298, 0.298),
-];
-const BACKGROUND_COLOR: Color = Color::rgb(0.05, 0.066, 0.09);
-const GRID_COLOR: Color = Color::rgb(0.086, 0.105, 0.133);
-const UI_WHITE_COLOR: Color = Color::rgb(0.788, 0.82, 0.851);
-const UI_GREY_RED_COLOR: Color = Color::rgb(1.0, 0.341, 0.341);
-
 const LAYER_TWO_MULTIPLIER: f32 = 2.0;
 const LAYER_THREE_MULTIPLIER: f32 = 4.0;
 
@@ -383,7 +389,7 @@ fn tool_button_display_system(
             text.sections[0].style.color = if button.selected {
                 Color::GREEN
             } else {
-                UI_WHITE_COLOR
+                color::UI_WHITE
             };
         }
     }
@@ -423,9 +429,9 @@ fn button_system(
 ) {
     for (interaction, mut color) in q_interaction.iter_mut() {
         match *interaction {
-            Interaction::Clicked => *color = PRESSED_BUTTON.into(),
-            Interaction::Hovered => *color = HOVERED_BUTTON.into(),
-            Interaction::None => *color = NORMAL_BUTTON.into(),
+            Interaction::Clicked => *color = color::UI_PRESSED_BUTTON.into(),
+            Interaction::Hovered => *color = color::UI_HOVERED_BUTTON.into(),
+            Interaction::None => *color = color::UI_NORMAL_BUTTON.into(),
         }
     }
 }
@@ -532,14 +538,14 @@ fn pixie_button_text_system(
     for children in q_pixie_button.iter() {
         let mut iter = q_text.iter_many_mut(children);
         while let Some(mut text) = iter.fetch_next() {
-            if sim_state.started && !sim_state.done {
+            if *sim_state == SimulationState::Running {
                 text.sections[0].value = "NO WAIT STOP".to_string();
             } else {
                 text.sections[0].value = "RELEASE THE PIXIES".to_string();
                 text.sections[0].style.color = if pathfinding.valid {
-                    UI_WHITE_COLOR
+                    color::UI_BUTTON_TEXT
                 } else {
-                    UI_GREY_RED_COLOR
+                    color::UI_GREY_RED
                 }
             }
         }
@@ -560,7 +566,7 @@ fn show_score_dialog_system(
         return;
     }
 
-    if !sim_state.done {
+    if *sim_state != SimulationState::Finished {
         return;
     }
 
@@ -607,7 +613,7 @@ fn show_score_dialog_system(
         .spawn((
             NodeBundle {
                 style: dialog_style.clone(),
-                background_color: Color::rgb(0.2, 0.2, 0.2).into(),
+                background_color: color::DIALOG_BACKGROUND.into(),
                 ..Default::default()
             },
             dialog_style.ease_to(
@@ -628,7 +634,7 @@ fn show_score_dialog_system(
                             style: TextStyle {
                                 font: handles.fonts[0].clone(),
                                 font_size: 100.0,
-                                color: crate::UI_WHITE_COLOR,
+                                color: color::UI_WHITE,
                             },
                         },
                         TextSection {
@@ -646,11 +652,11 @@ fn show_score_dialog_system(
             });
             parent.spawn(TextBundle {
                 text: Text::from_section(
-                    format!("Æ{}", score),
+                    format!("Æ{score}"),
                     TextStyle {
                         font: handles.fonts[0].clone(),
                         font_size: 100.0,
-                        color: FINISHED_ROAD_COLORS[1],
+                        color: color::FINISHED_ROAD[1],
                     },
                 ),
                 ..Default::default()
@@ -662,10 +668,7 @@ fn show_score_dialog_system(
                     style: Style {
                         size: Size::new(Val::Percent(100.0), Val::Px(70.0)),
                         flex_direction: FlexDirection::Row,
-                        // horizontally center child text
-                        justify_content: JustifyContent::Center,
-                        // vertically center child text
-                        align_items: AlignItems::Center,
+                        align_items: AlignItems::Stretch,
                         ..Default::default()
                     },
                     ..Default::default()
@@ -675,14 +678,14 @@ fn show_score_dialog_system(
                         .spawn((
                             ButtonBundle {
                                 style: Style {
-                                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                                    flex_grow: 1.,
                                     // horizontally center child text
                                     justify_content: JustifyContent::Center,
                                     // vertically center child text
                                     align_items: AlignItems::Center,
                                     ..Default::default()
                                 },
-                                background_color: NORMAL_BUTTON.into(),
+                                background_color: color::UI_NORMAL_BUTTON.into(),
                                 ..Default::default()
                             },
                             DismissScoreDialogButton,
@@ -694,7 +697,7 @@ fn show_score_dialog_system(
                                     TextStyle {
                                         font: handles.fonts[0].clone(),
                                         font_size: 30.0,
-                                        color: Color::rgb(0.9, 0.9, 0.9),
+                                        color: color::UI_BUTTON_TEXT,
                                     },
                                 ),
                                 ..Default::default()
@@ -704,7 +707,7 @@ fn show_score_dialog_system(
                         .spawn((
                             ButtonBundle {
                                 style: Style {
-                                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                                    flex_grow: 1.,
                                     // horizontally center child text
                                     justify_content: JustifyContent::Center,
                                     // vertically center child text
@@ -715,7 +718,7 @@ fn show_score_dialog_system(
                                     },
                                     ..Default::default()
                                 },
-                                background_color: NORMAL_BUTTON.into(),
+                                background_color: color::UI_NORMAL_BUTTON.into(),
                                 ..Default::default()
                             },
                             BackButton,
@@ -727,7 +730,7 @@ fn show_score_dialog_system(
                                     TextStyle {
                                         font: handles.fonts[0].clone(),
                                         font_size: 30.0,
-                                        color: Color::rgb(0.9, 0.9, 0.9),
+                                        color: color::UI_BUTTON_TEXT,
                                     },
                                 ),
                                 ..Default::default()
@@ -738,22 +741,23 @@ fn show_score_dialog_system(
         .id();
     if let Ok((entity, mut color)) = q_node.get_single_mut() {
         commands.entity(entity).push_children(&[dialog_entity]);
-        *color = Color::rgba(0.0, 0.0, 0.0, 0.7).into();
+        *color = color::OVERLAY.into();
     }
 }
 
 fn back_button_system(
     q_interaction: Query<&Interaction, (Changed<Interaction>, With<Button>, With<BackButton>)>,
-    mut state: ResMut<State<GameState>>,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
     for _ in q_interaction.iter().filter(|i| **i == Interaction::Clicked) {
-        state.replace(GameState::LevelSelect).unwrap();
+        next_state.set(GameState::LevelSelect);
     }
 }
 
 fn dismiss_score_dialog_button_system(
     mut commands: Commands,
     mut sim_state: ResMut<SimulationState>,
+    mut pixie_count: ResMut<PixieCount>,
     q_interaction: Query<
         &Interaction,
         (
@@ -763,12 +767,20 @@ fn dismiss_score_dialog_button_system(
         ),
     >,
     q_dialog: Query<Entity, With<ScoreDialog>>,
+    q_emitters: Query<Entity, With<PixieEmitter>>,
     mut q_node: Query<&mut BackgroundColor, With<PlayAreaNode>>,
+    mut score: ResMut<Score>,
 ) {
     for _ in q_interaction.iter().filter(|i| **i == Interaction::Clicked) {
         if let Ok(entity) = q_dialog.get_single() {
             commands.entity(entity).despawn_recursive();
             *sim_state = SimulationState::default();
+            *pixie_count = PixieCount::default();
+            *score = Score::default();
+        }
+
+        for entity in q_emitters.iter() {
+            commands.entity(entity).despawn();
         }
 
         if let Ok(mut color) = q_node.get_single_mut() {
@@ -789,7 +801,7 @@ fn pixie_button_system(
     mut q_indicator: Query<(&mut Visibility, &Parent), With<TerminusIssueIndicator>>,
 ) {
     // do nothing while score dialog is shown
-    if sim_state.started && sim_state.done {
+    if *sim_state == SimulationState::Finished {
         return;
     }
 
@@ -797,27 +809,28 @@ fn pixie_button_system(
         line_state.drawing = false;
         line_state.segments = vec![];
 
-        if sim_state.started && !sim_state.done {
+        if *sim_state == SimulationState::Running {
+            // If the sim is ongoing, the button is a cancel button.
             for entity in q_emitters.iter().chain(q_pixies.iter()) {
                 commands.entity(entity).despawn();
             }
 
-            sim_state.started = false;
+            *sim_state = SimulationState::NotStarted;
         } else {
             if !pathfinding.valid {
                 for (mut visibility, parent) in q_indicator.iter_mut() {
-                    visibility.is_visible = pathfinding.invalid_nodes.contains(&parent.get());
+                    *visibility = if pathfinding.invalid_nodes.contains(&parent.get()) {
+                        Visibility::Visible
+                    } else {
+                        Visibility::Hidden
+                    }
                 }
 
                 return;
             }
 
-            for entity in q_emitters.iter() {
-                commands.entity(entity).despawn();
-            }
-
             for (mut visible, _) in q_indicator.iter_mut() {
-                visible.is_visible = false;
+                *visible = Visibility::Hidden;
             }
 
             let duration = 0.4;
@@ -854,11 +867,9 @@ fn pixie_button_system(
                 *i += 1;
             }
 
-            sim_state.started = true;
+            *sim_state = SimulationState::Running;
         }
 
-        sim_state.tick = 0;
-        sim_state.done = false;
         pixie_count.0 = 0;
     }
 }
@@ -877,7 +888,7 @@ fn reset_button_system(
     mut q_indicator: Query<&mut Visibility, With<TerminusIssueIndicator>>,
 ) {
     // do nothing while score dialog is shown
-    if sim_state.started && sim_state.done {
+    if *sim_state == SimulationState::Finished {
         return;
     }
 
@@ -891,7 +902,7 @@ fn reset_button_system(
         }
 
         for mut visibility in q_indicator.iter_mut() {
-            visibility.is_visible = false;
+            *visibility = Visibility::Hidden;
         }
 
         graph.graph.clear();
@@ -924,10 +935,7 @@ fn speed_button_system(
         .iter()
         .filter(|(i, _)| **i == Interaction::Clicked)
     {
-        simulation_settings.speed = match simulation_settings.speed {
-            SimulationSpeed::Normal => SimulationSpeed::Fast,
-            SimulationSpeed::Fast => SimulationSpeed::Normal,
-        };
+        simulation_settings.speed = simulation_settings.speed.next();
 
         let mut iter = q_text.iter_many_mut(children);
         while let Some(mut text) = iter.fetch_next() {
@@ -958,18 +966,19 @@ fn draw_mouse_system(
             ..Default::default()
         };
         let color = if line_drawing.drawing && line_drawing.valid {
-            DRAWING_ROAD_COLORS[line_drawing.layer as usize - 1]
+            color::DRAWING_ROAD[line_drawing.layer as usize - 1]
         } else if !line_drawing.drawing && line_drawing.valid {
-            UI_WHITE_COLOR
+            color::UI_WHITE
         } else {
             Color::RED
         };
         commands.spawn((
-            GeometryBuilder::build_as(
-                &shape,
-                DrawMode::Stroke(StrokeMode::new(color, 2.0)),
-                Transform::from_translation(snapped.extend(layer::CURSOR)),
-            ),
+            ShapeBundle {
+                path: GeometryBuilder::build_as(&shape),
+                transform: Transform::from_translation(snapped.extend(layer::CURSOR)),
+                ..default()
+            },
+            Stroke::new(color, 2.0),
             Cursor,
         ));
     }
@@ -984,18 +993,19 @@ fn draw_mouse_system(
 
     if line_drawing.drawing {
         let color = if line_drawing.valid {
-            DRAWING_ROAD_COLORS[line_drawing.layer as usize - 1]
+            color::DRAWING_ROAD[line_drawing.layer as usize - 1]
         } else {
             Color::RED
         };
 
         for (a, b) in line_drawing.segments.iter() {
             commands.spawn((
-                GeometryBuilder::build_as(
-                    &shapes::Line(*a, *b),
-                    DrawMode::Stroke(StrokeMode::new(color, 2.0)),
-                    Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
-                ),
+                ShapeBundle {
+                    path: GeometryBuilder::build_as(&shapes::Line(*a, *b)),
+                    transform: Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
+                    ..default()
+                },
+                Stroke::new(color, 2.0),
                 DrawingLine,
             ));
         }
@@ -1017,11 +1027,12 @@ fn draw_net_ripping_system(
 
     for (a, b) in ripping_state.segments.iter() {
         commands.spawn((
-            GeometryBuilder::build_as(
-                &shapes::Line(*a, *b),
-                DrawMode::Stroke(StrokeMode::new(Color::RED, 2.0)),
-                Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
-            ),
+            ShapeBundle {
+                path: GeometryBuilder::build_as(&shapes::Line(*a, *b)),
+                transform: Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
+                ..default()
+            },
+            Stroke::new(Color::RED, 2.0),
             RippingLine,
         ));
     }
@@ -1128,7 +1139,7 @@ fn net_ripping_mouse_click_system(
         return;
     }
 
-    if sim_state.started {
+    if *sim_state != SimulationState::NotStarted {
         return;
     }
 
@@ -1167,7 +1178,7 @@ fn drawing_mouse_click_system(
         return;
     }
 
-    if sim_state.started {
+    if *sim_state != SimulationState::NotStarted {
         return;
     }
 
@@ -1415,24 +1426,18 @@ fn drawing_mouse_click_system(
 fn mouse_movement_system(
     mut cursor_moved_events: EventReader<CursorMoved>,
     mut mouse: ResMut<MouseState>,
-    windows: Res<Windows>,
-    q_camera: Query<&GlobalTransform, With<MainCamera>>,
+    q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
 ) {
-    let camera_transform = q_camera.single();
+    let (camera, camera_transform) = q_camera.single();
 
     for event in cursor_moved_events.iter() {
-        let window = windows.get(event.id).unwrap();
-        let size = Vec2::new(window.width() as f32, window.height() as f32);
+        if let Some(pos) = camera.viewport_to_world_2d(camera_transform, event.position) {
+            mouse.position = pos;
 
-        let p = event.position - size / 2.0;
+            mouse.snapped = snap_to_grid(mouse.position, GRID_SIZE);
 
-        mouse.position = (camera_transform.compute_matrix() * p.extend(0.0).extend(1.0))
-            .truncate()
-            .truncate();
-
-        mouse.snapped = snap_to_grid(mouse.position, GRID_SIZE);
-
-        mouse.window_position = event.position;
+            mouse.window_position = event.position;
+        }
     }
 }
 
@@ -1450,7 +1455,7 @@ fn net_ripping_mouse_movement_system(
         return;
     }
 
-    if sim_state.started {
+    if *sim_state != SimulationState::NotStarted {
         return;
     }
 
@@ -1556,7 +1561,7 @@ fn drawing_mouse_movement_system(
         return;
     }
 
-    if sim_state.started {
+    if *sim_state != SimulationState::NotStarted {
         return;
     }
 
@@ -1815,14 +1820,15 @@ fn spawn_road_segment(
     graph: &mut RoadGraph,
     segment: RoadSegment,
 ) -> (Entity, NodeIndex, NodeIndex) {
-    let color = FINISHED_ROAD_COLORS[segment.layer as usize - 1];
+    let color = color::FINISHED_ROAD[segment.layer as usize - 1];
     let ent = commands
         .spawn((
-            GeometryBuilder::build_as(
-                &shapes::Line(segment.points.0, segment.points.1),
-                DrawMode::Stroke(StrokeMode::new(color, 2.0)),
-                Transform::from_xyz(0.0, 0.0, layer::ROAD - segment.layer as f32),
-            ),
+            ShapeBundle {
+                path: GeometryBuilder::build_as(&shapes::Line(segment.points.0, segment.points.1)),
+                transform: Transform::from_xyz(0.0, 0.0, layer::ROAD - segment.layer as f32),
+                ..default()
+            },
+            Stroke::new(color, 2.0),
             segment.clone(),
         ))
         .with_children(|parent| {
@@ -1855,13 +1861,16 @@ fn spawn_obstacle(commands: &mut Commands, obstacle: &Obstacle) {
             let origin = (*top_left + *bottom_right) / 2.0;
 
             commands
-                .spawn(GeometryBuilder::build_as(
-                    &shapes::Rectangle {
-                        extents: Vec2::new(diff.x.abs(), diff.y.abs()),
-                        ..Default::default()
+                .spawn((
+                    ShapeBundle {
+                        path: GeometryBuilder::build_as(&shapes::Rectangle {
+                            extents: Vec2::new(diff.x.abs(), diff.y.abs()),
+                            ..Default::default()
+                        }),
+                        transform: Transform::from_translation(origin.extend(layer::OBSTACLE)),
+                        ..default()
                     },
-                    DrawMode::Fill(FillMode::color(Color::rgb(0.086, 0.105, 0.133))),
-                    Transform::from_translation(origin.extend(layer::OBSTACLE)),
+                    Fill::color(color::OBSTACLE),
                 ))
                 .with_children(|parent| {
                     parent.spawn((
@@ -1911,17 +1920,16 @@ fn spawn_terminus(
 
     let ent = commands
         .spawn((
-            GeometryBuilder::build_as(
-                &shapes::Circle {
+            ShapeBundle {
+                path: GeometryBuilder::build_as(&shapes::Circle {
                     radius: 5.5,
                     center: Vec2::splat(0.0),
-                },
-                DrawMode::Outlined {
-                    fill_mode: FillMode::color(BACKGROUND_COLOR),
-                    outline_mode: StrokeMode::new(FINISHED_ROAD_COLORS[0], 2.0),
-                },
-                Transform::from_translation(terminus.point.extend(layer::TERMINUS)),
-            ),
+                }),
+                transform: Transform::from_translation(terminus.point.extend(layer::TERMINUS)),
+                ..default()
+            },
+            Fill::color(color::BACKGROUND),
+            Stroke::new(color::FINISHED_ROAD[0], 2.0),
             terminus.clone(),
         ))
         .with_children(|parent| {
@@ -1945,10 +1953,10 @@ fn spawn_terminus(
                         TextStyle {
                             font: handles.fonts[0].clone(),
                             font_size: 30.0,
-                            color: PIXIE_COLORS[flavor.color as usize],
+                            color: color::PIXIE[flavor.color as usize],
                         },
                     )
-                    .with_alignment(TextAlignment::CENTER),
+                    .with_alignment(TextAlignment::Center),
                     transform: Transform::from_translation(label_pos.extend(layer::TERMINUS)),
                     ..Default::default()
                 });
@@ -1972,10 +1980,10 @@ fn spawn_terminus(
                         TextStyle {
                             font: handles.fonts[0].clone(),
                             font_size: 30.0,
-                            color: PIXIE_COLORS[flavor.color as usize],
+                            color: color::PIXIE[flavor.color as usize],
                         },
                     )
-                    .with_alignment(TextAlignment::CENTER),
+                    .with_alignment(TextAlignment::Center),
 
                     transform: Transform::from_translation(label_pos.extend(layer::TERMINUS)),
                     ..Default::default()
@@ -1987,19 +1995,19 @@ fn spawn_terminus(
             // TODO above code supports multiple emitters/collectors, but below
             // assumes a single emitter.
 
-            parent
-                .spawn((
-                    GeometryBuilder::build_as(
-                        &shapes::Circle {
-                            radius: 5.5,
-                            center: Vec2::splat(0.0),
-                        },
-                        DrawMode::Fill(FillMode::color(Color::RED)),
-                        Transform::from_xyz(-30.0, -1.0 * label_offset, layer::TERMINUS),
-                    ),
-                    TerminusIssueIndicator,
-                ))
-                .insert(Visibility { is_visible: false });
+            parent.spawn((
+                ShapeBundle {
+                    path: GeometryBuilder::build_as(&shapes::Circle {
+                        radius: 5.5,
+                        center: Vec2::splat(0.0),
+                    }),
+                    transform: Transform::from_xyz(-30.0, -1.0 * label_offset, layer::TERMINUS),
+                    visibility: Visibility::Hidden,
+                    ..default()
+                },
+                Fill::color(Color::RED),
+                TerminusIssueIndicator,
+            ));
         })
         .id();
 
@@ -2069,48 +2077,60 @@ fn update_cost_system(
     let potential_cost_round = (cost + potential_cost).ceil() - cost_round;
 
     for mut text in q_cost.iter_mut() {
-        text.sections[0].value = format!("§{}", cost_round);
+        text.sections[0].value = format!("§{cost_round}");
         if potential_cost_round > 0.0 {
-            text.sections[1].value = format!("+{}", potential_cost_round);
+            text.sections[1].value = format!("+{potential_cost_round}");
         } else {
             text.sections[1].value = "".to_string();
         }
-        text.sections[1].style.color = FINISHED_ROAD_COLORS[line_draw.layer as usize - 1]
+        text.sections[1].style.color = color::FINISHED_ROAD[line_draw.layer as usize - 1]
     }
 }
 
-fn update_score_text_system(
-    sim_state: Res<SimulationState>,
+fn update_score_system(
     pixie_count: Res<PixieCount>,
-    cost: Res<Cost>,
-    selected_level: Res<SelectedLevel>,
-    mut best_scores: ResMut<BestScores>,
-    mut q_score_text: Query<&mut Text, With<ScoreText>>,
+    sim_state: Res<SimulationState>,
+    sim_steps: Res<SimulationSteps>,
     mut score: ResMut<Score>,
+    mut best_scores: ResMut<BestScores>,
+    selected_level: Res<SelectedLevel>,
+    cost: Res<Cost>,
 ) {
     if !sim_state.is_changed() {
         return;
     }
 
-    if sim_state.done {
-        let elapsed = sim_state.tick as f32 * SIMULATION_TIMESTEP;
+    if *sim_state != SimulationState::Finished {
+        return;
+    }
 
-        let val = ((pixie_count.0 as f32 / cost.0 as f32 / elapsed as f32) * 10000.0).ceil() as u32;
+    let elapsed = sim_steps.get_elapsed_f32();
 
-        score.0 = Some(val);
+    let val = ((pixie_count.0 as f32 / cost.0 as f32 / elapsed) * 10000.0).ceil() as u32;
 
-        if let Some(best) = best_scores.0.get_mut(&selected_level.0) {
-            if *best < val {
-                *best = val;
-            }
-        } else {
-            best_scores.0.insert(selected_level.0, val);
+    score.0 = Some(val);
+
+    if let Some(best) = best_scores.0.get_mut(&selected_level.0) {
+        if *best < val {
+            *best = val;
         }
+    } else {
+        best_scores.0.insert(selected_level.0, val);
+    }
+}
+
+fn update_score_text_system(
+    selected_level: Res<SelectedLevel>,
+    best_scores: Res<BestScores>,
+    mut q_score_text: Query<&mut Text, With<ScoreText>>,
+) {
+    if !best_scores.is_changed() {
+        return;
     }
 
     if let Some(mut text) = q_score_text.iter_mut().next() {
         if let Some(best) = best_scores.0.get(&selected_level.0) {
-            text.sections[0].value = format!("Æ{}", best);
+            text.sections[0].value = format!("Æ{best}");
         } else {
             text.sections[0].value = "Æ?".to_string()
         }
@@ -2118,19 +2138,22 @@ fn update_score_text_system(
 }
 
 fn update_elapsed_text_system(
-    sim_state: Res<SimulationState>,
+    sim_steps: Res<SimulationSteps>,
     mut q_text: Query<&mut Text, With<ElapsedText>>,
 ) {
-    if !sim_state.is_changed() {
+    if !sim_steps.is_changed() {
         return;
     }
 
     for mut text in q_text.iter_mut() {
-        text.sections[0].value = format!("ŧ{:.1}", sim_state.tick as f32 * SIMULATION_TIMESTEP);
+        text.sections[0].value = format!("ŧ{:.1}", sim_steps.get_elapsed_f32());
     }
 }
 
-fn playing_exit_system(mut commands: Commands, query: Query<Entity, Without<MainCamera>>) {
+fn playing_exit_system(
+    mut commands: Commands,
+    query: Query<Entity, (Without<MainCamera>, Without<Window>)>,
+) {
     for entity in query.iter() {
         commands.entity(entity).despawn();
     }
@@ -2176,14 +2199,15 @@ fn playing_enter_system(
     for x in ((-25 * (GRID_SIZE as i32))..=25 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
         for y in (-15 * (GRID_SIZE as i32)..=15 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
             commands.spawn((
-                GeometryBuilder::build_as(
-                    &shapes::Circle {
+                ShapeBundle {
+                    path: GeometryBuilder::build_as(&shapes::Circle {
                         radius: 2.5,
                         ..Default::default()
-                    },
-                    DrawMode::Fill(FillMode::color(GRID_COLOR)),
-                    Transform::from_xyz(x as f32, y as f32, layer::GRID),
-                ),
+                    }),
+                    transform: Transform::from_xyz(x as f32, y as f32, layer::GRID),
+                    ..default()
+                },
+                Fill::color(color::GRID),
                 GridPoint,
             ));
         }
@@ -2257,7 +2281,7 @@ fn playing_enter_system(
                         align_items: AlignItems::Center,
                         ..Default::default()
                     },
-                    background_color: Color::rgb(0.09, 0.11, 0.13).into(),
+                    background_color: color::BOTTOM_BAR_BACKGROUND.into(),
                     ..Default::default()
                 })
                 .with_children(|parent| {
@@ -2289,7 +2313,7 @@ fn playing_enter_system(
                                             },
                                             ..Default::default()
                                         },
-                                        background_color: NORMAL_BUTTON.into(),
+                                        background_color: color::UI_NORMAL_BUTTON.into(),
                                         ..Default::default()
                                     },
                                     BackButton,
@@ -2301,7 +2325,7 @@ fn playing_enter_system(
                                             TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
-                                                color: Color::rgb(0.9, 0.9, 0.9),
+                                                color: color::UI_BUTTON_TEXT,
                                             },
                                         ),
                                         ..Default::default()
@@ -2327,7 +2351,7 @@ fn playing_enter_system(
                                                 },
                                                 ..Default::default()
                                             },
-                                            background_color: NORMAL_BUTTON.into(),
+                                            background_color: color::UI_NORMAL_BUTTON.into(),
                                             ..Default::default()
                                         },
                                         LayerButton(layer),
@@ -2339,11 +2363,11 @@ fn playing_enter_system(
                                     .with_children(|parent| {
                                         parent.spawn(TextBundle {
                                             text: Text::from_section(
-                                                format!("{}", layer),
+                                                format!("{layer}"),
                                                 TextStyle {
                                                     font: handles.fonts[0].clone(),
                                                     font_size: 30.0,
-                                                    color: Color::rgb(0.9, 0.9, 0.9),
+                                                    color: color::UI_BUTTON_TEXT,
                                                 },
                                             ),
                                             ..Default::default()
@@ -2369,7 +2393,7 @@ fn playing_enter_system(
                                             },
                                             ..Default::default()
                                         },
-                                        background_color: NORMAL_BUTTON.into(),
+                                        background_color: color::UI_NORMAL_BUTTON.into(),
                                         ..Default::default()
                                     },
                                     NetRippingButton,
@@ -2383,7 +2407,7 @@ fn playing_enter_system(
                                             TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
-                                                color: Color::rgb(0.9, 0.9, 0.9),
+                                                color: color::UI_BUTTON_TEXT,
                                             },
                                         ),
                                         ..Default::default()
@@ -2433,7 +2457,7 @@ fn playing_enter_system(
                                                 style: TextStyle {
                                                     font: handles.fonts[0].clone(),
                                                     font_size: 30.0,
-                                                    color: UI_WHITE_COLOR,
+                                                    color: color::UI_WHITE,
                                                 },
                                             },
                                             TextSection {
@@ -2441,7 +2465,7 @@ fn playing_enter_system(
                                                 style: TextStyle {
                                                     font: handles.fonts[0].clone(),
                                                     font_size: 30.0,
-                                                    color: PIXIE_COLORS[0],
+                                                    color: color::PIXIE[0],
                                                 },
                                             },
                                         ],
@@ -2463,7 +2487,7 @@ fn playing_enter_system(
                                         TextStyle {
                                             font: handles.fonts[0].clone(),
                                             font_size: 30.0,
-                                            color: PIXIE_COLORS[1],
+                                            color: color::PIXIE[1],
                                         },
                                     ),
                                     ..Default::default()
@@ -2483,7 +2507,7 @@ fn playing_enter_system(
                                             style: TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
-                                                color: PIXIE_COLORS[2],
+                                                color: color::PIXIE[2],
                                             },
                                         }],
                                         ..Default::default()
@@ -2505,7 +2529,7 @@ fn playing_enter_system(
                                             style: TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
-                                                color: FINISHED_ROAD_COLORS[1],
+                                                color: color::FINISHED_ROAD[1],
                                             },
                                         }],
                                         ..Default::default()
@@ -2541,7 +2565,7 @@ fn playing_enter_system(
                                             align_items: AlignItems::Center,
                                             ..Default::default()
                                         },
-                                        background_color: NORMAL_BUTTON.into(),
+                                        background_color: color::UI_NORMAL_BUTTON.into(),
                                         ..Default::default()
                                     },
                                     ResetButton,
@@ -2553,7 +2577,7 @@ fn playing_enter_system(
                                             TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
-                                                color: Color::rgb(0.9, 0.9, 0.9),
+                                                color: color::UI_BUTTON_TEXT,
                                             },
                                         ),
                                         ..Default::default()
@@ -2574,7 +2598,7 @@ fn playing_enter_system(
                                             },
                                             ..Default::default()
                                         },
-                                        background_color: NORMAL_BUTTON.into(),
+                                        background_color: color::UI_NORMAL_BUTTON.into(),
                                         ..Default::default()
                                     },
                                     SpeedButton,
@@ -2586,7 +2610,7 @@ fn playing_enter_system(
                                             TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
-                                                color: Color::rgb(0.9, 0.9, 0.9),
+                                                color: color::UI_BUTTON_TEXT,
                                             },
                                         ),
                                         ..Default::default()
@@ -2607,7 +2631,7 @@ fn playing_enter_system(
                                             },
                                             ..Default::default()
                                         },
-                                        background_color: NORMAL_BUTTON.into(),
+                                        background_color: color::UI_NORMAL_BUTTON.into(),
                                         ..Default::default()
                                     },
                                     PixieButton,
@@ -2619,7 +2643,7 @@ fn playing_enter_system(
                                             TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
-                                                color: Color::rgb(0.9, 0.9, 0.9),
+                                                color: color::UI_BUTTON_TEXT,
                                             },
                                         ),
                                         ..Default::default()
