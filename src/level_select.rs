@@ -54,6 +54,7 @@ fn level_select_enter(
     handles: Res<Handles>,
     levels: Res<Assets<Level>>,
 ) {
+    info!("level select enter"); // XXX
     let total_score: u32 = best_scores.0.iter().map(|(_, v)| v).sum();
 
     commands
