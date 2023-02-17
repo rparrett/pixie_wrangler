@@ -456,7 +456,6 @@ fn button_system(
         (Changed<Interaction>, With<Button>, Without<RadioButton>),
     >,
 ) {
-    info!("button system"); // XXX;
     for (interaction, mut color) in q_interaction.iter_mut() {
         match *interaction {
             Interaction::Clicked => *color = PRESSED_BUTTON.into(),
@@ -783,7 +782,6 @@ fn back_button_system(
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     for _ in q_interaction.iter().filter(|i| **i == Interaction::Clicked) {
-        info!("back button clicked, setting next state to GameState::LevelSelect");
         next_state.set(GameState::LevelSelect);
     }
 }
