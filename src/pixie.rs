@@ -2,7 +2,7 @@ use rstar::{RTree, RTreeObject, AABB};
 use std::time::Duration;
 
 use crate::{
-    layer,
+    color, layer,
     lines::corner_angle,
     lines::{distance_on_path, travel, traveled_segments},
     sim::SIMULATION_TIMESTEP,
@@ -114,15 +114,6 @@ pub struct PixieFlavor {
     pub net: u32,
 }
 
-pub const PIXIE_COLORS: [Color; 6] = [
-    Color::AQUAMARINE,
-    Color::PINK,
-    Color::ORANGE,
-    Color::PURPLE,
-    Color::DARK_GREEN,
-    Color::YELLOW,
-];
-
 pub fn move_fragments_system(
     mut commands: Commands,
     mut query: Query<(Entity, &mut PixieFragment, &mut Transform)>,
@@ -174,7 +165,7 @@ pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixi
                     transform: *transform,
                     ..default()
                 },
-                Fill::color(PIXIE_COLORS[(pixie.flavor.color) as usize]),
+                Fill::color(color::PIXIE[(pixie.flavor.color) as usize]),
                 PixieFragment {
                     direction: Vec2::new(theta.cos(), theta.sin()),
                     ..Default::default()
@@ -530,7 +521,7 @@ pub fn emit_pixies_system(
                 ),
                 ..default()
             },
-            Fill::color(PIXIE_COLORS[(emitter.flavor.color) as usize]),
+            Fill::color(color::PIXIE[(emitter.flavor.color) as usize]),
             Pixie {
                 flavor: emitter.flavor,
                 path: emitter.path.clone(),

@@ -8,7 +8,7 @@ use crate::{
     level_select::LevelSelectPlugin,
     lines::{possible_lines, Axis},
     loading::LoadingPlugin,
-    pixie::{Pixie, PixieEmitter, PixieFlavor, PixiePlugin, PIXIE_COLORS},
+    pixie::{Pixie, PixieEmitter, PixieFlavor, PixiePlugin},
     radio_button::{RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonPlugin},
     save::{BestScores, SavePlugin, Solution, Solutions},
     sim::{
@@ -38,6 +38,7 @@ use radio_button::RadioButtonSet;
 use serde::{Deserialize, Serialize};
 
 mod collision;
+mod color;
 mod debug;
 mod layer;
 mod level;
@@ -52,7 +53,7 @@ mod sim;
 fn main() {
     let mut app = App::new();
 
-    app.insert_resource(ClearColor(BACKGROUND_COLOR))
+    app.insert_resource(ClearColor(color::BACKGROUND))
         .insert_resource(Msaa::Sample4);
 
     app.add_state::<GameState>();
@@ -177,7 +178,6 @@ fn main() {
             .in_set(ScoreUi),
     );
 
-    app.init_resource::<Handles>();
     app.init_resource::<SelectedLevel>();
     app.init_resource::<DrawingState>();
     app.init_resource::<LineDrawingState>();
@@ -375,28 +375,8 @@ enum SegmentConnection {
     Split(Entity),
 }
 
-pub const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
-pub const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
-pub const PRESSED_BUTTON: Color = Color::rgb(0.35, 0.75, 0.35);
-
 const GRID_SIZE: f32 = 48.0;
 const BOTTOM_BAR_HEIGHT: f32 = 70.0;
-
-const FINISHED_ROAD_COLORS: [Color; 3] = [
-    Color::rgb(0.251, 0.435, 0.729),
-    Color::rgb(0.247, 0.725, 0.314),
-    Color::rgb(0.247, 0.725, 0.714),
-];
-const DRAWING_ROAD_COLORS: [Color; 3] = [
-    Color::rgb(0.102, 0.18, 0.298),
-    Color::rgb(0.102, 0.298, 0.125),
-    Color::rgb(0.102, 0.298, 0.298),
-];
-const BACKGROUND_COLOR: Color = Color::rgb(0.05, 0.066, 0.09);
-const GRID_COLOR: Color = Color::rgb(0.086, 0.105, 0.133);
-const UI_WHITE_COLOR: Color = Color::rgb(0.788, 0.82, 0.851);
-const UI_GREY_RED_COLOR: Color = Color::rgb(1.0, 0.341, 0.341);
-
 const LAYER_TWO_MULTIPLIER: f32 = 2.0;
 const LAYER_THREE_MULTIPLIER: f32 = 4.0;
 
@@ -410,7 +390,7 @@ fn tool_button_display_system(
             text.sections[0].style.color = if button.selected {
                 Color::GREEN
             } else {
-                UI_WHITE_COLOR
+                color::UI_WHITE
             };
         }
     }
@@ -450,9 +430,9 @@ fn button_system(
 ) {
     for (interaction, mut color) in q_interaction.iter_mut() {
         match *interaction {
-            Interaction::Clicked => *color = PRESSED_BUTTON.into(),
-            Interaction::Hovered => *color = HOVERED_BUTTON.into(),
-            Interaction::None => *color = NORMAL_BUTTON.into(),
+            Interaction::Clicked => *color = color::UI_PRESSED_BUTTON.into(),
+            Interaction::Hovered => *color = color::UI_HOVERED_BUTTON.into(),
+            Interaction::None => *color = color::UI_NORMAL_BUTTON.into(),
         }
     }
 }
@@ -564,9 +544,9 @@ fn pixie_button_text_system(
             } else {
                 text.sections[0].value = "RELEASE THE PIXIES".to_string();
                 text.sections[0].style.color = if pathfinding.valid {
-                    UI_WHITE_COLOR
+                    color::UI_BUTTON_TEXT
                 } else {
-                    UI_GREY_RED_COLOR
+                    color::UI_GREY_RED
                 }
             }
         }
@@ -634,7 +614,7 @@ fn show_score_dialog_system(
         .spawn((
             NodeBundle {
                 style: dialog_style.clone(),
-                background_color: Color::rgb(0.2, 0.2, 0.2).into(),
+                background_color: color::DIALOG_BACKGROUND.into(),
                 ..Default::default()
             },
             dialog_style.ease_to(
@@ -655,7 +635,7 @@ fn show_score_dialog_system(
                             style: TextStyle {
                                 font: handles.fonts[0].clone(),
                                 font_size: 100.0,
-                                color: crate::UI_WHITE_COLOR,
+                                color: color::UI_WHITE,
                             },
                         },
                         TextSection {
@@ -677,7 +657,7 @@ fn show_score_dialog_system(
                     TextStyle {
                         font: handles.fonts[0].clone(),
                         font_size: 100.0,
-                        color: FINISHED_ROAD_COLORS[1],
+                        color: color::FINISHED_ROAD[1],
                     },
                 ),
                 ..Default::default()
@@ -709,7 +689,7 @@ fn show_score_dialog_system(
                                     align_items: AlignItems::Center,
                                     ..Default::default()
                                 },
-                                background_color: NORMAL_BUTTON.into(),
+                                background_color: color::UI_NORMAL_BUTTON.into(),
                                 ..Default::default()
                             },
                             DismissScoreDialogButton,
@@ -721,7 +701,7 @@ fn show_score_dialog_system(
                                     TextStyle {
                                         font: handles.fonts[0].clone(),
                                         font_size: 30.0,
-                                        color: Color::rgb(0.9, 0.9, 0.9),
+                                        color: color::UI_BUTTON_TEXT,
                                     },
                                 ),
                                 ..Default::default()
@@ -742,7 +722,7 @@ fn show_score_dialog_system(
                                     },
                                     ..Default::default()
                                 },
-                                background_color: NORMAL_BUTTON.into(),
+                                background_color: color::UI_NORMAL_BUTTON.into(),
                                 ..Default::default()
                             },
                             BackButton,
@@ -754,7 +734,7 @@ fn show_score_dialog_system(
                                     TextStyle {
                                         font: handles.fonts[0].clone(),
                                         font_size: 30.0,
-                                        color: Color::rgb(0.9, 0.9, 0.9),
+                                        color: color::UI_BUTTON_TEXT,
                                     },
                                 ),
                                 ..Default::default()
@@ -765,7 +745,7 @@ fn show_score_dialog_system(
         .id();
     if let Ok((entity, mut color)) = q_node.get_single_mut() {
         commands.entity(entity).push_children(&[dialog_entity]);
-        *color = Color::rgba(0.0, 0.0, 0.0, 0.7).into();
+        *color = color::OVERLAY.into();
     }
 }
 
@@ -995,9 +975,9 @@ fn draw_mouse_system(
             ..Default::default()
         };
         let color = if line_drawing.drawing && line_drawing.valid {
-            DRAWING_ROAD_COLORS[line_drawing.layer as usize - 1]
+            color::DRAWING_ROAD[line_drawing.layer as usize - 1]
         } else if !line_drawing.drawing && line_drawing.valid {
-            UI_WHITE_COLOR
+            color::UI_WHITE
         } else {
             Color::RED
         };
@@ -1022,7 +1002,7 @@ fn draw_mouse_system(
 
     if line_drawing.drawing {
         let color = if line_drawing.valid {
-            DRAWING_ROAD_COLORS[line_drawing.layer as usize - 1]
+            color::DRAWING_ROAD[line_drawing.layer as usize - 1]
         } else {
             Color::RED
         };
@@ -1849,7 +1829,7 @@ fn spawn_road_segment(
     graph: &mut RoadGraph,
     segment: RoadSegment,
 ) -> (Entity, NodeIndex, NodeIndex) {
-    let color = FINISHED_ROAD_COLORS[segment.layer as usize - 1];
+    let color = color::FINISHED_ROAD[segment.layer as usize - 1];
     let ent = commands
         .spawn((
             ShapeBundle {
@@ -1899,7 +1879,7 @@ fn spawn_obstacle(commands: &mut Commands, obstacle: &Obstacle) {
                         transform: Transform::from_translation(origin.extend(layer::OBSTACLE)),
                         ..default()
                     },
-                    Fill::color(Color::rgb(0.086, 0.105, 0.133)),
+                    Fill::color(color::OBSTACLE),
                 ))
                 .with_children(|parent| {
                     parent.spawn((
@@ -1957,8 +1937,8 @@ fn spawn_terminus(
                 transform: Transform::from_translation(terminus.point.extend(layer::TERMINUS)),
                 ..default()
             },
-            Fill::color(BACKGROUND_COLOR),
-            Stroke::new(FINISHED_ROAD_COLORS[0], 2.0),
+            Fill::color(color::BACKGROUND),
+            Stroke::new(color::FINISHED_ROAD[0], 2.0),
             terminus.clone(),
         ))
         .with_children(|parent| {
@@ -1982,7 +1962,7 @@ fn spawn_terminus(
                         TextStyle {
                             font: handles.fonts[0].clone(),
                             font_size: 30.0,
-                            color: PIXIE_COLORS[flavor.color as usize],
+                            color: color::PIXIE[flavor.color as usize],
                         },
                     )
                     .with_alignment(TextAlignment::Center),
@@ -2009,7 +1989,7 @@ fn spawn_terminus(
                         TextStyle {
                             font: handles.fonts[0].clone(),
                             font_size: 30.0,
-                            color: PIXIE_COLORS[flavor.color as usize],
+                            color: color::PIXIE[flavor.color as usize],
                         },
                     )
                     .with_alignment(TextAlignment::Center),
@@ -2112,7 +2092,7 @@ fn update_cost_system(
         } else {
             text.sections[1].value = "".to_string();
         }
-        text.sections[1].style.color = FINISHED_ROAD_COLORS[line_draw.layer as usize - 1]
+        text.sections[1].style.color = color::FINISHED_ROAD[line_draw.layer as usize - 1]
     }
 }
 
@@ -2231,7 +2211,7 @@ fn playing_enter_system(
                     transform: Transform::from_xyz(x as f32, y as f32, layer::GRID),
                     ..default()
                 },
-                Fill::color(GRID_COLOR),
+                Fill::color(color::GRID),
                 GridPoint,
             ));
         }
@@ -2305,7 +2285,7 @@ fn playing_enter_system(
                         align_items: AlignItems::Center,
                         ..Default::default()
                     },
-                    background_color: Color::rgb(0.09, 0.11, 0.13).into(),
+                    background_color: color::BOTTOM_BAR_BACKGROUND.into(),
                     ..Default::default()
                 })
                 .with_children(|parent| {
@@ -2337,7 +2317,7 @@ fn playing_enter_system(
                                             },
                                             ..Default::default()
                                         },
-                                        background_color: NORMAL_BUTTON.into(),
+                                        background_color: color::UI_NORMAL_BUTTON.into(),
                                         ..Default::default()
                                     },
                                     BackButton,
@@ -2349,7 +2329,7 @@ fn playing_enter_system(
                                             TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
-                                                color: Color::rgb(0.9, 0.9, 0.9),
+                                                color: color::UI_BUTTON_TEXT,
                                             },
                                         ),
                                         ..Default::default()
@@ -2375,7 +2355,7 @@ fn playing_enter_system(
                                                 },
                                                 ..Default::default()
                                             },
-                                            background_color: NORMAL_BUTTON.into(),
+                                            background_color: color::UI_NORMAL_BUTTON.into(),
                                             ..Default::default()
                                         },
                                         LayerButton(layer),
@@ -2391,7 +2371,7 @@ fn playing_enter_system(
                                                 TextStyle {
                                                     font: handles.fonts[0].clone(),
                                                     font_size: 30.0,
-                                                    color: Color::rgb(0.9, 0.9, 0.9),
+                                                    color: color::UI_BUTTON_TEXT,
                                                 },
                                             ),
                                             ..Default::default()
@@ -2417,7 +2397,7 @@ fn playing_enter_system(
                                             },
                                             ..Default::default()
                                         },
-                                        background_color: NORMAL_BUTTON.into(),
+                                        background_color: color::UI_NORMAL_BUTTON.into(),
                                         ..Default::default()
                                     },
                                     NetRippingButton,
@@ -2431,7 +2411,7 @@ fn playing_enter_system(
                                             TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
-                                                color: Color::rgb(0.9, 0.9, 0.9),
+                                                color: color::UI_BUTTON_TEXT,
                                             },
                                         ),
                                         ..Default::default()
@@ -2481,7 +2461,7 @@ fn playing_enter_system(
                                                 style: TextStyle {
                                                     font: handles.fonts[0].clone(),
                                                     font_size: 30.0,
-                                                    color: UI_WHITE_COLOR,
+                                                    color: color::UI_WHITE,
                                                 },
                                             },
                                             TextSection {
@@ -2489,7 +2469,7 @@ fn playing_enter_system(
                                                 style: TextStyle {
                                                     font: handles.fonts[0].clone(),
                                                     font_size: 30.0,
-                                                    color: PIXIE_COLORS[0],
+                                                    color: color::PIXIE[0],
                                                 },
                                             },
                                         ],
@@ -2511,7 +2491,7 @@ fn playing_enter_system(
                                         TextStyle {
                                             font: handles.fonts[0].clone(),
                                             font_size: 30.0,
-                                            color: PIXIE_COLORS[1],
+                                            color: color::PIXIE[1],
                                         },
                                     ),
                                     ..Default::default()
@@ -2531,7 +2511,7 @@ fn playing_enter_system(
                                             style: TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
-                                                color: PIXIE_COLORS[2],
+                                                color: color::PIXIE[2],
                                             },
                                         }],
                                         ..Default::default()
@@ -2553,7 +2533,7 @@ fn playing_enter_system(
                                             style: TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
-                                                color: FINISHED_ROAD_COLORS[1],
+                                                color: color::FINISHED_ROAD[1],
                                             },
                                         }],
                                         ..Default::default()
@@ -2589,7 +2569,7 @@ fn playing_enter_system(
                                             align_items: AlignItems::Center,
                                             ..Default::default()
                                         },
-                                        background_color: NORMAL_BUTTON.into(),
+                                        background_color: color::UI_NORMAL_BUTTON.into(),
                                         ..Default::default()
                                     },
                                     ResetButton,
@@ -2601,7 +2581,7 @@ fn playing_enter_system(
                                             TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
-                                                color: Color::rgb(0.9, 0.9, 0.9),
+                                                color: color::UI_BUTTON_TEXT,
                                             },
                                         ),
                                         ..Default::default()
@@ -2622,7 +2602,7 @@ fn playing_enter_system(
                                             },
                                             ..Default::default()
                                         },
-                                        background_color: NORMAL_BUTTON.into(),
+                                        background_color: color::UI_NORMAL_BUTTON.into(),
                                         ..Default::default()
                                     },
                                     SpeedButton,
@@ -2634,7 +2614,7 @@ fn playing_enter_system(
                                             TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
-                                                color: Color::rgb(0.9, 0.9, 0.9),
+                                                color: color::UI_BUTTON_TEXT,
                                             },
                                         ),
                                         ..Default::default()
@@ -2655,7 +2635,7 @@ fn playing_enter_system(
                                             },
                                             ..Default::default()
                                         },
-                                        background_color: NORMAL_BUTTON.into(),
+                                        background_color: color::UI_NORMAL_BUTTON.into(),
                                         ..Default::default()
                                     },
                                     PixieButton,
@@ -2667,7 +2647,7 @@ fn playing_enter_system(
                                             TextStyle {
                                                 font: handles.fonts[0].clone(),
                                                 font_size: 30.0,
-                                                color: Color::rgb(0.9, 0.9, 0.9),
+                                                color: color::UI_BUTTON_TEXT,
                                             },
                                         ),
                                         ..Default::default()

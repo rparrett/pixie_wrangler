@@ -1,6 +1,4 @@
-use crate::{
-    level::Level, pixie::PIXIE_COLORS, save::BestScores, GameState, Handles, UI_GREY_RED_COLOR,
-};
+use crate::{color, level::Level, save::BestScores, GameState, Handles};
 use bevy::prelude::*;
 
 pub struct LevelSelectPlugin;
@@ -90,7 +88,7 @@ fn level_select_enter(
                             TextStyle {
                                 font: handles.fonts[0].clone(),
                                 font_size: 60.0,
-                                color: PIXIE_COLORS[1],
+                                color: color::PIXIE[1],
                             },
                         ),
                         ..Default::default()
@@ -105,7 +103,7 @@ fn level_select_enter(
                             TextStyle {
                                 font: handles.fonts[0].clone(),
                                 font_size: 30.0,
-                                color: crate::FINISHED_ROAD_COLORS[1],
+                                color: color::FINISHED_ROAD[1],
                             },
                         ),
                         ..Default::default()
@@ -158,7 +156,7 @@ fn level_select_enter(
                                                     },
                                                     ..Default::default()
                                                 },
-                                                background_color: crate::NORMAL_BUTTON.into(),
+                                                background_color: color::UI_NORMAL_BUTTON.into(),
                                                 ..Default::default()
                                             },
                                             LevelSelectButton(i),
@@ -170,8 +168,8 @@ fn level_select_enter(
                                                 .and_then(|h| levels.get(h));
 
                                             let level_color = match level {
-                                                Some(_) => crate::UI_WHITE_COLOR,
-                                                None => UI_GREY_RED_COLOR,
+                                                Some(_) => color::UI_WHITE,
+                                                None => color::UI_GREY_RED,
                                             };
 
                                             let (score_text, star_text_one, star_text_two) =
@@ -201,7 +199,7 @@ fn level_select_enter(
                                                             style: TextStyle {
                                                                 font: handles.fonts[0].clone(),
                                                                 font_size: 30.0,
-                                                                color: crate::UI_WHITE_COLOR,
+                                                                color: color::UI_WHITE,
                                                             },
                                                         },
                                                         TextSection {
@@ -236,7 +234,7 @@ fn level_select_enter(
                                                     TextStyle {
                                                         font: handles.fonts[0].clone(),
                                                         font_size: 30.0,
-                                                        color: crate::FINISHED_ROAD_COLORS[1],
+                                                        color: color::FINISHED_ROAD[1],
                                                     },
                                                 ),
                                                 ..Default::default()
