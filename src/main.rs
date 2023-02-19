@@ -681,7 +681,7 @@ fn show_score_dialog_system(
             });
             parent.spawn(TextBundle {
                 text: Text::from_section(
-                    format!("Æ{}", score),
+                    format!("Æ{score}"),
                     TextStyle {
                         font: handles.fonts[0].clone(),
                         font_size: 100.0,
@@ -2114,9 +2114,9 @@ fn update_cost_system(
     let potential_cost_round = (cost + potential_cost).ceil() - cost_round;
 
     for mut text in q_cost.iter_mut() {
-        text.sections[0].value = format!("§{}", cost_round);
+        text.sections[0].value = format!("§{cost_round}");
         if potential_cost_round > 0.0 {
-            text.sections[1].value = format!("+{}", potential_cost_round);
+            text.sections[1].value = format!("+{potential_cost_round}");
         } else {
             text.sections[1].value = "".to_string();
         }
@@ -2140,7 +2140,7 @@ fn update_score_text_system(
     if sim_state.done {
         let elapsed = sim_state.tick as f32 * SIMULATION_TIMESTEP;
 
-        let val = ((pixie_count.0 as f32 / cost.0 as f32 / elapsed as f32) * 10000.0).ceil() as u32;
+        let val = ((pixie_count.0 as f32 / cost.0 as f32 / elapsed) * 10000.0).ceil() as u32;
 
         score.0 = Some(val);
 
@@ -2155,7 +2155,7 @@ fn update_score_text_system(
 
     if let Some(mut text) = q_score_text.iter_mut().next() {
         if let Some(best) = best_scores.0.get(&selected_level.0) {
-            text.sections[0].value = format!("Æ{}", best);
+            text.sections[0].value = format!("Æ{best}");
         } else {
             text.sections[0].value = "Æ?".to_string()
         }
@@ -2388,7 +2388,7 @@ fn playing_enter_system(
                                     .with_children(|parent| {
                                         parent.spawn(TextBundle {
                                             text: Text::from_section(
-                                                format!("{}", layer),
+                                                format!("{layer}"),
                                                 TextStyle {
                                                     font: handles.fonts[0].clone(),
                                                     font_size: 30.0,

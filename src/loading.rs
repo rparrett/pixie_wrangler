@@ -25,7 +25,7 @@ fn loading_setup(
     for i in 1..=NUM_LEVELS {
         handles
             .levels
-            .push(asset_server.load(format!("levels/{}.level.ron", i).as_str()));
+            .push(asset_server.load(format!("levels/{i}.level.ron").as_str()));
     }
 
     handles

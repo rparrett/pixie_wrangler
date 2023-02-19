@@ -101,7 +101,7 @@ fn level_select_enter(
                             ..Default::default()
                         },
                         text: Text::from_section(
-                            format!("Æ{}", total_score),
+                            format!("Æ{total_score}"),
                             TextStyle {
                                 font: handles.fonts[0].clone(),
                                 font_size: 30.0,
@@ -185,7 +185,7 @@ fn level_select_enter(
                                                         .count();
 
                                                     (
-                                                        format!("Æ{}", score),
+                                                        format!("Æ{score}"),
                                                         "★".repeat(stars),
                                                         "★".repeat(3 - stars),
                                                     )
@@ -220,7 +220,7 @@ fn level_select_enter(
 
                                             parent.spawn(TextBundle {
                                                 text: Text::from_section(
-                                                    format!("{}", i),
+                                                    format!("{i}"),
                                                     TextStyle {
                                                         font: handles.fonts[0].clone(),
                                                         font_size: 60.0,
