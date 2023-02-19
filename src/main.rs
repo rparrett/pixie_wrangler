@@ -163,7 +163,13 @@ fn main() {
             .in_base_set(AfterUpdate),
     );
     app.add_systems(
-        (pathfinding_system, update_cost_system, save_solution_system).in_set(ScoreCalc),
+        (
+            pathfinding_system,
+            update_cost_system,
+            save_solution_system,
+            update_score_system.after(update_cost_system),
+        )
+            .in_set(ScoreCalc),
     );
 
     app.configure_set(
@@ -178,17 +184,9 @@ fn main() {
             update_pixie_count_text_system,
             update_elapsed_text_system,
             update_score_text_system,
+            show_score_dialog_system,
         )
             .in_set(ScoreUi),
-    );
-
-    // TODO: This needs to run after update_score_text. It would be
-    // nice to move the important bits to score_calc.
-    app.add_system(
-        show_score_dialog_system
-            .run_if(in_state(GameState::Playing))
-            .in_base_set(AfterUpdate)
-            .after(ScoreUi),
     );
 
     app.init_resource::<Handles>();
@@ -2140,33 +2138,40 @@ fn update_cost_system(
     }
 }
 
-fn update_score_text_system(
-    sim_state: Res<SimulationState>,
+fn update_score_system(
     pixie_count: Res<PixieCount>,
-    cost: Res<Cost>,
-    selected_level: Res<SelectedLevel>,
-    mut best_scores: ResMut<BestScores>,
-    mut q_score_text: Query<&mut Text, With<ScoreText>>,
+    sim_state: Res<SimulationState>,
     mut score: ResMut<Score>,
+    mut best_scores: ResMut<BestScores>,
+    selected_level: Res<SelectedLevel>,
+    cost: Res<Cost>,
 ) {
-    if !sim_state.is_changed() {
+    if !sim_state.is_changed() || !sim_state.done {
         return;
     }
 
-    if sim_state.done {
-        let elapsed = sim_state.tick as f32 * SIMULATION_TIMESTEP;
+    let elapsed = sim_state.tick as f32 * SIMULATION_TIMESTEP;
 
-        let val = ((pixie_count.0 as f32 / cost.0 as f32 / elapsed) * 10000.0).ceil() as u32;
+    let val = ((pixie_count.0 as f32 / cost.0 as f32 / elapsed) * 10000.0).ceil() as u32;
 
-        score.0 = Some(val);
+    score.0 = Some(val);
 
-        if let Some(best) = best_scores.0.get_mut(&selected_level.0) {
-            if *best < val {
-                *best = val;
-            }
-        } else {
-            best_scores.0.insert(selected_level.0, val);
+    if let Some(best) = best_scores.0.get_mut(&selected_level.0) {
+        if *best < val {
+            *best = val;
         }
+    } else {
+        best_scores.0.insert(selected_level.0, val);
+    }
+}
+
+fn update_score_text_system(
+    selected_level: Res<SelectedLevel>,
+    best_scores: Res<BestScores>,
+    mut q_score_text: Query<&mut Text, With<ScoreText>>,
+) {
+    if !best_scores.is_changed() {
+        return;
     }
 
     if let Some(mut text) = q_score_text.iter_mut().next() {
