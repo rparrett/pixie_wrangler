@@ -91,7 +91,6 @@ fn run_simulation(world: &mut World) {
         // If the sim just ended or was just stopped, reset the
         // accumulator.
         if world.is_resource_changed::<SimulationState>() {
-            info!("Resetting sim accumulator");
             let mut steps = world.resource_mut::<SimulationSteps>();
             steps.accumulator = 0.;
         }

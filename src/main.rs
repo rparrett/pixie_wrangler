@@ -456,7 +456,6 @@ fn button_system(
         (Changed<Interaction>, With<Button>, Without<RadioButton>),
     >,
 ) {
-    info!("button_system");
     for (interaction, mut color) in q_interaction.iter_mut() {
         match *interaction {
             Interaction::Clicked => *color = PRESSED_BUTTON.into(),
@@ -790,6 +789,7 @@ fn back_button_system(
 fn dismiss_score_dialog_button_system(
     mut commands: Commands,
     mut sim_state: ResMut<SimulationState>,
+    mut pixie_count: ResMut<PixieCount>,
     q_interaction: Query<
         &Interaction,
         (
@@ -799,12 +799,20 @@ fn dismiss_score_dialog_button_system(
         ),
     >,
     q_dialog: Query<Entity, With<ScoreDialog>>,
+    q_emitters: Query<Entity, With<PixieEmitter>>,
     mut q_node: Query<&mut BackgroundColor, With<PlayAreaNode>>,
+    mut score: ResMut<Score>,
 ) {
     for _ in q_interaction.iter().filter(|i| **i == Interaction::Clicked) {
         if let Ok(entity) = q_dialog.get_single() {
             commands.entity(entity).despawn_recursive();
             *sim_state = SimulationState::default();
+            *pixie_count = PixieCount::default();
+            *score = Score::default();
+        }
+
+        for entity in q_emitters.iter() {
+            commands.entity(entity).despawn();
         }
 
         if let Ok(mut color) = q_node.get_single_mut() {
@@ -834,6 +842,7 @@ fn pixie_button_system(
         line_state.segments = vec![];
 
         if sim_state.started && !sim_state.done {
+            // If the sim is ongoing, the button is a cancel button.
             for entity in q_emitters.iter().chain(q_pixies.iter()) {
                 commands.entity(entity).despawn();
             }
@@ -850,10 +859,6 @@ fn pixie_button_system(
                 }
 
                 return;
-            }
-
-            for entity in q_emitters.iter() {
-                commands.entity(entity).despawn();
             }
 
             for (mut visible, _) in q_indicator.iter_mut() {
