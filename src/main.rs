@@ -456,6 +456,7 @@ fn button_system(
         (Changed<Interaction>, With<Button>, Without<RadioButton>),
     >,
 ) {
+    info!("button_system");
     for (interaction, mut color) in q_interaction.iter_mut() {
         match *interaction {
             Interaction::Clicked => *color = PRESSED_BUTTON.into(),
