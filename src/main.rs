@@ -86,7 +86,11 @@ fn main() {
     .add_plugin(EasingsPlugin)
     .add_plugin(RonAssetPlugin::<Level>::new(&["level.ron"]));
 
-    app.configure_set(AfterUpdate.after(CoreSet::UpdateFlush));
+    app.configure_set(
+        AfterUpdate
+            .after(CoreSet::UpdateFlush)
+            .before(CoreSet::PostUpdate),
+    );
 
     app.add_system_to_schedule(OnEnter(GameState::Playing), playing_enter_system);
     app.add_system_to_schedule(OnExit(GameState::Playing), playing_exit_system);
