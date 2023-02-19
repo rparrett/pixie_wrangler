@@ -12,14 +12,21 @@ pub struct RadioButton {
 #[derive(Component)]
 pub struct RadioButtonGroupRelation(pub Entity);
 
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+pub struct RadioButtonSet;
+
 impl Plugin for RadioButtonPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(radio_button_system);
-        app.add_system(radio_button_group_system.after(radio_button_system));
+        app.add_system(radio_button_system.in_set(RadioButtonSet));
+        app.add_system(
+            radio_button_group_system
+                .after(radio_button_system)
+                .in_set(RadioButtonSet),
+        );
     }
 }
 
-pub fn radio_button_group_system(
+fn radio_button_group_system(
     mut q: ParamSet<(
         Query<(Entity, &RadioButton, &RadioButtonGroupRelation), Changed<RadioButton>>,
         Query<&mut RadioButton>,

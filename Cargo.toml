@@ -26,7 +26,7 @@ bevy_prototype_lyon = { git = "https://github.com/Nilirad/bevy_prototype_lyon" }
 bevy_easings = { path = "../bevy_easings" }
 #bevy_common_assets = { version = "0.4", features=["ron"] }
 bevy_common_assets = { git = "https://github.com/NiklasEi/bevy_common_assets.git", branch = "bevy_main", features=["ron"] }
-
+bevy_mod_debugdump = { git = "https://github.com/jakobhellermann/bevy_mod_debugdump.git", branch = "bevy-main" }
 
 rand = "0.8"
 petgraph = "0.6"
@@ -48,7 +48,15 @@ opt-level = 1
 opt-level = 3
 
 [patch."https://github.com/bevyengine/bevy"]
-bevy = { git = "https://github.com/bevyengine/bevy.git?branch=bevy_main" }
+bevy = { git = "https://github.com/bevyengine/bevy.git?branch=main" }
+bevy_ecs = { git = "https://github.com/bevyengine/bevy.git?branch=main" }
+bevy_app = { git = "https://github.com/bevyengine/bevy.git?branch=main" }
+bevy_utils = { git = "https://github.com/bevyengine/bevy.git?branch=main" }
+bevy_render = { git = "https://github.com/bevyengine/bevy.git?branch=main" }
 
 [patch."https://github.com/bevyengine/bevy.git"]
-bevy = { git = "https://github.com/bevyengine/bevy.git?branch=bevy_main" }
+bevy = { git = "https://github.com/bevyengine/bevy.git?branch=main" }
+bevy_ecs = { git = "https://github.com/bevyengine/bevy.git?branch=main" }
+bevy_app = { git = "https://github.com/bevyengine/bevy.git?branch=main" }
+bevy_utils = { git = "https://github.com/bevyengine/bevy.git?branch=main" }
+bevy_render = { git = "https://github.com/bevyengine/bevy.git?branch=main" }

@@ -36,7 +36,7 @@ use petgraph::{
     visit::{DfsPostOrder, Walker},
 };
 
-use radio_button::radio_button_group_system;
+use radio_button::RadioButtonSet;
 use serde::{Deserialize, Serialize};
 
 mod collision;
@@ -73,7 +73,9 @@ fn main() {
                     ..Default::default()
                 }),
                 ..default()
-            }),
+            })
+            .build()
+            .disable::<LogPlugin>(),
     )
     .add_plugin(ShapePlugin)
     .add_plugin(RadioButtonPlugin)
@@ -99,6 +101,7 @@ fn main() {
             keyboard_system.before(mouse_movement_system),
             mouse_movement_system,
         )
+            .before(RadioButtonSet)
             .in_set(OnUpdate(GameState::Playing))
             .in_set(DrawingInput),
     );
@@ -120,7 +123,7 @@ fn main() {
             drawing_mode_change_system,
         )
             .before(DrawingInteraction)
-            .before(radio_button_group_system)
+            .before(RadioButtonSet)
             .in_set(OnUpdate(GameState::Playing)),
     );
 
@@ -200,8 +203,17 @@ fn main() {
     app.init_resource::<Cost>();
     app.init_resource::<BestScores>();
     app.init_resource::<Solutions>();
-    app.add_plugin(LogDiagnosticsPlugin::default());
-    app.add_plugin(FrameTimeDiagnosticsPlugin::default());
+    // app.add_plugin(LogDiagnosticsPlugin::default());
+    // app.add_plugin(FrameTimeDiagnosticsPlugin::default());
+
+    let mut settings = bevy_mod_debugdump::schedule_graph::Settings::default()
+        .filter_name(|name| name.starts_with("pixie_wrangler"));
+    settings.ambiguity_enable = false;
+    settings.ambiguity_enable_on_world = false;
+
+    let dot = bevy_mod_debugdump::schedule_graph_dot(&mut app, CoreSchedule::Main, &settings);
+    println!("{dot}");
+
     app.run();
 }
 
