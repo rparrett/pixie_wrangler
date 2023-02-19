@@ -17,8 +17,6 @@ use crate::{
 };
 
 use bevy::{
-    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    log::LogPlugin,
     prelude::*,
     utils::HashSet,
     utils::{Duration, HashMap},
@@ -59,24 +57,14 @@ fn main() {
 
     app.add_state::<GameState>();
 
-    app.add_plugins(
-        DefaultPlugins
-            .set(LogPlugin {
-                //filter: "wgpu=trace".to_string(),
-                ..Default::default()
-            })
-            .set(WindowPlugin {
-                primary_window: Some(Window {
-                    title: String::from("Pixie Wrangler"),
-                    #[cfg(target_arch = "wasm32")]
-                    canvas: Some("#bevy-canvas".to_string()),
-                    ..Default::default()
-                }),
-                ..default()
-            })
-            .build()
-            .disable::<LogPlugin>(),
-    )
+    app.add_plugins(DefaultPlugins.set(WindowPlugin {
+        primary_window: Some(Window {
+            title: String::from("Pixie Wrangler"),
+            canvas: Some("#bevy-canvas".to_string()),
+            ..Default::default()
+        }),
+        ..default()
+    }))
     .add_plugin(ShapePlugin)
     .add_plugin(RadioButtonPlugin)
     .add_plugin(PixiePlugin)
@@ -201,16 +189,6 @@ fn main() {
     app.init_resource::<Cost>();
     app.init_resource::<BestScores>();
     app.init_resource::<Solutions>();
-    // app.add_plugin(LogDiagnosticsPlugin::default());
-    // app.add_plugin(FrameTimeDiagnosticsPlugin::default());
-
-    let mut settings = bevy_mod_debugdump::schedule_graph::Settings::default()
-        .filter_name(|name| name.starts_with("pixie_wrangler"));
-    settings.ambiguity_enable = false;
-    settings.ambiguity_enable_on_world = false;
-
-    let dot = bevy_mod_debugdump::schedule_graph_dot(&mut app, CoreSchedule::Main, &settings);
-    println!("{dot}");
 
     app.run();
 }

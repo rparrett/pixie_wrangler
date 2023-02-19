@@ -463,19 +463,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_mod_debugdump"
-version = "0.7.0"
-source = "git+https://github.com/jakobhellermann/bevy_mod_debugdump.git?branch=bevy-main#60583ca74ae7a47d1810cc78330680137683abbb"
-dependencies = [
- "bevy_app",
- "bevy_ecs",
- "bevy_render",
- "bevy_utils",
- "petgraph",
- "pretty-type-name",
-]
-
-[[package]]
 name = "bevy_pbr"
 version = "0.9.0"
 source = "git+https://github.com/bevyengine/bevy.git?branch=main#64b0f19a6547071b54f7479deb55a5494f0fe204"
@@ -1824,7 +1811,6 @@ dependencies = [
  "bevy",
  "bevy_common_assets",
  "bevy_easings",
- "bevy_mod_debugdump",
  "bevy_prototype_lyon",
  "itertools",
  "petgraph",
@@ -1855,12 +1841,6 @@ name = "ppv-lite86"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
-
-[[package]]
-name = "pretty-type-name"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0f73cdaf19b52e6143685c3606206e114a4dfa969d6b14ec3894c88eb38bd4b"
 
 [[package]]
 name = "proc-macro-crate"
