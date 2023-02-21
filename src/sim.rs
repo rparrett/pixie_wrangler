@@ -112,16 +112,15 @@ fn run_simulation(world: &mut World) {
             steps.accumulator -= steps.step;
             world.run_schedule(SimulationSchedule);
 
-            {
-                let mut state = world.resource_mut::<SimulationState>();
-                state.tick += 1;
-            }
-
-            // If sim finished, don't run schedule again.
+            // If sim finished, don't run schedule again, even if there is
+            // enough time in the accumulator.
             let state = world.resource::<SimulationState>();
             if state.done || !state.started {
                 check_again = false;
             }
+
+            let mut state = world.resource_mut::<SimulationState>();
+            state.tick += 1;
         } else {
             check_again = false;
         }

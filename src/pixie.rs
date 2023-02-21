@@ -6,7 +6,7 @@ use crate::{
     lines::corner_angle,
     lines::{distance_on_path, travel, traveled_segments},
     sim::SIMULATION_TIMESTEP,
-    GameState, PixieCount, RoadSegment, SimulationState, GRID_SIZE,
+    GameState, PixieCount, RoadSegment, GRID_SIZE,
 };
 
 use bevy::{
@@ -480,15 +480,7 @@ pub fn move_pixies_system(
     }
 }
 
-pub fn emit_pixies_system(
-    testing_state: Res<SimulationState>,
-    mut q_emitters: Query<&mut PixieEmitter>,
-    mut commands: Commands,
-) {
-    if !testing_state.started {
-        return;
-    }
-
+pub fn emit_pixies_system(mut q_emitters: Query<&mut PixieEmitter>, mut commands: Commands) {
     for mut emitter in q_emitters.iter_mut() {
         if emitter.remaining == 0 {
             continue;
