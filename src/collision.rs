@@ -39,7 +39,7 @@ pub fn point_segment_collision(p: Vec2, a: Vec2, b: Vec2) -> SegmentCollision {
 
 // for reference, this is helpful
 // https://github.com/pgkelley4/line-segments-intersect/blob/master/js/line-segments-intersect.js
-// but we're differing pretty wildly in how we choose to deal with collinearities, and
+// but we're differing pretty wildly in how we choose to deal with colinearities, and
 // we threw epsilon out of the window because we're snapping to an integer grid
 pub fn segment_collision(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> SegmentCollision {
     let da = a2 - a1;

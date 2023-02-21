@@ -442,8 +442,8 @@ pub fn move_pixies_system(
         transform.translation.y = to.y;
 
         if segments_traveled == 0 {
-            // pixies travelling uphill should stay above the next road as they approach it.
-            // pixies travelling downhill should stay above the previous road as they leave it.
+            // pixies traveling uphill should stay above the next road as they approach it.
+            // pixies traveling downhill should stay above the previous road as they leave it.
             if next_layer < current_layer && dist < PIXIE_RADIUS {
                 transform.translation.z = layer::PIXIE - next_layer as f32;
             } else if prev_layer < current_layer && last_dist < PIXIE_RADIUS {
