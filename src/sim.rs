@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::pixie::{
     collide_pixies_system, emit_pixies_system, explode_pixies_system, move_pixies_system, Pixie,
     PixieEmitter,
@@ -44,15 +46,33 @@ pub struct SimulationState {
 
 #[derive(Resource)]
 struct SimulationSteps {
-    step: f64,
-    accumulator: f64,
+    step: Duration,
+    accumulator: Duration,
 }
 impl Default for SimulationSteps {
     fn default() -> Self {
         Self {
-            step: SIMULATION_TIMESTEP as f64,
-            accumulator: 0.,
+            step: Duration::from_secs_f32(SIMULATION_TIMESTEP),
+            accumulator: Duration::ZERO,
         }
+    }
+}
+impl SimulationSteps {
+    fn expend(&mut self) -> bool {
+        if let Some(new_value) = self.accumulator.checked_sub(self.step) {
+            self.accumulator = new_value;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn tick(&mut self, delta: Duration) {
+        self.accumulator += delta;
+    }
+
+    fn reset(&mut self) {
+        self.accumulator = Duration::ZERO;
     }
 }
 
@@ -67,10 +87,10 @@ impl Default for SimulationSpeed {
     }
 }
 impl SimulationSpeed {
-    fn scale(&self) -> f64 {
+    fn scale(&self) -> u32 {
         match self {
-            Self::Normal => 1.0,
-            Self::Fast => 4.0,
+            Self::Normal => 1,
+            Self::Fast => 4,
         }
     }
     pub fn label(&self) -> String {
@@ -92,24 +112,23 @@ fn run_simulation(world: &mut World) {
         // accumulator.
         if world.is_resource_changed::<SimulationState>() {
             let mut steps = world.resource_mut::<SimulationSteps>();
-            steps.accumulator = 0.;
+            steps.reset();
         }
 
         return;
     }
 
     let speed = world.resource::<SimulationSettings>().speed;
-    let delta = world.resource::<Time>().delta_seconds_f64();
+    let delta = world.resource::<Time>().delta();
 
     let mut steps = world.resource_mut::<SimulationSteps>();
-    steps.accumulator += delta * speed.scale();
+    steps.tick(delta * speed.scale());
 
     let mut check_again = true;
     while check_again {
         let mut steps = world.resource_mut::<SimulationSteps>();
 
-        if steps.accumulator > steps.step {
-            steps.accumulator -= steps.step;
+        if steps.expend() {
             world.run_schedule(SimulationSchedule);
 
             // If sim finished, don't run schedule again, even if there is
@@ -121,6 +140,10 @@ fn run_simulation(world: &mut World) {
 
             let mut state = world.resource_mut::<SimulationState>();
             state.tick += 1;
+
+            if state.done || !state.started {
+                info!("sim finished in {} ticks", state.tick);
+            }
         } else {
             check_again = false;
         }
