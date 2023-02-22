@@ -1,8 +1,11 @@
 use std::time::Duration;
 
-use crate::pixie::{
-    collide_pixies_system, emit_pixies_system, explode_pixies_system, move_pixies_system, Pixie,
-    PixieEmitter,
+use crate::{
+    pixie::{
+        collide_pixies_system, emit_pixies_system, explode_pixies_system, move_pixies_system,
+        Pixie, PixieEmitter,
+    },
+    pixie_button_system,
 };
 use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
 
@@ -28,7 +31,14 @@ impl Plugin for SimulationPlugin {
         app.init_resource::<SimulationState>();
         app.init_resource::<SimulationSteps>();
 
-        app.add_system(run_simulation);
+        // TODO this must run after buffers from pixie_button_system are applied
+        // so that emitters are created on time. It might be nice to move sim entity
+        // initialization into the sim schedule.
+        app.add_systems(
+            (apply_system_buffers, run_simulation)
+                .chain()
+                .after(pixie_button_system),
+        );
     }
 }
 
