@@ -11,7 +11,7 @@ use crate::{
     pixie::{Pixie, PixieEmitter, PixieFlavor, PixiePlugin},
     radio_button::{RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonPlugin},
     save::{BestScores, SavePlugin, Solution, Solutions},
-    sim::{SimulationPlugin, SimulationSettings, SimulationSpeed, SimulationState},
+    sim::{SimulationPlugin, SimulationSettings, SimulationState},
 };
 
 use bevy::{
@@ -938,10 +938,7 @@ fn speed_button_system(
         .iter()
         .filter(|(i, _)| **i == Interaction::Clicked)
     {
-        simulation_settings.speed = match simulation_settings.speed {
-            SimulationSpeed::Normal => SimulationSpeed::Fast,
-            SimulationSpeed::Fast => SimulationSpeed::Normal,
-        };
+        simulation_settings.speed = simulation_settings.speed.next();
 
         let mut iter = q_text.iter_many_mut(children);
         while let Some(mut text) = iter.fetch_next() {

@@ -27,6 +27,7 @@ impl Plugin for SimulationPlugin {
         );
 
         app.add_schedule(SimulationSchedule, schedule);
+
         app.init_resource::<SimulationSettings>();
         app.init_resource::<SimulationState>();
         app.init_resource::<SimulationSteps>();
@@ -116,6 +117,12 @@ impl SimulationSpeed {
         match self {
             Self::Normal => "1X".to_string(),
             Self::Fast => "4X".to_string(),
+        }
+    }
+    pub fn next(&self) -> Self {
+        match self {
+            SimulationSpeed::Normal => SimulationSpeed::Fast,
+            SimulationSpeed::Fast => SimulationSpeed::Normal,
         }
     }
 }
