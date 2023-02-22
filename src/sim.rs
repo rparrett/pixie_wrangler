@@ -47,24 +47,12 @@ pub const SIMULATION_TIMESTEP: f32 = 0.016_666_668;
 #[derive(ScheduleLabel, Debug, PartialEq, Eq, Clone, Hash)]
 pub struct SimulationSchedule;
 
-#[derive(Resource, Default)]
-pub struct SimulationState {
-    pub started: bool,
-    pub finished: bool,
-}
-impl SimulationState {
-    pub fn start(&mut self) {
-        self.started = true;
-        self.finished = false;
-    }
-
-    pub fn running(&self) -> bool {
-        self.started && !self.finished
-    }
-
-    pub fn reset(&mut self) {
-        *self = Self::default();
-    }
+#[derive(Resource, Default, PartialEq)]
+pub enum SimulationState {
+    #[default]
+    NotStarted,
+    Running,
+    Finished,
 }
 
 #[derive(Resource)]
@@ -138,7 +126,7 @@ pub struct SimulationSettings {
 
 fn run_simulation(world: &mut World) {
     let state = world.resource_mut::<SimulationState>();
-    if !state.running() {
+    if *state != SimulationState::Running {
         return;
     }
 
@@ -162,7 +150,7 @@ fn run_simulation(world: &mut World) {
             // If sim finished, don't run schedule again, even if there is
             // enough time in the accumulator.
             let state = world.resource::<SimulationState>();
-            if !state.running() {
+            if *state != SimulationState::Running {
                 check_again = false;
             }
         } else {
@@ -177,7 +165,7 @@ fn update_sim_state_system(
     q_emitter: Query<&PixieEmitter>,
     q_pixie: Query<Entity, With<Pixie>>,
 ) {
-    if sim_state.finished {
+    if *sim_state != SimulationState::Running {
         return;
     }
 
@@ -197,5 +185,5 @@ fn update_sim_state_system(
 
     info!("Sim finished in {} ticks", sim_steps.step);
 
-    sim_state.finished = true;
+    *sim_state = SimulationState::Finished;
 }

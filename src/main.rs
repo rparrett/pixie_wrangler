@@ -538,7 +538,7 @@ fn pixie_button_text_system(
     for children in q_pixie_button.iter() {
         let mut iter = q_text.iter_many_mut(children);
         while let Some(mut text) = iter.fetch_next() {
-            if sim_state.started && !sim_state.finished {
+            if *sim_state == SimulationState::Running {
                 text.sections[0].value = "NO WAIT STOP".to_string();
             } else {
                 text.sections[0].value = "RELEASE THE PIXIES".to_string();
@@ -566,7 +566,7 @@ fn show_score_dialog_system(
         return;
     }
 
-    if !sim_state.finished {
+    if *sim_state != SimulationState::Finished {
         return;
     }
 
@@ -804,7 +804,7 @@ fn pixie_button_system(
     mut q_indicator: Query<(&mut Visibility, &Parent), With<TerminusIssueIndicator>>,
 ) {
     // do nothing while score dialog is shown
-    if sim_state.started && sim_state.finished {
+    if *sim_state == SimulationState::Finished {
         return;
     }
 
@@ -812,13 +812,13 @@ fn pixie_button_system(
         line_state.drawing = false;
         line_state.segments = vec![];
 
-        if sim_state.running() {
+        if *sim_state == SimulationState::Running {
             // If the sim is ongoing, the button is a cancel button.
             for entity in q_emitters.iter().chain(q_pixies.iter()) {
                 commands.entity(entity).despawn();
             }
 
-            sim_state.reset();
+            *sim_state = SimulationState::NotStarted;
         } else {
             if !pathfinding.valid {
                 for (mut visibility, parent) in q_indicator.iter_mut() {
@@ -870,7 +870,7 @@ fn pixie_button_system(
                 *i += 1;
             }
 
-            sim_state.start();
+            *sim_state = SimulationState::Running;
         }
 
         pixie_count.0 = 0;
@@ -891,7 +891,7 @@ fn reset_button_system(
     mut q_indicator: Query<&mut Visibility, With<TerminusIssueIndicator>>,
 ) {
     // do nothing while score dialog is shown
-    if sim_state.started && sim_state.finished {
+    if *sim_state == SimulationState::Finished {
         return;
     }
 
@@ -1145,7 +1145,7 @@ fn net_ripping_mouse_click_system(
         return;
     }
 
-    if sim_state.started {
+    if *sim_state != SimulationState::NotStarted {
         return;
     }
 
@@ -1184,7 +1184,7 @@ fn drawing_mouse_click_system(
         return;
     }
 
-    if sim_state.started {
+    if *sim_state != SimulationState::NotStarted {
         return;
     }
 
@@ -1461,7 +1461,7 @@ fn net_ripping_mouse_movement_system(
         return;
     }
 
-    if sim_state.started {
+    if *sim_state != SimulationState::NotStarted {
         return;
     }
 
@@ -1567,7 +1567,7 @@ fn drawing_mouse_movement_system(
         return;
     }
 
-    if sim_state.started {
+    if *sim_state != SimulationState::NotStarted {
         return;
     }
 
@@ -2102,7 +2102,11 @@ fn update_score_system(
     selected_level: Res<SelectedLevel>,
     cost: Res<Cost>,
 ) {
-    if !sim_state.is_changed() || !sim_state.finished {
+    if !sim_state.is_changed() {
+        return;
+    }
+
+    if *sim_state != SimulationState::Finished {
         return;
     }
 
