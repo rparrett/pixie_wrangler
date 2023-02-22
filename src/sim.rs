@@ -40,8 +40,30 @@ pub struct SimulationSchedule;
 #[derive(Resource, Default)]
 pub struct SimulationState {
     pub started: bool,
+    pub just_started: bool,
     pub tick: u32,
-    pub done: bool,
+    pub finished: bool,
+}
+impl SimulationState {
+    pub fn start(&mut self) {
+        self.started = true;
+        self.just_started = true;
+        self.tick = 0;
+        self.finished = false;
+    }
+
+    pub fn tick(&mut self) {
+        self.tick += 1;
+        self.just_started = false;
+    }
+
+    pub fn running(&self) -> bool {
+        self.started && !self.finished
+    }
+
+    pub fn reset(&mut self) {
+        *self = Self::default();
+    }
 }
 
 #[derive(Resource)]
@@ -107,15 +129,13 @@ pub struct SimulationSettings {
 
 fn run_simulation(world: &mut World) {
     let state = world.resource::<SimulationState>();
-    if !state.started || state.done {
-        // If the sim just ended or was just stopped, reset the
-        // accumulator.
-        if world.is_resource_changed::<SimulationState>() {
-            let mut steps = world.resource_mut::<SimulationSteps>();
-            steps.reset();
-        }
-
+    if !state.running() {
         return;
+    }
+
+    if state.just_started {
+        world.resource_mut::<SimulationSteps>().reset();
+        world.resource_mut::<SimulationState>().just_started = false;
     }
 
     let speed = world.resource::<SimulationSettings>().speed;
@@ -134,15 +154,15 @@ fn run_simulation(world: &mut World) {
             // If sim finished, don't run schedule again, even if there is
             // enough time in the accumulator.
             let state = world.resource::<SimulationState>();
-            if state.done || !state.started {
+            if !state.running() {
                 check_again = false;
             }
 
             let mut state = world.resource_mut::<SimulationState>();
-            state.tick += 1;
+            state.tick();
 
-            if state.done || !state.started {
-                info!("sim finished in {} ticks", state.tick);
+            if !state.running() {
+                info!("Sim finished in {} ticks", state.tick);
             }
         } else {
             check_again = false;
@@ -155,7 +175,7 @@ fn update_sim_state_system(
     q_emitter: Query<&PixieEmitter>,
     q_pixie: Query<Entity, With<Pixie>>,
 ) {
-    if sim_state.done {
+    if sim_state.finished {
         return;
     }
 
@@ -173,5 +193,5 @@ fn update_sim_state_system(
         return;
     }
 
-    sim_state.done = true;
+    sim_state.finished = true;
 }
