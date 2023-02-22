@@ -24,7 +24,9 @@ pub const PIXIE_BRAKING_DISTANCE: f32 = PIXIE_RADIUS * 3.0;
 pub const PIXIE_EXPLOSION_DISTANCE: f32 = PIXIE_RADIUS * 0.5;
 pub const PIXIE_MIN_SPEED: f32 = 10.0;
 pub const PIXIE_MAX_SPEED: f32 = 60.0;
+/// A pixie's maximum speed when traveling through a 45 degree angle.
 pub const PIXIE_MAX_SPEED_45: f32 = 10.0;
+/// A pixie's maximum speed when traveling through a 90 degree angle.
 pub const PIXIE_MAX_SPEED_90: f32 = 30.0;
 pub const PIXIE_MAX_SPEED_ATTRACTED: f32 = 120.0;
 pub const CORNER_DEBUFF_ACTIVATION_DISTANCE: f32 = GRID_SIZE;
