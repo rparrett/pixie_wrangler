@@ -50,21 +50,12 @@ pub struct SimulationSchedule;
 #[derive(Resource, Default)]
 pub struct SimulationState {
     pub started: bool,
-    pub just_started: bool,
-    pub tick: u32,
     pub finished: bool,
 }
 impl SimulationState {
     pub fn start(&mut self) {
         self.started = true;
-        self.just_started = true;
-        self.tick = 0;
         self.finished = false;
-    }
-
-    pub fn tick(&mut self) {
-        self.tick += 1;
-        self.just_started = false;
     }
 
     pub fn running(&self) -> bool {
@@ -77,22 +68,26 @@ impl SimulationState {
 }
 
 #[derive(Resource)]
-struct SimulationSteps {
-    step: Duration,
+pub struct SimulationSteps {
+    timestep: Duration,
     accumulator: Duration,
+    step: u32,
 }
 impl Default for SimulationSteps {
     fn default() -> Self {
         Self {
-            step: Duration::from_secs_f32(SIMULATION_TIMESTEP),
+            timestep: Duration::from_secs_f32(SIMULATION_TIMESTEP),
             accumulator: Duration::ZERO,
+            step: 0,
         }
     }
 }
 impl SimulationSteps {
     fn expend(&mut self) -> bool {
-        if let Some(new_value) = self.accumulator.checked_sub(self.step) {
+        if let Some(new_value) = self.accumulator.checked_sub(self.timestep) {
             self.accumulator = new_value;
+            self.step += 1;
+
             true
         } else {
             false
@@ -104,7 +99,11 @@ impl SimulationSteps {
     }
 
     fn reset(&mut self) {
-        self.accumulator = Duration::ZERO;
+        *self = Self::default();
+    }
+
+    pub fn get_elapsed_f32(&self) -> f32 {
+        self.step as f32 * SIMULATION_TIMESTEP
     }
 }
 
@@ -138,14 +137,13 @@ pub struct SimulationSettings {
 }
 
 fn run_simulation(world: &mut World) {
-    let state = world.resource::<SimulationState>();
+    let state = world.resource_mut::<SimulationState>();
     if !state.running() {
         return;
     }
 
-    if state.just_started {
+    if state.is_changed() {
         world.resource_mut::<SimulationSteps>().reset();
-        world.resource_mut::<SimulationState>().just_started = false;
     }
 
     let speed = world.resource::<SimulationSettings>().speed;
@@ -167,13 +165,6 @@ fn run_simulation(world: &mut World) {
             if !state.running() {
                 check_again = false;
             }
-
-            let mut state = world.resource_mut::<SimulationState>();
-            state.tick();
-
-            if !state.running() {
-                info!("Sim finished in {} ticks", state.tick);
-            }
         } else {
             check_again = false;
         }
@@ -182,6 +173,7 @@ fn run_simulation(world: &mut World) {
 
 fn update_sim_state_system(
     mut sim_state: ResMut<SimulationState>,
+    sim_steps: Res<SimulationSteps>,
     q_emitter: Query<&PixieEmitter>,
     q_pixie: Query<Entity, With<Pixie>>,
 ) {
@@ -202,6 +194,8 @@ fn update_sim_state_system(
     if q_pixie.iter().count() > 0 {
         return;
     }
+
+    info!("Sim finished in {} ticks", sim_steps.step);
 
     sim_state.finished = true;
 }

@@ -11,9 +11,7 @@ use crate::{
     pixie::{Pixie, PixieEmitter, PixieFlavor, PixiePlugin},
     radio_button::{RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonPlugin},
     save::{BestScores, SavePlugin, Solution, Solutions},
-    sim::{
-        SimulationPlugin, SimulationSettings, SimulationSpeed, SimulationState, SIMULATION_TIMESTEP,
-    },
+    sim::{SimulationPlugin, SimulationSettings, SimulationSpeed, SimulationState},
 };
 
 use bevy::{
@@ -36,6 +34,7 @@ use petgraph::{
 
 use radio_button::RadioButtonSet;
 use serde::{Deserialize, Serialize};
+use sim::SimulationSteps;
 
 mod collision;
 mod color;
@@ -2097,6 +2096,7 @@ fn update_cost_system(
 fn update_score_system(
     pixie_count: Res<PixieCount>,
     sim_state: Res<SimulationState>,
+    sim_steps: Res<SimulationSteps>,
     mut score: ResMut<Score>,
     mut best_scores: ResMut<BestScores>,
     selected_level: Res<SelectedLevel>,
@@ -2106,7 +2106,7 @@ fn update_score_system(
         return;
     }
 
-    let elapsed = sim_state.tick as f32 * SIMULATION_TIMESTEP;
+    let elapsed = sim_steps.get_elapsed_f32();
 
     let val = ((pixie_count.0 as f32 / cost.0 as f32 / elapsed) * 10000.0).ceil() as u32;
 
@@ -2140,15 +2140,15 @@ fn update_score_text_system(
 }
 
 fn update_elapsed_text_system(
-    sim_state: Res<SimulationState>,
+    sim_steps: Res<SimulationSteps>,
     mut q_text: Query<&mut Text, With<ElapsedText>>,
 ) {
-    if !sim_state.is_changed() {
+    if !sim_steps.is_changed() {
         return;
     }
 
     for mut text in q_text.iter_mut() {
-        text.sections[0].value = format!("ŧ{:.1}", sim_state.tick as f32 * SIMULATION_TIMESTEP);
+        text.sections[0].value = format!("ŧ{:.1}", sim_steps.get_elapsed_f32());
     }
 }
 
