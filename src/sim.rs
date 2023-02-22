@@ -137,8 +137,9 @@ fn run_simulation(world: &mut World) {
     let speed = world.resource::<SimulationSettings>().speed;
     let delta = world.resource::<Time>().delta();
 
-    let mut steps = world.resource_mut::<SimulationSteps>();
-    steps.tick(delta * speed.scale());
+    world
+        .resource_mut::<SimulationSteps>()
+        .tick(delta * speed.scale());
 
     let mut check_again = true;
     while check_again {
@@ -147,7 +148,7 @@ fn run_simulation(world: &mut World) {
         if steps.expend() {
             world.run_schedule(SimulationSchedule);
 
-            // If sim finished, don't run schedule again, even if there is
+            // If the sim finished, don't run schedule again, even if there is
             // enough time in the accumulator.
             let state = world.resource::<SimulationState>();
             if *state != SimulationState::Running {
