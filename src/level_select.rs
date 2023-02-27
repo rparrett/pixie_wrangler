@@ -9,7 +9,7 @@ pub struct LevelSelectButton(u32);
 
 impl Plugin for LevelSelectPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_to_schedule(OnEnter(GameState::LevelSelect), level_select_enter);
+        app.add_system(level_select_enter.in_schedule(OnEnter(GameState::LevelSelect)));
 
         app.add_systems(
             (
@@ -20,7 +20,7 @@ impl Plugin for LevelSelectPlugin {
                 .in_set(OnUpdate(GameState::LevelSelect)),
         );
 
-        app.add_system_to_schedule(OnExit(GameState::LevelSelect), level_select_exit);
+        app.add_system(level_select_exit.in_schedule(OnExit(GameState::LevelSelect)));
     }
 }
 

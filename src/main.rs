@@ -82,8 +82,8 @@ fn main() {
             .before(CoreSet::PostUpdate),
     );
 
-    app.add_system_to_schedule(OnEnter(GameState::Playing), playing_enter_system);
-    app.add_system_to_schedule(OnExit(GameState::Playing), playing_exit_system);
+    app.add_system(playing_enter_system.in_schedule(OnEnter(GameState::Playing)));
+    app.add_system(playing_exit_system.in_schedule(OnExit(GameState::Playing)));
     app.add_systems(
         (
             keyboard_system.before(mouse_movement_system),
