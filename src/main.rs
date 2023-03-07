@@ -669,6 +669,7 @@ fn show_score_dialog_system(
                         size: Size::new(Val::Percent(100.0), Val::Px(70.0)),
                         flex_direction: FlexDirection::Row,
                         align_items: AlignItems::Stretch,
+                        gap: Size::new(Val::Px(10.), Val::Undefined),
                         ..Default::default()
                     },
                     ..Default::default()
@@ -712,10 +713,6 @@ fn show_score_dialog_system(
                                     justify_content: JustifyContent::Center,
                                     // vertically center child text
                                     align_items: AlignItems::Center,
-                                    margin: UiRect {
-                                        left: Val::Px(10.0),
-                                        ..Default::default()
-                                    },
                                     ..Default::default()
                                 },
                                 background_color: color::UI_NORMAL_BUTTON.into(),
