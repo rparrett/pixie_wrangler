@@ -57,24 +57,31 @@ fn main() {
 
     app.add_state::<GameState>();
 
-    app.add_plugins(DefaultPlugins.set(WindowPlugin {
-        primary_window: Some(Window {
-            title: String::from("Pixie Wrangler"),
-            canvas: Some("#bevy-canvas".to_string()),
-            ..Default::default()
-        }),
-        ..default()
-    }))
-    .add_plugin(ShapePlugin)
-    .add_plugin(RadioButtonPlugin)
-    .add_plugin(PixiePlugin)
-    .add_plugin(SimulationPlugin)
-    .add_plugin(LoadingPlugin)
-    .add_plugin(LevelSelectPlugin)
-    .add_plugin(SavePlugin)
-    .add_plugin(DebugLinesPlugin)
-    .add_plugin(EasingsPlugin)
-    .add_plugin(RonAssetPlugin::<Level>::new(&["level.ron"]));
+    let default = DefaultPlugins
+        .set(WindowPlugin {
+            primary_window: Some(Window {
+                title: String::from("Pixie Wrangler"),
+                canvas: Some("#bevy-canvas".to_string()),
+                ..Default::default()
+            }),
+            ..default()
+        })
+        .build();
+
+    #[cfg(feature = "debugdump")]
+    let default = default.disable::<bevy::log::LogPlugin>();
+
+    app.add_plugins(default)
+        .add_plugin(ShapePlugin)
+        .add_plugin(RadioButtonPlugin)
+        .add_plugin(PixiePlugin)
+        .add_plugin(SimulationPlugin)
+        .add_plugin(LoadingPlugin)
+        .add_plugin(LevelSelectPlugin)
+        .add_plugin(SavePlugin)
+        .add_plugin(DebugLinesPlugin)
+        .add_plugin(EasingsPlugin)
+        .add_plugin(RonAssetPlugin::<Level>::new(&["level.ron"]));
 
     app.configure_set(
         AfterUpdate
@@ -188,6 +195,16 @@ fn main() {
     app.init_resource::<Cost>();
     app.init_resource::<BestScores>();
     app.init_resource::<Solutions>();
+
+    #[cfg(feature = "debugdump")]
+    {
+        let mut settings = bevy_mod_debugdump::schedule_graph::Settings::default();
+        settings.ambiguity_enable = false;
+        settings.ambiguity_enable_on_world = false;
+
+        let dot = bevy_mod_debugdump::schedule_graph_dot(&mut app, CoreSchedule::Main, &settings);
+        println!("{dot}");
+    }
 
     app.run();
 }

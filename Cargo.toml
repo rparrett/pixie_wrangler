@@ -6,6 +6,9 @@ edition = "2021"
 repository = "https://github.com/rparrett/pixie_wrangler"
 license = "MIT OR Apache-2.0"
 
+[features]
+debugdump = ["bevy_mod_debugdump"]
+
 [dependencies]
 
 bevy = { version = "0.10", default-features = false, features = [
@@ -22,6 +25,7 @@ bevy = { version = "0.10", default-features = false, features = [
 bevy_prototype_lyon = "0.8"
 bevy_easings = "0.10"
 bevy_common_assets = { version = "0.5", features=["ron"] }
+bevy_mod_debugdump = { version = "0.7", optional = true }
 
 rand = "0.8"
 petgraph = "0.6"
