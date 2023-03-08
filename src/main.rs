@@ -2494,7 +2494,7 @@ fn playing_enter_system(
                                         ..Default::default()
                                     },
                                     text: Text::from_section(
-                                        "0".to_string(),
+                                        "ŧ0.0".to_string(),
                                         TextStyle {
                                             font: handles.fonts[0].clone(),
                                             font_size: 30.0,
@@ -2513,7 +2513,7 @@ fn playing_enter_system(
                                         ..Default::default()
                                     },
                                     text: Text::from_section(
-                                        "0".to_string(),
+                                        "Æ?".to_string(),
                                         TextStyle {
                                             font: handles.fonts[0].clone(),
                                             font_size: 30.0,
