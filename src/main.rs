@@ -2274,21 +2274,21 @@ fn playing_enter_system(
                         padding: UiRect::all(Val::Px(10.0)),
                         size: Size::new(Val::Percent(100.0), Val::Px(BOTTOM_BAR_HEIGHT)),
                         flex_direction: FlexDirection::Row,
-                        justify_content: JustifyContent::SpaceBetween,
-                        align_items: AlignItems::Center,
+                        align_items: AlignItems::Stretch,
+                        gap: Size::width(Val::Px(10.)),
                         ..Default::default()
                     },
                     background_color: color::BOTTOM_BAR_BACKGROUND.into(),
                     ..Default::default()
                 })
                 .with_children(|parent| {
+                    // Container for left-aligned buttons
                     parent
                         .spawn(NodeBundle {
                             style: Style {
-                                size: Size::new(Val::Auto, Val::Percent(100.0)),
                                 flex_direction: FlexDirection::Row,
-                                justify_content: JustifyContent::FlexEnd,
-                                align_items: AlignItems::Center,
+                                align_items: AlignItems::Stretch,
+                                gap: Size::width(Val::Px(10.)),
                                 ..Default::default()
                             },
                             ..Default::default()
@@ -2299,13 +2299,15 @@ fn playing_enter_system(
                                 .spawn((
                                     ButtonBundle {
                                         style: Style {
-                                            size: Size::new(Val::Px(50.0), Val::Percent(100.0)),
+                                            size: Size::width(Val::Px(50.)),
                                             // horizontally center child text
                                             justify_content: JustifyContent::Center,
                                             // vertically center child text
                                             align_items: AlignItems::Center,
+                                            // extra padding to separate the back button from
+                                            // the tools
                                             margin: UiRect {
-                                                right: Val::Px(20.0),
+                                                right: Val::Px(10.0),
                                                 ..Default::default()
                                             },
                                             ..Default::default()
@@ -2337,15 +2339,11 @@ fn playing_enter_system(
                                     .spawn((
                                         ButtonBundle {
                                             style: Style {
-                                                size: Size::new(Val::Px(50.0), Val::Percent(100.0)),
+                                                size: Size::width(Val::Px(50.)),
                                                 // horizontally center child text
                                                 justify_content: JustifyContent::Center,
                                                 // vertically center child text
                                                 align_items: AlignItems::Center,
-                                                margin: UiRect {
-                                                    left: Val::Px(10.0),
-                                                    ..Default::default()
-                                                },
                                                 ..Default::default()
                                             },
                                             background_color: color::UI_NORMAL_BUTTON.into(),
@@ -2379,15 +2377,11 @@ fn playing_enter_system(
                                 .spawn((
                                     ButtonBundle {
                                         style: Style {
-                                            size: Size::new(Val::Px(50.0), Val::Percent(100.0)),
+                                            size: Size::width(Val::Px(50.)),
                                             // horizontally center child text
                                             justify_content: JustifyContent::Center,
                                             // vertically center child text
                                             align_items: AlignItems::Center,
-                                            margin: UiRect {
-                                                left: Val::Px(10.0),
-                                                ..Default::default()
-                                            },
                                             ..Default::default()
                                         },
                                         background_color: color::UI_NORMAL_BUTTON.into(),
@@ -2427,24 +2421,24 @@ fn playing_enter_system(
                             }
                         });
 
-                    // Score, etc
+                    // Container for score, etc
+
                     parent
                         .spawn(NodeBundle {
                             style: Style {
-                                size: Size::new(Val::Auto, Val::Percent(100.0)),
+                                flex_grow: 1.,
                                 flex_direction: FlexDirection::Row,
-                                justify_content: JustifyContent::FlexEnd,
                                 align_items: AlignItems::Center,
+                                gap: Size::width(Val::Px(10.)),
                                 ..Default::default()
                             },
                             ..Default::default()
                         })
                         .with_children(|parent| {
-                            // Score etc
                             parent.spawn((
                                 TextBundle {
                                     style: Style {
-                                        size: Size::new(Val::Px(120.0), Val::Px(30.0)),
+                                        size: Size::width(Val::Percent(25.)),
                                         ..Default::default()
                                     },
                                     text: Text {
@@ -2457,6 +2451,7 @@ fn playing_enter_system(
                                                     color: color::UI_WHITE,
                                                 },
                                             },
+                                            // The "+ amt" part that is shown while planning a road
                                             TextSection {
                                                 value: "".to_string(),
                                                 style: TextStyle {
@@ -2476,7 +2471,7 @@ fn playing_enter_system(
                             parent.spawn((
                                 TextBundle {
                                     style: Style {
-                                        size: Size::new(Val::Px(100.0), Val::Px(30.0)),
+                                        size: Size::width(Val::Percent(25.)),
                                         ..Default::default()
                                     },
                                     text: Text::from_section(
@@ -2495,20 +2490,17 @@ fn playing_enter_system(
                             parent.spawn((
                                 TextBundle {
                                     style: Style {
-                                        size: Size::new(Val::Px(100.0), Val::Px(30.0)),
+                                        size: Size::width(Val::Percent(25.)),
                                         ..Default::default()
                                     },
-                                    text: Text {
-                                        sections: vec![TextSection {
-                                            value: "0".to_string(),
-                                            style: TextStyle {
-                                                font: handles.fonts[0].clone(),
-                                                font_size: 30.0,
-                                                color: color::PIXIE[2],
-                                            },
-                                        }],
-                                        ..Default::default()
-                                    },
+                                    text: Text::from_section(
+                                        "0".to_string(),
+                                        TextStyle {
+                                            font: handles.fonts[0].clone(),
+                                            font_size: 30.0,
+                                            color: color::PIXIE[2],
+                                        },
+                                    ),
                                     ..Default::default()
                                 },
                                 ElapsedText,
@@ -2517,35 +2509,32 @@ fn playing_enter_system(
                             parent.spawn((
                                 TextBundle {
                                     style: Style {
-                                        size: Size::new(Val::Px(200.0), Val::Px(30.0)),
+                                        size: Size::width(Val::Percent(25.)),
                                         ..Default::default()
                                     },
-                                    text: Text {
-                                        sections: vec![TextSection {
-                                            value: "0".to_string(),
-                                            style: TextStyle {
-                                                font: handles.fonts[0].clone(),
-                                                font_size: 30.0,
-                                                color: color::FINISHED_ROAD[1],
-                                            },
-                                        }],
-                                        ..Default::default()
-                                    },
+                                    text: Text::from_section(
+                                        "0".to_string(),
+                                        TextStyle {
+                                            font: handles.fonts[0].clone(),
+                                            font_size: 30.0,
+                                            color: color::FINISHED_ROAD[1],
+                                        },
+                                    ),
                                     ..Default::default()
                                 },
                                 ScoreText,
                             ));
                         });
 
-                    // right-aligned bar items
+                    // Container for right-aligned bar items
 
                     parent
                         .spawn(NodeBundle {
                             style: Style {
-                                size: Size::new(Val::Auto, Val::Percent(100.0)),
                                 flex_direction: FlexDirection::Row,
-                                justify_content: JustifyContent::FlexStart,
-                                align_items: AlignItems::Center,
+                                justify_content: JustifyContent::FlexEnd,
+                                align_items: AlignItems::Stretch,
+                                gap: Size::width(Val::Px(10.)),
                                 ..Default::default()
                             },
                             ..Default::default()
@@ -2555,7 +2544,7 @@ fn playing_enter_system(
                                 .spawn((
                                     ButtonBundle {
                                         style: Style {
-                                            size: Size::new(Val::Px(110.0), Val::Percent(100.0)),
+                                            size: Size::width(Val::Px(110.)),
                                             // horizontally center child text
                                             justify_content: JustifyContent::Center,
                                             // vertically center child text
@@ -2584,15 +2573,11 @@ fn playing_enter_system(
                                 .spawn((
                                     ButtonBundle {
                                         style: Style {
-                                            size: Size::new(Val::Px(50.0), Val::Percent(100.0)),
+                                            size: Size::width(Val::Px(50.)),
                                             // horizontally center child text
                                             justify_content: JustifyContent::Center,
                                             // vertically center child text
                                             align_items: AlignItems::Center,
-                                            margin: UiRect {
-                                                left: Val::Px(10.0),
-                                                ..Default::default()
-                                            },
                                             ..Default::default()
                                         },
                                         background_color: color::UI_NORMAL_BUTTON.into(),
@@ -2617,15 +2602,11 @@ fn playing_enter_system(
                                 .spawn((
                                     ButtonBundle {
                                         style: Style {
-                                            size: Size::new(Val::Px(250.0), Val::Percent(100.0)),
+                                            size: Size::width(Val::Px(250.)),
                                             // horizontally center child text
                                             justify_content: JustifyContent::Center,
                                             // vertically center child text
                                             align_items: AlignItems::Center,
-                                            margin: UiRect {
-                                                left: Val::Px(10.0),
-                                                ..Default::default()
-                                            },
                                             ..Default::default()
                                         },
                                         background_color: color::UI_NORMAL_BUTTON.into(),
@@ -2653,7 +2634,7 @@ fn playing_enter_system(
             parent.spawn((
                 NodeBundle {
                     style: Style {
-                        size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                        size: Size::all(Val::Percent(100.0)),
                         flex_direction: FlexDirection::Column,
                         justify_content: JustifyContent::Center,
                         align_items: AlignItems::Center,
