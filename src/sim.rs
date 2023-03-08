@@ -36,9 +36,11 @@ impl Plugin for SimulationPlugin {
         // so that emitters are created on time. It might be nice to move sim entity
         // initialization into the sim schedule.
         app.add_systems(
-            (apply_system_buffers, run_simulation)
-                .chain()
-                .after(pixie_button_system),
+            (
+                apply_system_buffers.after(pixie_button_system),
+                run_simulation,
+            )
+                .chain(),
         );
     }
 }

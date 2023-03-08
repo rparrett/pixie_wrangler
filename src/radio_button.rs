@@ -18,6 +18,8 @@ pub struct RadioButtonSet;
 
 impl Plugin for RadioButtonPlugin {
     fn build(&self, app: &mut App) {
+        app.configure_set(RadioButtonSet.in_base_set(CoreSet::Update));
+
         app.add_system(radio_button_system.in_set(RadioButtonSet));
         app.add_system(
             radio_button_group_system

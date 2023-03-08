@@ -91,23 +91,29 @@ fn main() {
 
     app.add_system(playing_enter_system.in_schedule(OnEnter(GameState::Playing)));
     app.add_system(playing_exit_system.in_schedule(OnExit(GameState::Playing)));
+
+    app.configure_set(DrawingInput.in_set(OnUpdate(GameState::Playing)));
     app.add_systems(
         (
             keyboard_system.before(mouse_movement_system),
             mouse_movement_system,
         )
             .before(RadioButtonSet)
-            .in_set(OnUpdate(GameState::Playing))
             .in_set(DrawingInput),
     );
-    app.configure_set(DrawingMouseMovement.after(DrawingInput));
+
+    app.configure_set(
+        DrawingMouseMovement
+            .after(DrawingInput)
+            .in_set(OnUpdate(GameState::Playing)),
+    );
+
     app.add_systems(
         (
             net_ripping_mouse_movement_system,
             not_drawing_mouse_movement_system,
             drawing_mouse_movement_system,
         )
-            .in_set(OnUpdate(GameState::Playing))
             .in_set(DrawingMouseMovement),
     );
 
@@ -122,7 +128,11 @@ fn main() {
             .in_set(OnUpdate(GameState::Playing)),
     );
 
-    app.configure_set(DrawingInteraction.after(DrawingMouseMovement));
+    app.configure_set(
+        DrawingInteraction
+            .after(DrawingMouseMovement)
+            .in_set(OnUpdate(GameState::Playing)),
+    );
     app.add_systems(
         (
             drawing_mouse_click_system,
@@ -131,7 +141,6 @@ fn main() {
             draw_net_ripping_system,
             button_system,
         )
-            .in_set(OnUpdate(GameState::Playing))
             .in_set(DrawingInteraction),
     );
 
