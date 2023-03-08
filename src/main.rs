@@ -1172,232 +1172,232 @@ fn drawing_mouse_click_system(
         return;
     }
 
-    if mouse_input.just_pressed(MouseButton::Left) {
-        if !line_state.drawing {
-            if line_state.valid {
-                line_state.drawing = true;
-                line_state.start = mouse.snapped;
-                line_state.end = line_state.start;
-            }
-        } else {
-            if line_state.end == line_state.start {
-                line_state.drawing = false;
-            }
+    if !mouse_input.just_pressed(MouseButton::Left) {
+        return;
+    }
 
-            if !line_state.valid {
-                return;
-            }
-
-            if line_state.adds.is_empty() {
-                return;
-            }
-
-            let mut previous_end: Option<NodeIndex> = None;
-
-            for add in line_state.adds.iter() {
-                // SegmentConnection::TryExtend is only valid if extending the
-                // target segment would not break any existing connections.
-
-                let valid_extension_a = add.connections.0.len() == 1
-                    && add
-                        .connections
-                        .0
-                        .iter()
-                        .all(|c| matches!(c, SegmentConnection::TryExtend(_)));
-                let valid_extension_b = add.connections.1.len() == 1
-                    && add
-                        .connections
-                        .1
-                        .iter()
-                        .all(|c| matches!(c, SegmentConnection::TryExtend(_)));
-
-                let mut points = add.points;
-
-                if valid_extension_a {
-                    if let SegmentConnection::TryExtend(entity) = add.connections.0.get(0).unwrap()
-                    {
-                        let segment = q_road_segments.get(*entity).unwrap();
-
-                        if add.points.0 == segment.points.0 {
-                            points.0 = segment.points.1;
-                        } else {
-                            points.0 = segment.points.0;
-                        }
-                    }
-                }
-                if valid_extension_b {
-                    if let SegmentConnection::TryExtend(entity) = add.connections.1.get(0).unwrap()
-                    {
-                        let segment = q_road_segments.get(*entity).unwrap();
-
-                        if add.points.1 == segment.points.1 {
-                            points.1 = segment.points.0;
-                        } else {
-                            points.1 = segment.points.1;
-                        }
-                    }
-                }
-
-                let (_, start_node, end_node) = spawn_road_segment(
-                    &mut commands,
-                    &mut graph,
-                    RoadSegment {
-                        points,
-                        layer: line_state.layer,
-                    },
-                );
-
-                for (node, is_start, connections, point) in [
-                    (start_node, true, &add.connections.0, add.points.0),
-                    (end_node, false, &add.connections.1, add.points.1),
-                ]
-                .iter()
-                {
-                    for connection in connections.iter() {
-                        match connection {
-                            SegmentConnection::Add(entity) => {
-                                // seems like I should really just store whether the entity is a
-                                // segment or point in SegmentConnection::Add
-
-                                let s_nodes = q_segment_nodes.get(*entity);
-                                let segment = q_road_segments.get(*entity);
-                                let p_nodes = q_point_nodes.get(*entity);
-
-                                match (s_nodes, segment, p_nodes) {
-                                    (Ok(segment_nodes), Ok(segment), Err(_)) => {
-                                        if segment.points.0 == *point {
-                                            graph.graph.add_edge(*node, segment_nodes.0, 0.0);
-                                        }
-                                        if segment.points.1 == *point {
-                                            graph.graph.add_edge(*node, segment_nodes.1, 0.0);
-                                        }
-                                    }
-                                    (Err(_), Err(_), Ok(p_nodes)) => {
-                                        graph.graph.add_edge(*node, p_nodes.0, 0.0);
-                                    }
-                                    _ => {
-                                        warn!("Encountered a thing that should not happen while adding a connection.");
-                                    }
-                                }
-                            }
-                            SegmentConnection::TryExtend(entity) => {
-                                let t_segment = q_road_segments.get(*entity);
-                                let t_nodes = q_segment_nodes.get(*entity);
-
-                                if let (Ok(t_nodes), Ok(t_segment)) = (t_nodes, t_segment) {
-                                    if (*is_start && valid_extension_a)
-                                        || (!is_start && valid_extension_b)
-                                    {
-                                        let neighbors = if t_segment.points.0 == *point {
-                                            graph.graph.neighbors(t_nodes.1).collect::<Vec<_>>()
-                                        } else {
-                                            graph.graph.neighbors(t_nodes.0).collect::<Vec<_>>()
-                                        };
-
-                                        for neighbor in neighbors {
-                                            graph.graph.add_edge(
-                                                neighbor,
-                                                if *is_start { start_node } else { end_node },
-                                                0.0,
-                                            );
-                                        }
-
-                                        commands.entity(*entity).despawn_recursive();
-                                        graph.graph.remove_node(t_nodes.0);
-                                        graph.graph.remove_node(t_nodes.1);
-                                    } else {
-                                        // normal add
-                                        if t_segment.points.0 == *point {
-                                            graph.graph.add_edge(*node, t_nodes.0, 0.0);
-                                        }
-                                        if t_segment.points.1 == *point {
-                                            graph.graph.add_edge(*node, t_nodes.1, 0.0);
-                                        }
-                                    }
-                                }
-                            }
-                            SegmentConnection::Previous => {
-                                if *is_start {
-                                    if let Some(previous_end) = previous_end {
-                                        graph.graph.add_edge(*node, previous_end, 0.0);
-                                    }
-                                }
-                            }
-                            SegmentConnection::Split(entity) => {
-                                let s_nodes = q_segment_nodes.get(*entity).unwrap();
-                                let segment = q_road_segments.get(*entity).unwrap();
-
-                                // get neighboring NodeIndex from split line's start node
-                                let start_neighbors =
-                                    graph.graph.neighbors(s_nodes.0).collect::<Vec<_>>();
-
-                                // get neighboring NodeIndex from split line's end node
-                                let end_neighbors =
-                                    graph.graph.neighbors(s_nodes.1).collect::<Vec<_>>();
-
-                                // despawn split line
-                                commands.entity(*entity).despawn_recursive();
-
-                                // create a new segment on (entity start, this_point)
-                                let (_, start_node_a, end_node_a) = spawn_road_segment(
-                                    &mut commands,
-                                    &mut graph,
-                                    RoadSegment {
-                                        points: (segment.points.0, *point),
-                                        layer: segment.layer,
-                                    },
-                                );
-
-                                // reconnect new segment to split line's old start node neighbors
-                                for neighbor in start_neighbors {
-                                    graph.graph.add_edge(neighbor, start_node_a, 0.0);
-                                }
-                                graph.graph.add_edge(end_node_a, *node, 0.0);
-
-                                // create a new segment on (entity end, this_point)
-                                let (_, start_node_b, end_node_b) = spawn_road_segment(
-                                    &mut commands,
-                                    &mut graph,
-                                    RoadSegment {
-                                        points: (*point, segment.points.1),
-                                        layer: segment.layer,
-                                    },
-                                );
-
-                                // reconnect new segment to split line's old end node neighbors
-                                for neighbor in end_neighbors {
-                                    graph.graph.add_edge(end_node_b, neighbor, 0.0);
-                                }
-                                graph.graph.add_edge(*node, start_node_b, 0.0);
-
-                                // connect the two new segments together
-                                graph.graph.add_edge(end_node_a, start_node_b, 0.0);
-
-                                // remove all graph edges and nodes associated with the split line
-                                graph.graph.remove_node(s_nodes.0);
-                                graph.graph.remove_node(s_nodes.1);
-                            }
-                        };
-                    }
-                }
-
-                previous_end = Some(end_node);
-            }
-
-            if line_state.stop {
-                line_state.drawing = false;
-                line_state.stop = false;
-            }
-
-            line_state.start = line_state.end;
-            line_state.adds = vec![];
-            line_state.segments = vec![];
-
-            println!(
-                "{:?}",
-                Dot::with_config(&graph.graph, &[Config::EdgeNoLabel, Config::NodeIndexLabel])
-            );
+    if !line_state.drawing {
+        if line_state.valid {
+            line_state.drawing = true;
+            line_state.start = mouse.snapped;
+            line_state.end = line_state.start;
         }
+    } else {
+        if line_state.end == line_state.start {
+            line_state.drawing = false;
+        }
+
+        if !line_state.valid {
+            return;
+        }
+
+        if line_state.adds.is_empty() {
+            return;
+        }
+
+        let mut previous_end: Option<NodeIndex> = None;
+
+        for add in line_state.adds.iter() {
+            // SegmentConnection::TryExtend is only valid if extending the
+            // target segment would not break any existing connections.
+
+            let valid_extension_a = add.connections.0.len() == 1
+                && add
+                    .connections
+                    .0
+                    .iter()
+                    .all(|c| matches!(c, SegmentConnection::TryExtend(_)));
+            let valid_extension_b = add.connections.1.len() == 1
+                && add
+                    .connections
+                    .1
+                    .iter()
+                    .all(|c| matches!(c, SegmentConnection::TryExtend(_)));
+
+            let mut points = add.points;
+
+            if valid_extension_a {
+                if let SegmentConnection::TryExtend(entity) = add.connections.0.get(0).unwrap() {
+                    let segment = q_road_segments.get(*entity).unwrap();
+
+                    if add.points.0 == segment.points.0 {
+                        points.0 = segment.points.1;
+                    } else {
+                        points.0 = segment.points.0;
+                    }
+                }
+            }
+            if valid_extension_b {
+                if let SegmentConnection::TryExtend(entity) = add.connections.1.get(0).unwrap() {
+                    let segment = q_road_segments.get(*entity).unwrap();
+
+                    if add.points.1 == segment.points.1 {
+                        points.1 = segment.points.0;
+                    } else {
+                        points.1 = segment.points.1;
+                    }
+                }
+            }
+
+            let (_, start_node, end_node) = spawn_road_segment(
+                &mut commands,
+                &mut graph,
+                RoadSegment {
+                    points,
+                    layer: line_state.layer,
+                },
+            );
+
+            for (node, is_start, connections, point) in [
+                (start_node, true, &add.connections.0, add.points.0),
+                (end_node, false, &add.connections.1, add.points.1),
+            ]
+            .iter()
+            {
+                for connection in connections.iter() {
+                    match connection {
+                        SegmentConnection::Add(entity) => {
+                            // seems like I should really just store whether the entity is a
+                            // segment or point in SegmentConnection::Add
+
+                            let s_nodes = q_segment_nodes.get(*entity);
+                            let segment = q_road_segments.get(*entity);
+                            let p_nodes = q_point_nodes.get(*entity);
+
+                            match (s_nodes, segment, p_nodes) {
+                                (Ok(segment_nodes), Ok(segment), Err(_)) => {
+                                    if segment.points.0 == *point {
+                                        graph.graph.add_edge(*node, segment_nodes.0, 0.0);
+                                    }
+                                    if segment.points.1 == *point {
+                                        graph.graph.add_edge(*node, segment_nodes.1, 0.0);
+                                    }
+                                }
+                                (Err(_), Err(_), Ok(p_nodes)) => {
+                                    graph.graph.add_edge(*node, p_nodes.0, 0.0);
+                                }
+                                _ => {
+                                    warn!("Encountered a thing that should not happen while adding a connection.");
+                                }
+                            }
+                        }
+                        SegmentConnection::TryExtend(entity) => {
+                            let t_segment = q_road_segments.get(*entity);
+                            let t_nodes = q_segment_nodes.get(*entity);
+
+                            if let (Ok(t_nodes), Ok(t_segment)) = (t_nodes, t_segment) {
+                                if (*is_start && valid_extension_a)
+                                    || (!is_start && valid_extension_b)
+                                {
+                                    let neighbors = if t_segment.points.0 == *point {
+                                        graph.graph.neighbors(t_nodes.1).collect::<Vec<_>>()
+                                    } else {
+                                        graph.graph.neighbors(t_nodes.0).collect::<Vec<_>>()
+                                    };
+
+                                    for neighbor in neighbors {
+                                        graph.graph.add_edge(
+                                            neighbor,
+                                            if *is_start { start_node } else { end_node },
+                                            0.0,
+                                        );
+                                    }
+
+                                    commands.entity(*entity).despawn_recursive();
+                                    graph.graph.remove_node(t_nodes.0);
+                                    graph.graph.remove_node(t_nodes.1);
+                                } else {
+                                    // normal add
+                                    if t_segment.points.0 == *point {
+                                        graph.graph.add_edge(*node, t_nodes.0, 0.0);
+                                    }
+                                    if t_segment.points.1 == *point {
+                                        graph.graph.add_edge(*node, t_nodes.1, 0.0);
+                                    }
+                                }
+                            }
+                        }
+                        SegmentConnection::Previous => {
+                            if *is_start {
+                                if let Some(previous_end) = previous_end {
+                                    graph.graph.add_edge(*node, previous_end, 0.0);
+                                }
+                            }
+                        }
+                        SegmentConnection::Split(entity) => {
+                            let s_nodes = q_segment_nodes.get(*entity).unwrap();
+                            let segment = q_road_segments.get(*entity).unwrap();
+
+                            // get neighboring NodeIndex from split line's start node
+                            let start_neighbors =
+                                graph.graph.neighbors(s_nodes.0).collect::<Vec<_>>();
+
+                            // get neighboring NodeIndex from split line's end node
+                            let end_neighbors =
+                                graph.graph.neighbors(s_nodes.1).collect::<Vec<_>>();
+
+                            // despawn split line
+                            commands.entity(*entity).despawn_recursive();
+
+                            // create a new segment on (entity start, this_point)
+                            let (_, start_node_a, end_node_a) = spawn_road_segment(
+                                &mut commands,
+                                &mut graph,
+                                RoadSegment {
+                                    points: (segment.points.0, *point),
+                                    layer: segment.layer,
+                                },
+                            );
+
+                            // reconnect new segment to split line's old start node neighbors
+                            for neighbor in start_neighbors {
+                                graph.graph.add_edge(neighbor, start_node_a, 0.0);
+                            }
+                            graph.graph.add_edge(end_node_a, *node, 0.0);
+
+                            // create a new segment on (entity end, this_point)
+                            let (_, start_node_b, end_node_b) = spawn_road_segment(
+                                &mut commands,
+                                &mut graph,
+                                RoadSegment {
+                                    points: (*point, segment.points.1),
+                                    layer: segment.layer,
+                                },
+                            );
+
+                            // reconnect new segment to split line's old end node neighbors
+                            for neighbor in end_neighbors {
+                                graph.graph.add_edge(end_node_b, neighbor, 0.0);
+                            }
+                            graph.graph.add_edge(*node, start_node_b, 0.0);
+
+                            // connect the two new segments together
+                            graph.graph.add_edge(end_node_a, start_node_b, 0.0);
+
+                            // remove all graph edges and nodes associated with the split line
+                            graph.graph.remove_node(s_nodes.0);
+                            graph.graph.remove_node(s_nodes.1);
+                        }
+                    };
+                }
+            }
+
+            previous_end = Some(end_node);
+        }
+
+        if line_state.stop {
+            line_state.drawing = false;
+            line_state.stop = false;
+        }
+
+        line_state.start = line_state.end;
+        line_state.adds = vec![];
+        line_state.segments = vec![];
+
+        println!(
+            "{:?}",
+            Dot::with_config(&graph.graph, &[Config::EdgeNoLabel, Config::NodeIndexLabel])
+        );
     }
 }
 
