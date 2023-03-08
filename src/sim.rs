@@ -98,8 +98,7 @@ impl SimulationSteps {
     }
 }
 
-#[derive(Clone, Copy)]
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 pub enum SimulationSpeed {
     #[default]
     Normal,
