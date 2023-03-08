@@ -99,15 +99,13 @@ impl SimulationSteps {
 }
 
 #[derive(Clone, Copy)]
+#[derive(Default)]
 pub enum SimulationSpeed {
+    #[default]
     Normal,
     Fast,
 }
-impl Default for SimulationSpeed {
-    fn default() -> Self {
-        SimulationSpeed::Normal
-    }
-}
+
 impl SimulationSpeed {
     fn scale(&self) -> u32 {
         match self {

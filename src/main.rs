@@ -311,15 +311,13 @@ struct PointGraphNode(NodeIndex);
 #[derive(Component, Debug)]
 struct SegmentGraphNodes(NodeIndex, NodeIndex);
 
+#[derive(Default)]
 enum DrawingMode {
+    #[default]
     LineDrawing,
     NetRipping,
 }
-impl Default for DrawingMode {
-    fn default() -> Self {
-        DrawingMode::LineDrawing
-    }
-}
+
 #[derive(Resource, Default)]
 struct DrawingState {
     mode: DrawingMode,
