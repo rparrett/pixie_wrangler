@@ -446,8 +446,6 @@ fn pathfinding_system(
         return;
     }
 
-    info!("doing pathfinding");
-
     let mut ok = true;
     let mut paths = vec![];
     let mut not_ok = vec![];
@@ -455,11 +453,6 @@ fn pathfinding_system(
     for (a_entity, a, a_node) in q_terminuses.iter() {
         for (_, b, b_node) in q_terminuses.iter() {
             for flavor in a.emits.intersection(&b.collects) {
-                info!(
-                    "Pixie (flavor {:?}) wants to go from {:?} to {:?}",
-                    flavor, a_node, b_node
-                );
-
                 let path = astar(
                     &graph.graph,
                     a_node.0,
@@ -1182,7 +1175,6 @@ fn drawing_mouse_click_system(
     if mouse_input.just_pressed(MouseButton::Left) {
         if !line_state.drawing {
             if line_state.valid {
-                info!("{:?}", mouse.snapped);
                 line_state.drawing = true;
                 line_state.start = mouse.snapped;
                 line_state.end = line_state.start;
@@ -1203,8 +1195,6 @@ fn drawing_mouse_click_system(
             let mut previous_end: Option<NodeIndex> = None;
 
             for add in line_state.adds.iter() {
-                info!("Add: {:?}", add);
-
                 // SegmentConnection::TryExtend is only valid if extending the
                 // target segment would not break any existing connections.
 
@@ -1221,14 +1211,7 @@ fn drawing_mouse_click_system(
                         .iter()
                         .all(|c| matches!(c, SegmentConnection::TryExtend(_)));
 
-                info!(
-                    "valid_extension_a {:?} valid_extension_b {:?}",
-                    valid_extension_a, valid_extension_b
-                );
-
                 let mut points = add.points;
-
-                info!("before: {:?}", points);
 
                 if valid_extension_a {
                     if let SegmentConnection::TryExtend(entity) = add.connections.0.get(0).unwrap()
@@ -1254,8 +1237,6 @@ fn drawing_mouse_click_system(
                         }
                     }
                 }
-
-                info!("after: {:?}", points);
 
                 let (_, start_node, end_node) = spawn_road_segment(
                     &mut commands,
@@ -1295,7 +1276,7 @@ fn drawing_mouse_click_system(
                                         graph.graph.add_edge(*node, p_nodes.0, 0.0);
                                     }
                                     _ => {
-                                        info!("encountered a thing that should not happen");
+                                        warn!("Encountered a thing that should not happen while adding a connection.");
                                     }
                                 }
                             }
@@ -1565,8 +1546,6 @@ fn drawing_mouse_movement_system(
     if mouse.snapped == line_state.end && line_state.layer == line_state.prev_layer {
         return;
     }
-
-    info!("{:?}", mouse.snapped);
 
     line_state.end = mouse.snapped;
     line_state.prev_layer = line_state.layer;
@@ -1901,7 +1880,7 @@ fn spawn_obstacle(commands: &mut Commands, obstacle: &Obstacle) {
                 });
         }
         _ => {
-            info!("{:?} not implemented", obstacle);
+            info!("{:?} skipped -- not implemented.", obstacle);
         }
     }
 }
