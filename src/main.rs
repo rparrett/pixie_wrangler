@@ -139,7 +139,6 @@ fn main() {
             net_ripping_mouse_click_system,
             draw_mouse_system,
             draw_net_ripping_system,
-            button_system,
         )
             .in_set(DrawingInteraction),
     );
@@ -153,6 +152,7 @@ fn main() {
     // whenever
     app.add_systems(
         (
+            button_system,
             pixie_button_system,
             reset_button_system,
             speed_button_system,
