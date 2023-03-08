@@ -2121,7 +2121,7 @@ fn update_score_text_system(
     best_scores: Res<BestScores>,
     mut q_score_text: Query<&mut Text, With<ScoreText>>,
 ) {
-    if !best_scores.is_changed() {
+    if !best_scores.is_changed() && !selected_level.is_changed() {
         return;
     }
 
