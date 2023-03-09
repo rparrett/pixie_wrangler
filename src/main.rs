@@ -249,8 +249,6 @@ struct Handles {
     fonts: Vec<Handle<Font>>,
 }
 #[derive(Component)]
-struct UiCamera;
-#[derive(Component)]
 struct MainCamera;
 #[derive(Component)]
 struct Cursor;
