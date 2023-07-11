@@ -3,7 +3,6 @@
 
 use crate::{
     collision::{point_segment_collision, segment_collision, SegmentCollision},
-    debug::DebugLinesPlugin,
     level::{Level, Obstacle, Terminus},
     level_select::LevelSelectPlugin,
     lines::{possible_lines, Axis},
@@ -40,7 +39,6 @@ use sim::SimulationSteps;
 
 mod collision;
 mod color;
-mod debug;
 mod layer;
 mod level;
 mod level_select;
@@ -84,7 +82,6 @@ fn main() {
         .add_plugins(LoadingPlugin)
         .add_plugins(LevelSelectPlugin)
         .add_plugins(SavePlugin)
-        .add_plugins(DebugLinesPlugin)
         .add_plugins(EasingsPlugin)
         .add_plugins(RonAssetPlugin::<Level>::new(&["level.ron"]));
 
