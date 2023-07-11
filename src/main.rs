@@ -1187,8 +1187,13 @@ fn drawing_mouse_click_system(
     q_point_nodes: Query<&PointGraphNode>,
     q_segment_nodes: Query<&SegmentGraphNodes>,
     q_road_segments: Query<&RoadSegment>,
+    q_window: Query<&Window>,
 ) {
-    if mouse.window_position.y < BOTTOM_BAR_HEIGHT {
+    let Ok(window) = q_window.get_single() else {
+        return;
+    };
+
+    if mouse.window_position.y > window.resolution.height() - BOTTOM_BAR_HEIGHT {
         return;
     }
 
