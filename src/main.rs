@@ -15,6 +15,8 @@ use crate::{
 };
 
 use bevy::{
+    app::MainScheduleOrder,
+    ecs::schedule::ScheduleLabel,
     prelude::*,
     utils::HashSet,
     utils::{Duration, HashMap},
@@ -52,6 +54,9 @@ mod sim;
 fn main() {
     let mut app = App::new();
 
+    let mut order = app.world.resource_mut::<MainScheduleOrder>();
+    order.insert_after(Update, AfterUpdate);
+
     app.insert_resource(ClearColor(color::BACKGROUND))
         .insert_resource(Msaa::Sample4);
 
@@ -72,28 +77,23 @@ fn main() {
     let default = default.disable::<bevy::log::LogPlugin>();
 
     app.add_plugins(default)
-        .add_plugin(ShapePlugin)
-        .add_plugin(RadioButtonPlugin)
-        .add_plugin(PixiePlugin)
-        .add_plugin(SimulationPlugin)
-        .add_plugin(LoadingPlugin)
-        .add_plugin(LevelSelectPlugin)
-        .add_plugin(SavePlugin)
-        .add_plugin(DebugLinesPlugin)
-        .add_plugin(EasingsPlugin)
-        .add_plugin(RonAssetPlugin::<Level>::new(&["level.ron"]));
+        .add_plugins(ShapePlugin)
+        .add_plugins(RadioButtonPlugin)
+        .add_plugins(PixiePlugin)
+        .add_plugins(SimulationPlugin)
+        .add_plugins(LoadingPlugin)
+        .add_plugins(LevelSelectPlugin)
+        .add_plugins(SavePlugin)
+        .add_plugins(DebugLinesPlugin)
+        .add_plugins(EasingsPlugin)
+        .add_plugins(RonAssetPlugin::<Level>::new(&["level.ron"]));
 
-    app.configure_set(
-        AfterUpdate
-            .after(CoreSet::UpdateFlush)
-            .before(CoreSet::PostUpdate),
-    );
+    app.add_systems(OnEnter(GameState::Playing), playing_enter_system);
+    app.add_systems(OnExit(GameState::Playing), playing_exit_system);
 
-    app.add_system(playing_enter_system.in_schedule(OnEnter(GameState::Playing)));
-    app.add_system(playing_exit_system.in_schedule(OnExit(GameState::Playing)));
-
-    app.configure_set(DrawingInput.in_set(OnUpdate(GameState::Playing)));
+    app.configure_set(Update, DrawingInput.run_if(in_state(GameState::Playing)));
     app.add_systems(
+        Update,
         (
             keyboard_system.before(mouse_movement_system),
             mouse_movement_system,
@@ -103,12 +103,14 @@ fn main() {
     );
 
     app.configure_set(
+        Update,
         DrawingMouseMovement
             .after(DrawingInput)
-            .in_set(OnUpdate(GameState::Playing)),
+            .run_if(in_state(GameState::Playing)),
     );
 
     app.add_systems(
+        Update,
         (
             net_ripping_mouse_movement_system,
             not_drawing_mouse_movement_system,
@@ -118,6 +120,7 @@ fn main() {
     );
 
     app.add_systems(
+        Update,
         (
             tool_button_system,
             tool_button_display_system,
@@ -125,15 +128,17 @@ fn main() {
         )
             .before(DrawingInteraction)
             .before(RadioButtonSet)
-            .in_set(OnUpdate(GameState::Playing)),
+            .run_if(in_state(GameState::Playing)),
     );
 
     app.configure_set(
+        Update,
         DrawingInteraction
             .after(DrawingMouseMovement)
-            .in_set(OnUpdate(GameState::Playing)),
+            .run_if(in_state(GameState::Playing)),
     );
     app.add_systems(
+        Update,
         (
             drawing_mouse_click_system,
             net_ripping_mouse_click_system,
@@ -143,14 +148,16 @@ fn main() {
             .in_set(DrawingInteraction),
     );
 
-    app.add_system(
+    app.add_systems(
+        Update,
         dismiss_score_dialog_button_system
-            .in_set(OnUpdate(GameState::Playing))
-            .after(DrawingInteraction),
+            .after(DrawingInteraction)
+            .run_if(in_state(GameState::Playing)),
     );
 
     // whenever
     app.add_systems(
+        Update,
         (
             button_system,
             pixie_button_system,
@@ -158,15 +165,13 @@ fn main() {
             speed_button_system,
             back_button_system,
         )
-            .in_set(OnUpdate(GameState::Playing)),
+            .run_if(in_state(GameState::Playing)),
     );
 
-    app.configure_set(
-        ScoreCalc
-            .run_if(in_state(GameState::Playing))
-            .in_base_set(AfterUpdate),
-    );
+    app.configure_set(AfterUpdate, ScoreCalc.run_if(in_state(GameState::Playing)));
+
     app.add_systems(
+        AfterUpdate,
         (
             pathfinding_system,
             update_cost_system,
@@ -177,12 +182,13 @@ fn main() {
     );
 
     app.configure_set(
+        AfterUpdate,
         ScoreUi
             .after(ScoreCalc)
-            .in_base_set(AfterUpdate)
             .run_if(in_state(GameState::Playing)),
     );
     app.add_systems(
+        AfterUpdate,
         (
             pixie_button_text_system,
             update_pixie_count_text_system,
@@ -220,8 +226,7 @@ fn main() {
     app.run();
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
-#[system_set(base)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, ScheduleLabel)]
 struct AfterUpdate;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
@@ -427,7 +432,7 @@ fn tool_button_system(
 ) {
     for (_, layer_button) in q_interaction_layer
         .iter()
-        .filter(|(i, _)| **i == Interaction::Clicked)
+        .filter(|(i, _)| **i == Interaction::Pressed)
     {
         line_state.layer = layer_button.0;
         if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
@@ -437,7 +442,7 @@ fn tool_button_system(
 
     for _ in q_interaction_rip
         .iter()
-        .filter(|i| **i == Interaction::Clicked)
+        .filter(|i| **i == Interaction::Pressed)
     {
         if !matches!(drawing_state.mode, DrawingMode::NetRipping) {
             drawing_state.mode = DrawingMode::NetRipping;
@@ -453,7 +458,7 @@ fn button_system(
 ) {
     for (interaction, mut color) in q_interaction.iter_mut() {
         match *interaction {
-            Interaction::Clicked => *color = color::UI_PRESSED_BUTTON.into(),
+            Interaction::Pressed => *color = color::UI_PRESSED_BUTTON.into(),
             Interaction::Hovered => *color = color::UI_HOVERED_BUTTON.into(),
             Interaction::None => *color = color::UI_NORMAL_BUTTON.into(),
         }
@@ -612,7 +617,8 @@ fn show_score_dialog_system(
         .count();
 
     let dialog_style = Style {
-        size: Size::new(Val::Px(320.0), Val::Px(300.0)),
+        width: Val::Px(320.0),
+        height: Val::Px(300.0),
         margin: UiRect {
             top: Val::Px(-1000.0),
             ..Default::default()
@@ -683,10 +689,11 @@ fn show_score_dialog_system(
             parent
                 .spawn(NodeBundle {
                     style: Style {
-                        size: Size::new(Val::Percent(100.0), Val::Px(70.0)),
+                        width: Val::Percent(100.),
+                        height: Val::Px(70.),
                         flex_direction: FlexDirection::Row,
                         align_items: AlignItems::Stretch,
-                        gap: Size::new(Val::Px(10.), Val::Undefined),
+                        column_gap: Val::Px(10.),
                         ..Default::default()
                     },
                     ..Default::default()
@@ -763,7 +770,7 @@ fn back_button_system(
     q_interaction: Query<&Interaction, (Changed<Interaction>, With<Button>, With<BackButton>)>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    for _ in q_interaction.iter().filter(|i| **i == Interaction::Clicked) {
+    for _ in q_interaction.iter().filter(|i| **i == Interaction::Pressed) {
         next_state.set(GameState::LevelSelect);
     }
 }
@@ -785,7 +792,7 @@ fn dismiss_score_dialog_button_system(
     mut q_node: Query<&mut BackgroundColor, With<PlayAreaNode>>,
     mut score: ResMut<Score>,
 ) {
-    for _ in q_interaction.iter().filter(|i| **i == Interaction::Clicked) {
+    for _ in q_interaction.iter().filter(|i| **i == Interaction::Pressed) {
         if let Ok(entity) = q_dialog.get_single() {
             commands.entity(entity).despawn_recursive();
             *sim_state = SimulationState::default();
@@ -819,7 +826,7 @@ fn pixie_button_system(
         return;
     }
 
-    for _ in q_interaction.iter().filter(|i| **i == Interaction::Clicked) {
+    for _ in q_interaction.iter().filter(|i| **i == Interaction::Pressed) {
         line_state.drawing = false;
         line_state.segments = vec![];
 
@@ -906,7 +913,7 @@ fn reset_button_system(
         return;
     }
 
-    for _ in q_interaction.iter().filter(|i| **i == Interaction::Clicked) {
+    for _ in q_interaction.iter().filter(|i| **i == Interaction::Pressed) {
         for chunk in q_road_chunks
             .iter()
             .chain(q_pixies.iter())
@@ -947,7 +954,7 @@ fn speed_button_system(
 ) {
     for (_, children) in q_interaction
         .iter()
-        .filter(|(i, _)| **i == Interaction::Clicked)
+        .filter(|(i, _)| **i == Interaction::Pressed)
     {
         simulation_settings.speed = simulation_settings.speed.next();
 
@@ -2260,7 +2267,8 @@ fn playing_enter_system(
     commands
         .spawn(NodeBundle {
             style: Style {
-                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
                 flex_direction: FlexDirection::ColumnReverse,
                 justify_content: JustifyContent::FlexStart,
                 align_items: AlignItems::Center,
@@ -2274,10 +2282,11 @@ fn playing_enter_system(
                 .spawn(NodeBundle {
                     style: Style {
                         padding: UiRect::all(Val::Px(10.0)),
-                        size: Size::new(Val::Percent(100.0), Val::Px(BOTTOM_BAR_HEIGHT)),
+                        width: Val::Percent(100.),
+                        height: Val::Px(BOTTOM_BAR_HEIGHT),
                         flex_direction: FlexDirection::Row,
                         align_items: AlignItems::Stretch,
-                        gap: Size::width(Val::Px(10.)),
+                        column_gap: Val::Px(10.),
                         ..Default::default()
                     },
                     background_color: color::BOTTOM_BAR_BACKGROUND.into(),
@@ -2290,7 +2299,7 @@ fn playing_enter_system(
                             style: Style {
                                 flex_direction: FlexDirection::Row,
                                 align_items: AlignItems::Stretch,
-                                gap: Size::width(Val::Px(10.)),
+                                column_gap: Val::Px(10.),
                                 ..Default::default()
                             },
                             ..Default::default()
@@ -2301,7 +2310,7 @@ fn playing_enter_system(
                                 .spawn((
                                     ButtonBundle {
                                         style: Style {
-                                            size: Size::width(Val::Px(50.)),
+                                            width: Val::Px(50.),
                                             // horizontally center child text
                                             justify_content: JustifyContent::Center,
                                             // vertically center child text
@@ -2341,7 +2350,7 @@ fn playing_enter_system(
                                     .spawn((
                                         ButtonBundle {
                                             style: Style {
-                                                size: Size::width(Val::Px(50.)),
+                                                width: Val::Px(50.),
                                                 // horizontally center child text
                                                 justify_content: JustifyContent::Center,
                                                 // vertically center child text
@@ -2379,7 +2388,7 @@ fn playing_enter_system(
                                 .spawn((
                                     ButtonBundle {
                                         style: Style {
-                                            size: Size::width(Val::Px(50.)),
+                                            width: Val::Px(50.),
                                             // horizontally center child text
                                             justify_content: JustifyContent::Center,
                                             // vertically center child text
@@ -2431,7 +2440,7 @@ fn playing_enter_system(
                                 flex_grow: 1.,
                                 flex_direction: FlexDirection::Row,
                                 align_items: AlignItems::Center,
-                                gap: Size::width(Val::Px(10.)),
+                                column_gap: Val::Px(10.),
                                 ..Default::default()
                             },
                             ..Default::default()
@@ -2440,7 +2449,7 @@ fn playing_enter_system(
                             parent.spawn((
                                 TextBundle {
                                     style: Style {
-                                        size: Size::width(Val::Percent(25.)),
+                                        width: Val::Percent(25.),
                                         ..Default::default()
                                     },
                                     text: Text {
@@ -2473,7 +2482,7 @@ fn playing_enter_system(
                             parent.spawn((
                                 TextBundle {
                                     style: Style {
-                                        size: Size::width(Val::Percent(25.)),
+                                        width: Val::Percent(25.),
                                         ..Default::default()
                                     },
                                     text: Text::from_section(
@@ -2492,7 +2501,7 @@ fn playing_enter_system(
                             parent.spawn((
                                 TextBundle {
                                     style: Style {
-                                        size: Size::width(Val::Percent(25.)),
+                                        width: Val::Percent(25.),
                                         ..Default::default()
                                     },
                                     text: Text::from_section(
@@ -2511,7 +2520,7 @@ fn playing_enter_system(
                             parent.spawn((
                                 TextBundle {
                                     style: Style {
-                                        size: Size::width(Val::Percent(25.)),
+                                        width: Val::Percent(25.),
                                         ..Default::default()
                                     },
                                     text: Text::from_section(
@@ -2536,7 +2545,7 @@ fn playing_enter_system(
                                 flex_direction: FlexDirection::Row,
                                 justify_content: JustifyContent::FlexEnd,
                                 align_items: AlignItems::Stretch,
-                                gap: Size::width(Val::Px(10.)),
+                                column_gap: Val::Px(10.),
                                 ..Default::default()
                             },
                             ..Default::default()
@@ -2546,7 +2555,7 @@ fn playing_enter_system(
                                 .spawn((
                                     ButtonBundle {
                                         style: Style {
-                                            size: Size::width(Val::Px(110.)),
+                                            width: Val::Px(110.),
                                             // horizontally center child text
                                             justify_content: JustifyContent::Center,
                                             // vertically center child text
@@ -2575,7 +2584,7 @@ fn playing_enter_system(
                                 .spawn((
                                     ButtonBundle {
                                         style: Style {
-                                            size: Size::width(Val::Px(50.)),
+                                            width: Val::Px(50.),
                                             // horizontally center child text
                                             justify_content: JustifyContent::Center,
                                             // vertically center child text
@@ -2604,7 +2613,7 @@ fn playing_enter_system(
                                 .spawn((
                                     ButtonBundle {
                                         style: Style {
-                                            size: Size::width(Val::Px(250.)),
+                                            width: Val::Px(250.),
                                             // horizontally center child text
                                             justify_content: JustifyContent::Center,
                                             // vertically center child text
@@ -2636,7 +2645,8 @@ fn playing_enter_system(
             parent.spawn((
                 NodeBundle {
                     style: Style {
-                        size: Size::all(Val::Percent(100.0)),
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
                         flex_direction: FlexDirection::Column,
                         justify_content: JustifyContent::Center,
                         align_items: AlignItems::Center,

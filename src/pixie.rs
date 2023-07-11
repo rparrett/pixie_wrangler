@@ -35,7 +35,10 @@ pub const CORNER_DEBUFF_DISTANCE: f32 = 24.0;
 pub struct PixiePlugin;
 impl Plugin for PixiePlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(move_fragments_system.in_set(OnUpdate(GameState::Playing)));
+        app.add_systems(
+            Update,
+            move_fragments_system.run_if(in_state(GameState::Playing)),
+        );
     }
 }
 

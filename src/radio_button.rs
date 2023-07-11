@@ -18,10 +18,9 @@ pub struct RadioButtonSet;
 
 impl Plugin for RadioButtonPlugin {
     fn build(&self, app: &mut App) {
-        app.configure_set(RadioButtonSet.in_base_set(CoreSet::Update));
-
-        app.add_system(radio_button_system.in_set(RadioButtonSet));
-        app.add_system(
+        app.add_systems(Update, radio_button_system.in_set(RadioButtonSet));
+        app.add_systems(
+            Update,
             radio_button_group_system
                 .after(radio_button_system)
                 .in_set(RadioButtonSet),
@@ -64,7 +63,7 @@ fn radio_button_system(
 ) {
     for (mut radio, interaction, mut color) in interaction_query.iter_mut() {
         match *interaction {
-            Interaction::Clicked => {
+            Interaction::Pressed => {
                 *color = color::UI_PRESSED_BUTTON.into();
 
                 radio.selected = true;

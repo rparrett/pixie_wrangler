@@ -1,8 +1,12 @@
 use crate::PixieFlavor;
-use bevy::{prelude::*, reflect::TypeUuid, utils::HashSet};
+use bevy::{
+    prelude::*,
+    reflect::{TypePath, TypeUuid},
+    utils::HashSet,
+};
 use serde::Deserialize;
 
-#[derive(Deserialize, Debug, TypeUuid)]
+#[derive(Deserialize, Debug, TypeUuid, TypePath)]
 #[uuid = "962DF4C2-C221-4364-A9F7-B7340FB60437"]
 pub struct Level {
     pub layers: u32,

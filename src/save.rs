@@ -23,8 +23,8 @@ pub struct Solution {
 pub struct SavePlugin;
 impl Plugin for SavePlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(save_system);
-        app.add_system(load_system.in_schedule(OnEnter(GameState::Loading)));
+        app.add_systems(Update, save_system);
+        app.add_systems(OnEnter(GameState::Loading), load_system);
     }
 }
 

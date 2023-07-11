@@ -9,18 +9,19 @@ pub struct LevelSelectButton(u32);
 
 impl Plugin for LevelSelectPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(level_select_enter.in_schedule(OnEnter(GameState::LevelSelect)));
+        app.add_systems(OnEnter(GameState::LevelSelect), level_select_enter);
 
         app.add_systems(
+            Update,
             (
                 level_select_update,
                 crate::button_system,
                 level_select_button_system,
             )
-                .in_set(OnUpdate(GameState::LevelSelect)),
+                .run_if(in_state(GameState::LevelSelect)),
         );
 
-        app.add_system(level_select_exit.in_schedule(OnExit(GameState::LevelSelect)));
+        app.add_systems(OnExit(GameState::LevelSelect), level_select_exit);
     }
 }
 
@@ -31,7 +32,7 @@ fn level_select_button_system(
     handles: Res<Handles>,
     levels: Res<Assets<Level>>,
 ) {
-    for (_, button) in query.iter().filter(|(i, _)| **i == Interaction::Clicked) {
+    for (_, button) in query.iter().filter(|(i, _)| **i == Interaction::Pressed) {
         if handles
             .levels
             .get(button.0 as usize - 1)
@@ -58,7 +59,8 @@ fn level_select_enter(
         .spawn((
             NodeBundle {
                 style: Style {
-                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                    width: Val::Percent(100.),
+                    height: Val::Percent(100.),
                     flex_direction: FlexDirection::Column,
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::SpaceEvenly,
@@ -113,7 +115,7 @@ fn level_select_enter(
             parent
                 .spawn(NodeBundle {
                     style: Style {
-                        size: Size::new(Val::Percent(100.0), Val::Auto),
+                        width: Val::Percent(100.0),
                         flex_direction: FlexDirection::Column,
                         align_items: AlignItems::Center,
                         justify_content: JustifyContent::Center,
@@ -143,7 +145,8 @@ fn level_select_enter(
                                         .spawn((
                                             ButtonBundle {
                                                 style: Style {
-                                                    size: Size::new(Val::Px(150.0), Val::Px(150.0)),
+                                                    width: Val::Px(150.),
+                                                    height: Val::Px(150.),
                                                     flex_direction: FlexDirection::Column,
                                                     // horizontally center child text
                                                     justify_content: JustifyContent::Center,
