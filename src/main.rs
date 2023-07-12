@@ -216,7 +216,7 @@ fn main() {
             ..Default::default()
         };
 
-        let dot = bevy_mod_debugdump::schedule_graph_dot(&mut app, CoreSchedule::Main, &settings);
+        let dot = bevy_mod_debugdump::schedule_graph_dot(&mut app, Update, &settings);
         println!("{dot}");
     }
 
