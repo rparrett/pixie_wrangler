@@ -12,7 +12,7 @@ use bevy::{ecs::schedule::ScheduleLabel, prelude::*};
 pub struct SimulationPlugin;
 impl Plugin for SimulationPlugin {
     fn build(&self, app: &mut App) {
-        let mut schedule = Schedule::new();
+        let mut schedule = Schedule::new(SimulationSchedule);
 
         // explicit ordering for determinism
         schedule.add_systems(
@@ -26,7 +26,7 @@ impl Plugin for SimulationPlugin {
                 .chain(),
         );
 
-        app.add_schedule(SimulationSchedule, schedule);
+        app.add_schedule(schedule);
 
         app.init_resource::<SimulationSettings>();
         app.init_resource::<SimulationState>();

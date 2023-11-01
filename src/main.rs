@@ -1,6 +1,9 @@
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 #![allow(clippy::forget_non_drop)] // https://github.com/bevyengine/bevy/issues/4601
 
+#[cfg(feature = "debugdump")]
+use std::{fs::File, io::Write};
+
 use crate::{
     collision::{point_segment_collision, segment_collision, SegmentCollision},
     level::{Level, Obstacle, Terminus},
@@ -75,6 +78,7 @@ fn main() {
     let default = default.disable::<bevy::log::LogPlugin>();
 
     app.add_plugins(default)
+        .add_plugins(RonAssetPlugin::<Level>::new(&["level.ron"]))
         .add_plugins(ShapePlugin)
         .add_plugins(RadioButtonPlugin)
         .add_plugins(PixiePlugin)
@@ -82,13 +86,12 @@ fn main() {
         .add_plugins(LoadingPlugin)
         .add_plugins(LevelSelectPlugin)
         .add_plugins(SavePlugin)
-        .add_plugins(EasingsPlugin)
-        .add_plugins(RonAssetPlugin::<Level>::new(&["level.ron"]));
+        .add_plugins(EasingsPlugin);
 
     app.add_systems(OnEnter(GameState::Playing), playing_enter_system);
     app.add_systems(OnExit(GameState::Playing), playing_exit_system);
 
-    app.configure_set(Update, DrawingInput.run_if(in_state(GameState::Playing)));
+    app.configure_sets(Update, DrawingInput.run_if(in_state(GameState::Playing)));
     app.add_systems(
         Update,
         (
@@ -99,7 +102,7 @@ fn main() {
             .in_set(DrawingInput),
     );
 
-    app.configure_set(
+    app.configure_sets(
         Update,
         DrawingMouseMovement
             .after(DrawingInput)
@@ -128,7 +131,7 @@ fn main() {
             .run_if(in_state(GameState::Playing)),
     );
 
-    app.configure_set(
+    app.configure_sets(
         Update,
         DrawingInteraction
             .after(DrawingMouseMovement)
@@ -165,7 +168,7 @@ fn main() {
             .run_if(in_state(GameState::Playing)),
     );
 
-    app.configure_set(AfterUpdate, ScoreCalc.run_if(in_state(GameState::Playing)));
+    app.configure_sets(AfterUpdate, ScoreCalc.run_if(in_state(GameState::Playing)));
 
     app.add_systems(
         AfterUpdate,
@@ -178,7 +181,7 @@ fn main() {
             .in_set(ScoreCalc),
     );
 
-    app.configure_set(
+    app.configure_sets(
         AfterUpdate,
         ScoreUi
             .after(ScoreCalc)
@@ -217,9 +220,13 @@ fn main() {
         };
 
         let dot = bevy_mod_debugdump::schedule_graph_dot(&mut app, Update, &settings);
-        println!("{dot}");
+        let mut f = File::create("debugdump_update.dot").unwrap();
+        f.write_all(dot.as_bytes()).unwrap();
+
+        return;
     }
 
+    #[cfg(not(feature = "debugdump"))]
     app.run();
 }
 
@@ -993,7 +1000,9 @@ fn draw_mouse_system(
         commands.spawn((
             ShapeBundle {
                 path: GeometryBuilder::build_as(&shape),
-                transform: Transform::from_translation(snapped.extend(layer::CURSOR)),
+                spatial: SpatialBundle::from_transform(Transform::from_translation(
+                    snapped.extend(layer::CURSOR),
+                )),
                 ..default()
             },
             Stroke::new(color, 2.0),
@@ -1020,7 +1029,11 @@ fn draw_mouse_system(
             commands.spawn((
                 ShapeBundle {
                     path: GeometryBuilder::build_as(&shapes::Line(*a, *b)),
-                    transform: Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
+                    spatial: SpatialBundle::from_transform(Transform::from_xyz(
+                        0.0,
+                        0.0,
+                        layer::ROAD_OVERLAY,
+                    )),
                     ..default()
                 },
                 Stroke::new(color, 2.0),
@@ -1047,7 +1060,11 @@ fn draw_net_ripping_system(
         commands.spawn((
             ShapeBundle {
                 path: GeometryBuilder::build_as(&shapes::Line(*a, *b)),
-                transform: Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
+                spatial: SpatialBundle::from_transform(Transform::from_xyz(
+                    0.0,
+                    0.0,
+                    layer::ROAD_OVERLAY,
+                )),
                 ..default()
             },
             Stroke::new(Color::RED, 2.0),
@@ -1440,7 +1457,7 @@ fn mouse_movement_system(
 ) {
     let (camera, camera_transform) = q_camera.single();
 
-    for event in cursor_moved_events.iter() {
+    for event in cursor_moved_events.read() {
         if let Some(pos) = camera.viewport_to_world_2d(camera_transform, event.position) {
             mouse.position = pos;
 
@@ -1833,7 +1850,11 @@ fn spawn_road_segment(
         .spawn((
             ShapeBundle {
                 path: GeometryBuilder::build_as(&shapes::Line(segment.points.0, segment.points.1)),
-                transform: Transform::from_xyz(0.0, 0.0, layer::ROAD - segment.layer as f32),
+                spatial: SpatialBundle::from_transform(Transform::from_xyz(
+                    0.0,
+                    0.0,
+                    layer::ROAD - segment.layer as f32,
+                )),
                 ..default()
             },
             Stroke::new(color, 2.0),
@@ -1875,7 +1896,9 @@ fn spawn_obstacle(commands: &mut Commands, obstacle: &Obstacle) {
                             extents: Vec2::new(diff.x.abs(), diff.y.abs()),
                             ..Default::default()
                         }),
-                        transform: Transform::from_translation(origin.extend(layer::OBSTACLE)),
+                        spatial: SpatialBundle::from_transform(Transform::from_translation(
+                            origin.extend(layer::OBSTACLE),
+                        )),
                         ..default()
                     },
                     Fill::color(color::OBSTACLE),
@@ -1931,9 +1954,11 @@ fn spawn_terminus(
             ShapeBundle {
                 path: GeometryBuilder::build_as(&shapes::Circle {
                     radius: 5.5,
-                    center: Vec2::splat(0.0),
+                    ..default()
                 }),
-                transform: Transform::from_translation(terminus.point.extend(layer::TERMINUS)),
+                spatial: SpatialBundle::from_transform(Transform::from_translation(
+                    terminus.point.extend(layer::TERMINUS),
+                )),
                 ..default()
             },
             Fill::color(color::BACKGROUND),
@@ -2007,10 +2032,13 @@ fn spawn_terminus(
                 ShapeBundle {
                     path: GeometryBuilder::build_as(&shapes::Circle {
                         radius: 5.5,
-                        center: Vec2::splat(0.0),
+                        ..default()
                     }),
-                    transform: Transform::from_xyz(-30.0, -1.0 * label_offset, layer::TERMINUS),
-                    visibility: Visibility::Hidden,
+                    spatial: SpatialBundle {
+                        transform: Transform::from_xyz(-30.0, -1.0 * label_offset, layer::TERMINUS),
+                        visibility: Visibility::Hidden,
+                        ..default()
+                    },
                     ..default()
                 },
                 Fill::color(Color::RED),
@@ -2212,7 +2240,11 @@ fn playing_enter_system(
                         radius: 2.5,
                         ..Default::default()
                     }),
-                    transform: Transform::from_xyz(x as f32, y as f32, layer::GRID),
+                    spatial: SpatialBundle::from_transform(Transform::from_xyz(
+                        x as f32,
+                        y as f32,
+                        layer::GRID,
+                    )),
                     ..default()
                 },
                 Fill::color(color::GRID),

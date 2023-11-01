@@ -26,7 +26,7 @@ fn loading_setup(
     for i in 1..=NUM_LEVELS {
         handles
             .levels
-            .push(asset_server.load(format!("levels/{i}.level.ron").as_str()));
+            .push(asset_server.load(format!("levels/{i}.level.ron")));
     }
 
     handles
@@ -39,17 +39,19 @@ fn loading_update(
     asset_server: Res<AssetServer>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    if !matches!(
-        asset_server.get_group_load_state(handles.levels.iter().cloned().map(|h| h.id())),
-        LoadState::Loaded
-    ) {
+    if handles
+        .fonts
+        .iter()
+        .any(|h| !matches!(asset_server.get_load_state(h), Some(LoadState::Loaded)))
+    {
         return;
     }
 
-    if !matches!(
-        asset_server.get_group_load_state(handles.fonts.iter().cloned().map(|h| h.id())),
-        LoadState::Loaded
-    ) {
+    if handles
+        .levels
+        .iter()
+        .any(|h| !matches!(asset_server.get_load_state(h), Some(LoadState::Loaded)))
+    {
         return;
     }
 
