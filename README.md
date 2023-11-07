@@ -16,7 +16,7 @@ A web build is hosted on [itch.io](https://euclidean-whale.itch.io/pixie-wrangle
 
 ## Build
 
-Pixie wrangler uses the [Bevy 0.10](https://bevyengine.org/) engine and is pretty easy to build.
+Pixie wrangler uses the [Bevy 0.12](https://bevyengine.org/) engine and is pretty easy to build.
 
 ### Dependencies
 
