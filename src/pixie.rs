@@ -173,7 +173,7 @@ pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixi
                 Fill::color(color::PIXIE[(pixie.flavor.color) as usize]),
                 PixieFragment {
                     direction: Vec2::new(theta.cos(), theta.sin()),
-                    ..Default::default()
+                    ..default()
                 },
             ));
         }
@@ -523,7 +523,7 @@ pub fn emit_pixies_system(mut q_emitters: Query<&mut PixieEmitter>, mut commands
                 flavor: emitter.flavor,
                 path: emitter.path.clone(),
                 path_index: 0,
-                ..Default::default()
+                ..default()
             },
         ));
 

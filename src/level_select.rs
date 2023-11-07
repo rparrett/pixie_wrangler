@@ -64,9 +64,9 @@ fn level_select_enter(
                     flex_direction: FlexDirection::Column,
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::SpaceEvenly,
-                    ..Default::default()
+                    ..default()
                 },
-                ..Default::default()
+                ..default()
             },
             LevelSelectScreen,
         ))
@@ -75,15 +75,15 @@ fn level_select_enter(
                 .spawn(NodeBundle {
                     style: Style {
                         flex_direction: FlexDirection::Column,
-                        ..Default::default()
+                        ..default()
                     },
-                    ..Default::default()
+                    ..default()
                 })
                 .with_children(|parent| {
                     parent.spawn(TextBundle {
                         style: Style {
                             align_self: AlignSelf::Center,
-                            ..Default::default()
+                            ..default()
                         },
                         text: Text::from_section(
                             "₽IXIE WRANGLER",
@@ -93,12 +93,12 @@ fn level_select_enter(
                                 color: color::PIXIE[1],
                             },
                         ),
-                        ..Default::default()
+                        ..default()
                     });
                     parent.spawn(TextBundle {
                         style: Style {
                             align_self: AlignSelf::Center,
-                            ..Default::default()
+                            ..default()
                         },
                         text: Text::from_section(
                             format!("Æ{total_score}"),
@@ -108,7 +108,7 @@ fn level_select_enter(
                                 color: color::FINISHED_ROAD[1],
                             },
                         ),
-                        ..Default::default()
+                        ..default()
                     });
                 });
 
@@ -122,9 +122,9 @@ fn level_select_enter(
                         grid_template_columns: RepeatedGridTrack::auto(cols),
                         row_gap: Val::Px(10.),
                         column_gap: Val::Px(10.),
-                        ..Default::default()
+                        ..default()
                     },
-                    ..Default::default()
+                    ..default()
                 })
                 .with_children(|parent| {
                     for i in 1..=NUM_LEVELS {
@@ -137,10 +137,10 @@ fn level_select_enter(
                                         flex_direction: FlexDirection::Column,
                                         justify_content: JustifyContent::Center,
                                         align_items: AlignItems::Center,
-                                        ..Default::default()
+                                        ..default()
                                     },
                                     background_color: color::UI_NORMAL_BUTTON.into(),
-                                    ..Default::default()
+                                    ..default()
                                 },
                                 LevelSelectButton(i),
                             ))
@@ -194,9 +194,9 @@ fn level_select_enter(
                                                 },
                                             },
                                         ],
-                                        ..Default::default()
+                                        ..default()
                                     },
-                                    ..Default::default()
+                                    ..default()
                                 });
 
                                 parent.spawn(TextBundle {
@@ -208,7 +208,7 @@ fn level_select_enter(
                                             color: level_color,
                                         },
                                     ),
-                                    ..Default::default()
+                                    ..default()
                                 });
 
                                 parent.spawn(TextBundle {
@@ -220,7 +220,7 @@ fn level_select_enter(
                                             color: color::FINISHED_ROAD[1],
                                         },
                                     ),
-                                    ..Default::default()
+                                    ..default()
                                 });
                             });
                     }

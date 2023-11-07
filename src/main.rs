@@ -68,7 +68,7 @@ fn main() {
             primary_window: Some(Window {
                 title: String::from("Pixie Wrangler"),
                 canvas: Some("#bevy-canvas".to_string()),
-                ..Default::default()
+                ..default()
             }),
             ..default()
         })
@@ -216,7 +216,7 @@ fn main() {
         let settings = bevy_mod_debugdump::schedule_graph::Settings {
             ambiguity_enable: false,
             ambiguity_enable_on_world: false,
-            ..Default::default()
+            ..default()
         };
 
         let dot = bevy_mod_debugdump::schedule_graph_dot(&mut app, Update, &settings);
@@ -625,13 +625,13 @@ fn show_score_dialog_system(
         height: Val::Px(300.0),
         margin: UiRect {
             top: Val::Px(-1000.0),
-            ..Default::default()
+            ..default()
         },
         padding: UiRect::all(Val::Px(20.0)),
         flex_direction: FlexDirection::Column,
         justify_content: JustifyContent::SpaceBetween,
         align_items: AlignItems::Center,
-        ..Default::default()
+        ..default()
     };
     let mut dialog_style_to = dialog_style.clone();
     dialog_style_to.margin.top = Val::Px(0.0);
@@ -641,7 +641,7 @@ fn show_score_dialog_system(
             NodeBundle {
                 style: dialog_style.clone(),
                 background_color: color::DIALOG_BACKGROUND.into(),
-                ..Default::default()
+                ..default()
             },
             dialog_style.ease_to(
                 dialog_style_to,
@@ -673,9 +673,9 @@ fn show_score_dialog_system(
                             },
                         },
                     ],
-                    ..Default::default()
+                    ..default()
                 },
-                ..Default::default()
+                ..default()
             });
             parent.spawn(TextBundle {
                 text: Text::from_section(
@@ -686,7 +686,7 @@ fn show_score_dialog_system(
                         color: color::FINISHED_ROAD[1],
                     },
                 ),
-                ..Default::default()
+                ..default()
             });
 
             // bottom buttons
@@ -698,9 +698,9 @@ fn show_score_dialog_system(
                         flex_direction: FlexDirection::Row,
                         align_items: AlignItems::Stretch,
                         column_gap: Val::Px(10.),
-                        ..Default::default()
+                        ..default()
                     },
-                    ..Default::default()
+                    ..default()
                 })
                 .with_children(|parent| {
                     parent
@@ -712,10 +712,10 @@ fn show_score_dialog_system(
                                     justify_content: JustifyContent::Center,
                                     // vertically center child text
                                     align_items: AlignItems::Center,
-                                    ..Default::default()
+                                    ..default()
                                 },
                                 background_color: color::UI_NORMAL_BUTTON.into(),
-                                ..Default::default()
+                                ..default()
                             },
                             DismissScoreDialogButton,
                         ))
@@ -729,7 +729,7 @@ fn show_score_dialog_system(
                                         color: color::UI_BUTTON_TEXT,
                                     },
                                 ),
-                                ..Default::default()
+                                ..default()
                             });
                         });
                     parent
@@ -741,10 +741,10 @@ fn show_score_dialog_system(
                                     justify_content: JustifyContent::Center,
                                     // vertically center child text
                                     align_items: AlignItems::Center,
-                                    ..Default::default()
+                                    ..default()
                                 },
                                 background_color: color::UI_NORMAL_BUTTON.into(),
-                                ..Default::default()
+                                ..default()
                             },
                             BackButton,
                         ))
@@ -758,7 +758,7 @@ fn show_score_dialog_system(
                                         color: color::UI_BUTTON_TEXT,
                                     },
                                 ),
-                                ..Default::default()
+                                ..default()
                             });
                         });
                 });
@@ -988,7 +988,7 @@ fn draw_mouse_system(
         }
         let shape = shapes::Circle {
             radius: 5.5,
-            ..Default::default()
+            ..default()
         };
         let color = if line_drawing.drawing && line_drawing.valid {
             color::DRAWING_ROAD[line_drawing.layer as usize - 1]
@@ -1894,7 +1894,7 @@ fn spawn_obstacle(commands: &mut Commands, obstacle: &Obstacle) {
                     ShapeBundle {
                         path: GeometryBuilder::build_as(&shapes::Rectangle {
                             extents: Vec2::new(diff.x.abs(), diff.y.abs()),
-                            ..Default::default()
+                            ..default()
                         }),
                         spatial: SpatialBundle::from_transform(Transform::from_translation(
                             origin.extend(layer::OBSTACLE),
@@ -1991,7 +1991,7 @@ fn spawn_terminus(
                     )
                     .with_alignment(TextAlignment::Center),
                     transform: Transform::from_translation(label_pos.extend(layer::TERMINUS)),
-                    ..Default::default()
+                    ..default()
                 });
 
                 i += 1;
@@ -2019,7 +2019,7 @@ fn spawn_terminus(
                     .with_alignment(TextAlignment::Center),
 
                     transform: Transform::from_translation(label_pos.extend(layer::TERMINUS)),
-                    ..Default::default()
+                    ..default()
                 });
 
                 i += 1;
@@ -2238,7 +2238,7 @@ fn playing_enter_system(
                 ShapeBundle {
                     path: GeometryBuilder::build_as(&shapes::Circle {
                         radius: 2.5,
-                        ..Default::default()
+                        ..default()
                     }),
                     spatial: SpatialBundle::from_transform(Transform::from_xyz(
                         x as f32,
@@ -2306,9 +2306,9 @@ fn playing_enter_system(
                 flex_direction: FlexDirection::ColumnReverse,
                 justify_content: JustifyContent::FlexStart,
                 align_items: AlignItems::Center,
-                ..Default::default()
+                ..default()
             },
-            ..Default::default()
+            ..default()
         })
         .with_children(|parent| {
             // bottom bar
@@ -2321,10 +2321,10 @@ fn playing_enter_system(
                         flex_direction: FlexDirection::Row,
                         align_items: AlignItems::Stretch,
                         column_gap: Val::Px(10.),
-                        ..Default::default()
+                        ..default()
                     },
                     background_color: color::BOTTOM_BAR_BACKGROUND.into(),
-                    ..Default::default()
+                    ..default()
                 })
                 .with_children(|parent| {
                     // Container for left-aligned buttons
@@ -2334,9 +2334,9 @@ fn playing_enter_system(
                                 flex_direction: FlexDirection::Row,
                                 align_items: AlignItems::Stretch,
                                 column_gap: Val::Px(10.),
-                                ..Default::default()
+                                ..default()
                             },
-                            ..Default::default()
+                            ..default()
                         })
                         .with_children(|parent| {
                             // Back button
@@ -2353,12 +2353,12 @@ fn playing_enter_system(
                                             // the tools
                                             margin: UiRect {
                                                 right: Val::Px(10.0),
-                                                ..Default::default()
+                                                ..default()
                                             },
-                                            ..Default::default()
+                                            ..default()
                                         },
                                         background_color: color::UI_NORMAL_BUTTON.into(),
-                                        ..Default::default()
+                                        ..default()
                                     },
                                     BackButton,
                                 ))
@@ -2372,7 +2372,7 @@ fn playing_enter_system(
                                                 color: color::UI_BUTTON_TEXT,
                                             },
                                         ),
-                                        ..Default::default()
+                                        ..default()
                                     });
                                 });
 
@@ -2389,10 +2389,10 @@ fn playing_enter_system(
                                                 justify_content: JustifyContent::Center,
                                                 // vertically center child text
                                                 align_items: AlignItems::Center,
-                                                ..Default::default()
+                                                ..default()
                                             },
                                             background_color: color::UI_NORMAL_BUTTON.into(),
-                                            ..Default::default()
+                                            ..default()
                                         },
                                         LayerButton(layer),
                                         ToolButton,
@@ -2410,7 +2410,7 @@ fn playing_enter_system(
                                                     color: color::UI_BUTTON_TEXT,
                                                 },
                                             ),
-                                            ..Default::default()
+                                            ..default()
                                         });
                                     })
                                     .id();
@@ -2427,10 +2427,10 @@ fn playing_enter_system(
                                             justify_content: JustifyContent::Center,
                                             // vertically center child text
                                             align_items: AlignItems::Center,
-                                            ..Default::default()
+                                            ..default()
                                         },
                                         background_color: color::UI_NORMAL_BUTTON.into(),
-                                        ..Default::default()
+                                        ..default()
                                     },
                                     NetRippingButton,
                                     ToolButton,
@@ -2446,7 +2446,7 @@ fn playing_enter_system(
                                                 color: color::UI_BUTTON_TEXT,
                                             },
                                         ),
-                                        ..Default::default()
+                                        ..default()
                                     });
                                 })
                                 .id();
@@ -2475,16 +2475,16 @@ fn playing_enter_system(
                                 flex_direction: FlexDirection::Row,
                                 align_items: AlignItems::Center,
                                 column_gap: Val::Px(10.),
-                                ..Default::default()
+                                ..default()
                             },
-                            ..Default::default()
+                            ..default()
                         })
                         .with_children(|parent| {
                             parent.spawn((
                                 TextBundle {
                                     style: Style {
                                         width: Val::Percent(25.),
-                                        ..Default::default()
+                                        ..default()
                                     },
                                     text: Text {
                                         sections: vec![
@@ -2506,9 +2506,9 @@ fn playing_enter_system(
                                                 },
                                             },
                                         ],
-                                        ..Default::default()
+                                        ..default()
                                     },
-                                    ..Default::default()
+                                    ..default()
                                 },
                                 CostText,
                             ));
@@ -2517,7 +2517,7 @@ fn playing_enter_system(
                                 TextBundle {
                                     style: Style {
                                         width: Val::Percent(25.),
-                                        ..Default::default()
+                                        ..default()
                                     },
                                     text: Text::from_section(
                                         "0",
@@ -2527,7 +2527,7 @@ fn playing_enter_system(
                                             color: color::PIXIE[1],
                                         },
                                     ),
-                                    ..Default::default()
+                                    ..default()
                                 },
                                 PixieCountText,
                             ));
@@ -2536,7 +2536,7 @@ fn playing_enter_system(
                                 TextBundle {
                                     style: Style {
                                         width: Val::Percent(25.),
-                                        ..Default::default()
+                                        ..default()
                                     },
                                     text: Text::from_section(
                                         "ŧ0.0".to_string(),
@@ -2546,7 +2546,7 @@ fn playing_enter_system(
                                             color: color::PIXIE[2],
                                         },
                                     ),
-                                    ..Default::default()
+                                    ..default()
                                 },
                                 ElapsedText,
                             ));
@@ -2555,7 +2555,7 @@ fn playing_enter_system(
                                 TextBundle {
                                     style: Style {
                                         width: Val::Percent(25.),
-                                        ..Default::default()
+                                        ..default()
                                     },
                                     text: Text::from_section(
                                         "Æ?".to_string(),
@@ -2565,7 +2565,7 @@ fn playing_enter_system(
                                             color: color::FINISHED_ROAD[1],
                                         },
                                     ),
-                                    ..Default::default()
+                                    ..default()
                                 },
                                 ScoreText,
                             ));
@@ -2580,9 +2580,9 @@ fn playing_enter_system(
                                 justify_content: JustifyContent::FlexEnd,
                                 align_items: AlignItems::Stretch,
                                 column_gap: Val::Px(10.),
-                                ..Default::default()
+                                ..default()
                             },
-                            ..Default::default()
+                            ..default()
                         })
                         .with_children(|parent| {
                             parent
@@ -2594,10 +2594,10 @@ fn playing_enter_system(
                                             justify_content: JustifyContent::Center,
                                             // vertically center child text
                                             align_items: AlignItems::Center,
-                                            ..Default::default()
+                                            ..default()
                                         },
                                         background_color: color::UI_NORMAL_BUTTON.into(),
-                                        ..Default::default()
+                                        ..default()
                                     },
                                     ResetButton,
                                 ))
@@ -2611,7 +2611,7 @@ fn playing_enter_system(
                                                 color: color::UI_BUTTON_TEXT,
                                             },
                                         ),
-                                        ..Default::default()
+                                        ..default()
                                     });
                                 });
                             parent
@@ -2623,10 +2623,10 @@ fn playing_enter_system(
                                             justify_content: JustifyContent::Center,
                                             // vertically center child text
                                             align_items: AlignItems::Center,
-                                            ..Default::default()
+                                            ..default()
                                         },
                                         background_color: color::UI_NORMAL_BUTTON.into(),
-                                        ..Default::default()
+                                        ..default()
                                     },
                                     SpeedButton,
                                 ))
@@ -2640,7 +2640,7 @@ fn playing_enter_system(
                                                 color: color::UI_BUTTON_TEXT,
                                             },
                                         ),
-                                        ..Default::default()
+                                        ..default()
                                     });
                                 });
                             parent
@@ -2652,10 +2652,10 @@ fn playing_enter_system(
                                             justify_content: JustifyContent::Center,
                                             // vertically center child text
                                             align_items: AlignItems::Center,
-                                            ..Default::default()
+                                            ..default()
                                         },
                                         background_color: color::UI_NORMAL_BUTTON.into(),
-                                        ..Default::default()
+                                        ..default()
                                     },
                                     PixieButton,
                                 ))
@@ -2669,7 +2669,7 @@ fn playing_enter_system(
                                                 color: color::UI_BUTTON_TEXT,
                                             },
                                         ),
-                                        ..Default::default()
+                                        ..default()
                                     });
                                 });
                         });
@@ -2684,9 +2684,9 @@ fn playing_enter_system(
                         flex_direction: FlexDirection::Column,
                         justify_content: JustifyContent::Center,
                         align_items: AlignItems::Center,
-                        ..Default::default()
+                        ..default()
                     },
-                    ..Default::default()
+                    ..default()
                 },
                 PlayAreaNode,
             ));
