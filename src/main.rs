@@ -222,8 +222,6 @@ fn main() {
         let dot = bevy_mod_debugdump::schedule_graph_dot(&mut app, Update, &settings);
         let mut f = File::create("debugdump_update.dot").unwrap();
         f.write_all(dot.as_bytes()).unwrap();
-
-        return;
     }
 
     #[cfg(not(feature = "debugdump"))]
