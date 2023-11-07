@@ -1,4 +1,4 @@
-use crate::{color, level::Level, save::BestScores, GameState, Handles};
+use crate::{color, level::Level, loading::NUM_LEVELS, save::BestScores, GameState, Handles};
 use bevy::prelude::*;
 
 pub struct LevelSelectPlugin;
@@ -112,138 +112,116 @@ fn level_select_enter(
                     });
                 });
 
+            let cols = (NUM_LEVELS as f32 / 3.).ceil() as u16;
+
             parent
                 .spawn(NodeBundle {
                     style: Style {
-                        width: Val::Percent(100.0),
-                        flex_direction: FlexDirection::Column,
-                        align_items: AlignItems::Center,
-                        justify_content: JustifyContent::Center,
+                        display: Display::Grid,
+                        grid_template_rows: RepeatedGridTrack::auto(3),
+                        grid_template_columns: RepeatedGridTrack::auto(cols),
+                        row_gap: Val::Px(10.),
+                        column_gap: Val::Px(10.),
                         ..Default::default()
                     },
                     ..Default::default()
                 })
                 .with_children(|parent| {
-                    let rows = 3;
-                    let cols = 3;
-
-                    for row in 0..rows {
+                    for i in 1..=NUM_LEVELS {
                         parent
-                            .spawn(NodeBundle {
-                                style: Style {
-                                    flex_direction: FlexDirection::Row,
-                                    align_items: AlignItems::Center,
-                                    justify_content: JustifyContent::Center,
+                            .spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        width: Val::Px(150.),
+                                        height: Val::Px(150.),
+                                        flex_direction: FlexDirection::Column,
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        ..Default::default()
+                                    },
+                                    background_color: color::UI_NORMAL_BUTTON.into(),
                                     ..Default::default()
                                 },
-                                ..Default::default()
-                            })
+                                LevelSelectButton(i),
+                            ))
                             .with_children(|parent| {
-                                for col in 0..cols {
-                                    let i = row * cols + col + 1;
-                                    parent
-                                        .spawn((
-                                            ButtonBundle {
-                                                style: Style {
-                                                    width: Val::Px(150.),
-                                                    height: Val::Px(150.),
-                                                    flex_direction: FlexDirection::Column,
-                                                    // horizontally center child text
-                                                    justify_content: JustifyContent::Center,
-                                                    // vertically center child text
-                                                    align_items: AlignItems::Center,
-                                                    margin: UiRect {
-                                                        left: Val::Px(10.0),
-                                                        bottom: Val::Px(10.0),
-                                                        ..Default::default()
-                                                    },
-                                                    ..Default::default()
+                                let level = handles
+                                    .levels
+                                    .get(i as usize - 1)
+                                    .and_then(|h| levels.get(h));
+
+                                let level_color = match level {
+                                    Some(_) => color::UI_WHITE,
+                                    None => color::UI_GREY_RED,
+                                };
+
+                                let (score_text, star_text_one, star_text_two) =
+                                    if let (Some(score), Some(level)) =
+                                        (best_scores.0.get(&i), level)
+                                    {
+                                        let stars = level
+                                            .star_thresholds
+                                            .iter()
+                                            .filter(|t| **t <= *score)
+                                            .count();
+
+                                        (
+                                            format!("Æ{score}"),
+                                            "★".repeat(stars),
+                                            "★".repeat(3 - stars),
+                                        )
+                                    } else {
+                                        ("".to_string(), "".to_string(), "".to_string())
+                                    };
+
+                                parent.spawn(TextBundle {
+                                    text: Text {
+                                        sections: vec![
+                                            TextSection {
+                                                value: star_text_one,
+                                                style: TextStyle {
+                                                    font: handles.fonts[0].clone(),
+                                                    font_size: 30.0,
+                                                    color: color::UI_WHITE,
                                                 },
-                                                background_color: color::UI_NORMAL_BUTTON.into(),
-                                                ..Default::default()
                                             },
-                                            LevelSelectButton(i),
-                                        ))
-                                        .with_children(|parent| {
-                                            let level = handles
-                                                .levels
-                                                .get(i as usize - 1)
-                                                .and_then(|h| levels.get(h));
-
-                                            let level_color = match level {
-                                                Some(_) => color::UI_WHITE,
-                                                None => color::UI_GREY_RED,
-                                            };
-
-                                            let (score_text, star_text_one, star_text_two) =
-                                                if let (Some(score), Some(level)) =
-                                                    (best_scores.0.get(&i), level)
-                                                {
-                                                    let stars = level
-                                                        .star_thresholds
-                                                        .iter()
-                                                        .filter(|t| **t <= *score)
-                                                        .count();
-
-                                                    (
-                                                        format!("Æ{score}"),
-                                                        "★".repeat(stars),
-                                                        "★".repeat(3 - stars),
-                                                    )
-                                                } else {
-                                                    ("".to_string(), "".to_string(), "".to_string())
-                                                };
-
-                                            parent.spawn(TextBundle {
-                                                text: Text {
-                                                    sections: vec![
-                                                        TextSection {
-                                                            value: star_text_one,
-                                                            style: TextStyle {
-                                                                font: handles.fonts[0].clone(),
-                                                                font_size: 30.0,
-                                                                color: color::UI_WHITE,
-                                                            },
-                                                        },
-                                                        TextSection {
-                                                            value: star_text_two,
-                                                            style: TextStyle {
-                                                                font: handles.fonts[0].clone(),
-                                                                font_size: 30.0,
-                                                                color: Color::DARK_GRAY,
-                                                            },
-                                                        },
-                                                    ],
-                                                    ..Default::default()
+                                            TextSection {
+                                                value: star_text_two,
+                                                style: TextStyle {
+                                                    font: handles.fonts[0].clone(),
+                                                    font_size: 30.0,
+                                                    color: Color::DARK_GRAY,
                                                 },
-                                                ..Default::default()
-                                            });
+                                            },
+                                        ],
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                });
 
-                                            parent.spawn(TextBundle {
-                                                text: Text::from_section(
-                                                    format!("{i}"),
-                                                    TextStyle {
-                                                        font: handles.fonts[0].clone(),
-                                                        font_size: 60.0,
-                                                        color: level_color,
-                                                    },
-                                                ),
-                                                ..Default::default()
-                                            });
+                                parent.spawn(TextBundle {
+                                    text: Text::from_section(
+                                        format!("{i}"),
+                                        TextStyle {
+                                            font: handles.fonts[0].clone(),
+                                            font_size: 60.0,
+                                            color: level_color,
+                                        },
+                                    ),
+                                    ..Default::default()
+                                });
 
-                                            parent.spawn(TextBundle {
-                                                text: Text::from_section(
-                                                    score_text,
-                                                    TextStyle {
-                                                        font: handles.fonts[0].clone(),
-                                                        font_size: 30.0,
-                                                        color: color::FINISHED_ROAD[1],
-                                                    },
-                                                ),
-                                                ..Default::default()
-                                            });
-                                        });
-                                }
+                                parent.spawn(TextBundle {
+                                    text: Text::from_section(
+                                        score_text,
+                                        TextStyle {
+                                            font: handles.fonts[0].clone(),
+                                            font_size: 30.0,
+                                            color: color::FINISHED_ROAD[1],
+                                        },
+                                    ),
+                                    ..Default::default()
+                                });
                             });
                     }
                 });
