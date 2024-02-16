@@ -233,7 +233,7 @@ fn level_select_update() {}
 fn level_select_exit(
     mut commands: Commands,
     query: Query<Entity, With<LevelSelectScreen>>,
-    mut mouse: ResMut<Input<MouseButton>>,
+    mut mouse: ResMut<ButtonInput<MouseButton>>,
 ) {
     for entity in query.iter() {
         commands.entity(entity).despawn_recursive();

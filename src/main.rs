@@ -18,10 +18,10 @@ use crate::{
 
 use bevy::{
     app::MainScheduleOrder,
+    asset::AssetMetaCheck,
     ecs::schedule::ScheduleLabel,
     prelude::*,
-    utils::HashSet,
-    utils::{Duration, HashMap},
+    utils::{Duration, HashMap, HashSet},
     window::CursorMoved,
 };
 
@@ -55,13 +55,18 @@ mod sim;
 fn main() {
     let mut app = App::new();
 
+    // Workaround for Bevy attempting to load .meta files in wasm builds. On itch,
+    // the CDN serves HTTP 403 errors instead of 404 when files don't exist, which
+    // causes Bevy to break.
+    app.insert_resource(AssetMetaCheck::Never);
+
     let mut order = app.world.resource_mut::<MainScheduleOrder>();
     order.insert_after(Update, AfterUpdate);
 
     app.insert_resource(ClearColor(color::BACKGROUND))
         .insert_resource(Msaa::Sample4);
 
-    app.add_state::<GameState>();
+    app.init_state::<GameState>();
 
     let default = DefaultPlugins
         .set(WindowPlugin {
@@ -1094,7 +1099,7 @@ fn drawing_mode_change_system(
 }
 
 fn keyboard_system(
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut line_state: ResMut<LineDrawingState>,
     mut drawing_state: ResMut<DrawingState>,
     levels: Res<Assets<Level>>,
@@ -1108,13 +1113,13 @@ fn keyboard_system(
         return;
     }
 
-    if keyboard_input.pressed(KeyCode::Key1)
-        || keyboard_input.pressed(KeyCode::Key2)
-        || keyboard_input.pressed(KeyCode::Key3)
+    if keyboard_input.pressed(KeyCode::Digit1)
+        || keyboard_input.pressed(KeyCode::Digit2)
+        || keyboard_input.pressed(KeyCode::Digit3)
     {
-        let layer = if keyboard_input.pressed(KeyCode::Key1) {
+        let layer = if keyboard_input.pressed(KeyCode::Digit1) {
             1
-        } else if keyboard_input.pressed(KeyCode::Key2) {
+        } else if keyboard_input.pressed(KeyCode::Digit2) {
             2
         } else {
             3
@@ -1147,7 +1152,7 @@ fn keyboard_system(
             line_state.drawing = false;
             line_state.segments = vec![];
         }
-    } else if keyboard_input.pressed(KeyCode::R) {
+    } else if keyboard_input.pressed(KeyCode::KeyR) {
         if !matches!(drawing_state.mode, DrawingMode::NetRipping) {
             drawing_state.mode = DrawingMode::NetRipping;
         }
@@ -1162,7 +1167,7 @@ fn keyboard_system(
 
 fn net_ripping_mouse_click_system(
     mut commands: Commands,
-    mouse_input: ResMut<Input<MouseButton>>,
+    mouse_input: ResMut<ButtonInput<MouseButton>>,
     mut ripping_state: ResMut<NetRippingState>,
     sim_state: Res<SimulationState>,
     drawing_state: Res<DrawingState>,
@@ -1193,7 +1198,7 @@ fn net_ripping_mouse_click_system(
 #[allow(clippy::too_many_arguments)]
 fn drawing_mouse_click_system(
     mut commands: Commands,
-    mouse_input: ResMut<Input<MouseButton>>,
+    mouse_input: ResMut<ButtonInput<MouseButton>>,
     mouse: Res<MouseState>,
     drawing_state: ResMut<DrawingState>,
     mut line_state: ResMut<LineDrawingState>,
@@ -1987,7 +1992,7 @@ fn spawn_terminus(
                             color: color::PIXIE[flavor.color as usize],
                         },
                     )
-                    .with_alignment(TextAlignment::Center),
+                    .with_justify(JustifyText::Center),
                     transform: Transform::from_translation(label_pos.extend(layer::TERMINUS)),
                     ..default()
                 });
@@ -2014,7 +2019,7 @@ fn spawn_terminus(
                             color: color::PIXIE[flavor.color as usize],
                         },
                     )
-                    .with_alignment(TextAlignment::Center),
+                    .with_justify(JustifyText::Center),
 
                     transform: Transform::from_translation(label_pos.extend(layer::TERMINUS)),
                     ..default()
