@@ -1273,7 +1273,7 @@ fn drawing_mouse_click_system(
         let mut points = add.points;
 
         if valid_extension_a {
-            if let SegmentConnection::TryExtend(entity) = add.connections.0.get(0).unwrap() {
+            if let SegmentConnection::TryExtend(entity) = add.connections.0.first().unwrap() {
                 let segment = q_road_segments.get(*entity).unwrap();
 
                 if add.points.0 == segment.points.0 {
@@ -1284,7 +1284,7 @@ fn drawing_mouse_click_system(
             }
         }
         if valid_extension_b {
-            if let SegmentConnection::TryExtend(entity) = add.connections.1.get(0).unwrap() {
+            if let SegmentConnection::TryExtend(entity) = add.connections.1.first().unwrap() {
                 let segment = q_road_segments.get(*entity).unwrap();
 
                 if add.points.1 == segment.points.1 {
@@ -1815,12 +1815,12 @@ fn drawing_mouse_movement_system(
         }
     }
 
-    if let Some(segments) = filtered_segments.get(0) {
+    if let Some(segments) = filtered_segments.first() {
         line_state.segments = segments.clone();
         line_state.adds = filtered_adds.first().cloned().unwrap();
         line_state.stop = filtered_stops.first().cloned().unwrap();
         line_state.valid = true;
-    } else if let Some(segments) = possible.get(0) {
+    } else if let Some(segments) = possible.first() {
         line_state.segments = segments.clone();
         line_state.adds = vec![];
         line_state.valid = false;
