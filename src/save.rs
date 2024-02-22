@@ -31,9 +31,8 @@ impl Plugin for SavePlugin {
 pub fn load_system(mut commands: Commands) {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        let file = match std::fs::File::open(SAVE_FILE) {
-            Ok(f) => f,
-            Err(_) => return,
+        let Ok(file) = std::fs::File::open(SAVE_FILE) else {
+            return;
         };
 
         let save_file: SaveFile = match ron::de::from_reader(file) {

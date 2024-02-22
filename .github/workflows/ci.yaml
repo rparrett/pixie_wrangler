@@ -70,7 +70,7 @@ jobs:
         uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-targets --all-features -- -D warnings -A clippy::type_complexity -A clippy::too_many_arguments -W clippy::doc_markdown
+          args: --all-targets --all-features -- -D warnings
 
   # Run cargo fmt --all -- --check
   format:

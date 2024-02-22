@@ -40,6 +40,15 @@ rstar = "0.11"
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3", features = ["console", "Window", "Storage"] }
 
+[lints.clippy]
+type_complexity = "allow"
+too_many_arguments = "allow"
+doc_markdown = "warn"
+manual_let_else = "warn"
+redundant_else = "warn"
+match_same_arms = "warn"
+semicolon_if_nothing_returned = "warn"
+map_flatten = "warn"
 
 # Enable only a small amount of optimization in debug mode
 [profile.dev]

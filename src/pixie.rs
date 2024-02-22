@@ -430,7 +430,7 @@ pub fn move_pixies_system(
         if speed_diff > f32::EPSILON {
             pixie.current_speed += acceleration * delta;
             pixie.current_speed = pixie.current_speed.min(speed_limit);
-            pixie.driving_state = DrivingState::Accelerating
+            pixie.driving_state = DrivingState::Accelerating;
         }
 
         // move the pixie
@@ -454,7 +454,7 @@ pub fn move_pixies_system(
             } else if prev_layer < current_layer && last_dist < PIXIE_RADIUS {
                 transform.translation.z = layer::PIXIE - prev_layer as f32;
             } else {
-                transform.translation.z = layer::PIXIE - current_layer as f32
+                transform.translation.z = layer::PIXIE - current_layer as f32;
             }
         } else {
             pixie.path_index += segments_traveled;

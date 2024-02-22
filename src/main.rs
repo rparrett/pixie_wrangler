@@ -603,19 +603,15 @@ fn show_score_dialog_system(
         return;
     }
 
-    let level = match handles
+    let Some(level) = handles
         .levels
         .get(selected_level.0 as usize - 1)
         .and_then(|h| levels.get(h))
-    {
-        Some(level) => level,
-        None => return,
+    else {
+        return;
     };
 
-    let score = match score.0 {
-        Some(score) => score,
-        None => return,
-    };
+    let Some(score) = score.0 else { return };
 
     let num_stars = level
         .star_thresholds
@@ -812,7 +808,7 @@ fn dismiss_score_dialog_button_system(
         }
 
         if let Ok(mut color) = q_node.get_single_mut() {
-            *color = Color::NONE.into()
+            *color = Color::NONE.into();
         }
     }
 }
@@ -1746,9 +1742,9 @@ fn drawing_mouse_movement_system(
                                     {
                                         connections
                                             .0
-                                            .push(SegmentConnection::TryExtend(parent.get()))
+                                            .push(SegmentConnection::TryExtend(parent.get()));
                                     } else {
-                                        connections.0.push(SegmentConnection::Add(parent.get()))
+                                        connections.0.push(SegmentConnection::Add(parent.get()));
                                     }
                                 }
                                 if (line_state.start == *b && start_touching)
@@ -1759,9 +1755,9 @@ fn drawing_mouse_movement_system(
                                     {
                                         connections
                                             .1
-                                            .push(SegmentConnection::TryExtend(parent.get()))
+                                            .push(SegmentConnection::TryExtend(parent.get()));
                                     } else {
-                                        connections.1.push(SegmentConnection::Add(parent.get()))
+                                        connections.1.push(SegmentConnection::Add(parent.get()));
                                     }
                                 }
                             }
@@ -1805,7 +1801,7 @@ fn drawing_mouse_movement_system(
             adds.push(AddSegment {
                 points: (*a, *b),
                 connections,
-            })
+            });
         }
 
         if ok {
@@ -2072,14 +2068,12 @@ fn update_cost_system(
     let mut cost = 0.0;
 
     for (segment, children) in q_segments.iter() {
-        let child = match children.first() {
-            Some(child) => child,
-            None => continue,
+        let Some(child) = children.first() else {
+            continue;
         };
 
-        let layer = match q_colliders.get(*child) {
-            Ok(layer) => layer,
-            Err(_) => continue,
+        let Ok(layer) = q_colliders.get(*child) else {
+            continue;
         };
 
         let multiplier = if layer.0 == 1 {
@@ -2122,7 +2116,7 @@ fn update_cost_system(
         } else {
             text.sections[1].value = "".to_string();
         }
-        text.sections[1].style.color = color::FINISHED_ROAD[line_draw.layer as usize - 1]
+        text.sections[1].style.color = color::FINISHED_ROAD[line_draw.layer as usize - 1];
     }
 }
 
@@ -2171,7 +2165,7 @@ fn update_score_text_system(
         if let Some(best) = best_scores.0.get(&selected_level.0) {
             text.sections[0].value = format!("Æ{best}");
         } else {
-            text.sections[0].value = "Æ?".to_string()
+            text.sections[0].value = "Æ?".to_string();
         }
     }
 }
