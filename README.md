@@ -16,13 +16,13 @@ A web build is hosted on [itch.io](https://euclidean-whale.itch.io/pixie-wrangle
 
 ## Build
 
-Pixie wrangler uses the [Bevy 0.12](https://bevyengine.org/) engine and is pretty easy to build.
+Pixie wrangler uses the [Bevy](https://bevyengine.org/) engine and is pretty easy to build.
 
 ### Dependencies
 
 - [Rust](https://www.rust-lang.org/tools/install)
 
-Bevy also has a few [dependencies](https://bevyengine.org/learn/book/getting-started/setup/) on Windows and Linux that you may need.
+Bevy also has a few [dependencies](https://bevyengine.org/learn/quick-start/getting-started/setup/#installing-os-dependencies) on Windows and Linux that you may need.
 
 ### Native
 
