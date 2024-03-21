@@ -308,8 +308,6 @@ pub struct PixieCount(u32);
 struct Cost(u32);
 #[derive(Resource, Default)]
 struct Score(Option<u32>);
-#[derive(Default)]
-struct BestScore(Option<u32>);
 #[derive(Debug, Clone, Component, Serialize, Deserialize)]
 pub struct RoadSegment {
     points: (Vec2, Vec2),
