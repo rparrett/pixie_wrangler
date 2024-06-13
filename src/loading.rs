@@ -1,5 +1,6 @@
-use crate::{GameState, Handles, MainCamera};
+use crate::{save::SaveFile, GameState, Handles, MainCamera};
 use bevy::{asset::LoadState, prelude::*};
+use bevy_simple_prefs::PrefsStatus;
 
 pub struct LoadingPlugin;
 
@@ -38,6 +39,7 @@ fn loading_update(
     handles: Res<Handles>,
     asset_server: Res<AssetServer>,
     mut next_state: ResMut<NextState<GameState>>,
+    prefs: Res<PrefsStatus<SaveFile>>,
 ) {
     if handles
         .fonts
@@ -52,6 +54,10 @@ fn loading_update(
         .iter()
         .any(|h| !matches!(asset_server.get_load_state(h), Some(LoadState::Loaded)))
     {
+        return;
+    }
+
+    if !prefs.loaded {
         return;
     }
 

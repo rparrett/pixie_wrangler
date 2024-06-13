@@ -1,6 +1,3 @@
-#![allow(clippy::too_many_arguments, clippy::type_complexity)]
-#![allow(clippy::forget_non_drop)] // https://github.com/bevyengine/bevy/issues/4601
-
 #[cfg(feature = "debugdump")]
 use std::{fs::File, io::Write};
 
@@ -37,7 +34,6 @@ use petgraph::{
 };
 
 use radio_button::RadioButtonSet;
-use serde::{Deserialize, Serialize};
 use sim::SimulationSteps;
 
 mod collision;
@@ -55,18 +51,11 @@ mod sim;
 fn main() {
     let mut app = App::new();
 
-    // Workaround for Bevy attempting to load .meta files in wasm builds. On itch,
-    // the CDN serves HTTP 403 errors instead of 404 when files don't exist, which
-    // causes Bevy to break.
-    app.insert_resource(AssetMetaCheck::Never);
-
-    let mut order = app.world.resource_mut::<MainScheduleOrder>();
+    let mut order = app.world_mut().resource_mut::<MainScheduleOrder>();
     order.insert_after(Update, AfterUpdate);
 
     app.insert_resource(ClearColor(color::BACKGROUND))
         .insert_resource(Msaa::Sample4);
-
-    app.init_state::<GameState>();
 
     let default = DefaultPlugins
         .set(WindowPlugin {
@@ -75,6 +64,13 @@ fn main() {
                 canvas: Some("#bevy-canvas".to_string()),
                 ..default()
             }),
+            ..default()
+        })
+        .set(AssetPlugin {
+            // Workaround for Bevy attempting to load .meta files in wasm builds. On itch,
+            // the CDN serves HTTP 403 errors instead of 404 when files don't exist, which
+            // causes Bevy to break.
+            meta_check: AssetMetaCheck::Never,
             ..default()
         })
         .build();
@@ -92,6 +88,8 @@ fn main() {
         .add_plugins(LevelSelectPlugin)
         .add_plugins(SavePlugin)
         .add_plugins(EasingsPlugin);
+
+    app.init_state::<GameState>();
 
     app.add_systems(OnEnter(GameState::Playing), playing_enter_system);
     app.add_systems(OnExit(GameState::Playing), playing_exit_system);
@@ -213,8 +211,6 @@ fn main() {
     app.init_resource::<RoadGraph>();
     app.init_resource::<PixieCount>();
     app.init_resource::<Cost>();
-    app.init_resource::<BestScores>();
-    app.init_resource::<Solutions>();
 
     #[cfg(feature = "debugdump")]
     {
@@ -308,7 +304,7 @@ pub struct PixieCount(u32);
 struct Cost(u32);
 #[derive(Resource, Default)]
 struct Score(Option<u32>);
-#[derive(Debug, Clone, Component, Serialize, Deserialize)]
+#[derive(Debug, Clone, Component, Reflect)]
 pub struct RoadSegment {
     points: (Vec2, Vec2),
     layer: u32,
@@ -421,7 +417,7 @@ fn tool_button_display_system(
         let mut iter = q_text.iter_many_mut(children);
         while let Some(mut text) = iter.fetch_next() {
             text.sections[0].style.color = if button.selected {
-                Color::GREEN
+                bevy::color::palettes::css::LIME.into()
             } else {
                 color::UI_WHITE
             };
@@ -666,7 +662,7 @@ fn show_score_dialog_system(
                             style: TextStyle {
                                 font: handles.fonts[0].clone(),
                                 font_size: 100.0,
-                                color: Color::DARK_GRAY,
+                                color: Srgba::gray(0.25).into(),
                             },
                         },
                     ],
@@ -711,7 +707,7 @@ fn show_score_dialog_system(
                                     align_items: AlignItems::Center,
                                     ..default()
                                 },
-                                background_color: color::UI_NORMAL_BUTTON.into(),
+                                image: UiImage::default().with_color(color::UI_NORMAL_BUTTON),
                                 ..default()
                             },
                             DismissScoreDialogButton,
@@ -992,7 +988,7 @@ fn draw_mouse_system(
         } else if !line_drawing.drawing && line_drawing.valid {
             color::UI_WHITE
         } else {
-            Color::RED
+            bevy::color::palettes::css::RED.into()
         };
         commands.spawn((
             ShapeBundle {
@@ -1019,7 +1015,7 @@ fn draw_mouse_system(
         let color = if line_drawing.valid {
             color::DRAWING_ROAD[line_drawing.layer as usize - 1]
         } else {
-            Color::RED
+            bevy::color::palettes::css::RED.into()
         };
 
         for (a, b) in line_drawing.segments.iter() {
@@ -1064,7 +1060,7 @@ fn draw_net_ripping_system(
                 )),
                 ..default()
             },
-            Stroke::new(Color::RED, 2.0),
+            Stroke::new(bevy::color::palettes::css::RED, 2.0),
             RippingLine,
         ));
     }
@@ -1983,7 +1979,7 @@ fn spawn_terminus(
                         TextStyle {
                             font: handles.fonts[0].clone(),
                             font_size: 30.0,
-                            color: color::PIXIE[flavor.color as usize],
+                            color: color::PIXIE[flavor.color as usize].into(),
                         },
                     )
                     .with_justify(JustifyText::Center),
@@ -2010,7 +2006,7 @@ fn spawn_terminus(
                         TextStyle {
                             font: handles.fonts[0].clone(),
                             font_size: 30.0,
-                            color: color::PIXIE[flavor.color as usize],
+                            color: color::PIXIE[flavor.color as usize].into(),
                         },
                     )
                     .with_justify(JustifyText::Center),
@@ -2038,7 +2034,7 @@ fn spawn_terminus(
                     },
                     ..default()
                 },
-                Fill::color(Color::RED),
+                Fill::color(bevy::color::palettes::css::RED),
                 TerminusIssueIndicator,
             ));
         })
@@ -2200,6 +2196,10 @@ fn save_solution_system(
         return;
     }
 
+    // TODO this saves the prefs unnecessarily when
+    // the graph is modified after a particular level
+    // is loaded.
+
     let segments = query.iter().cloned().collect();
     solutions.0.insert(level.0, Solution { segments });
 }
@@ -2352,7 +2352,8 @@ fn playing_enter_system(
                                             },
                                             ..default()
                                         },
-                                        background_color: color::UI_NORMAL_BUTTON.into(),
+                                        image: UiImage::default()
+                                            .with_color(color::UI_NORMAL_BUTTON),
                                         ..default()
                                     },
                                     BackButton,
@@ -2386,7 +2387,8 @@ fn playing_enter_system(
                                                 align_items: AlignItems::Center,
                                                 ..default()
                                             },
-                                            background_color: color::UI_NORMAL_BUTTON.into(),
+                                            image: UiImage::default()
+                                                .with_color(color::UI_NORMAL_BUTTON),
                                             ..default()
                                         },
                                         LayerButton(layer),
@@ -2424,7 +2426,8 @@ fn playing_enter_system(
                                             align_items: AlignItems::Center,
                                             ..default()
                                         },
-                                        background_color: color::UI_NORMAL_BUTTON.into(),
+                                        image: UiImage::default()
+                                            .with_color(color::UI_NORMAL_BUTTON),
                                         ..default()
                                     },
                                     NetRippingButton,
@@ -2497,7 +2500,7 @@ fn playing_enter_system(
                                                 style: TextStyle {
                                                     font: handles.fonts[0].clone(),
                                                     font_size: 30.0,
-                                                    color: color::PIXIE[0],
+                                                    color: color::PIXIE[0].into(),
                                                 },
                                             },
                                         ],
@@ -2519,7 +2522,7 @@ fn playing_enter_system(
                                         TextStyle {
                                             font: handles.fonts[0].clone(),
                                             font_size: 30.0,
-                                            color: color::PIXIE[1],
+                                            color: color::PIXIE[1].into(),
                                         },
                                     ),
                                     ..default()
@@ -2538,7 +2541,7 @@ fn playing_enter_system(
                                         TextStyle {
                                             font: handles.fonts[0].clone(),
                                             font_size: 30.0,
-                                            color: color::PIXIE[2],
+                                            color: color::PIXIE[2].into(),
                                         },
                                     ),
                                     ..default()
@@ -2591,7 +2594,8 @@ fn playing_enter_system(
                                             align_items: AlignItems::Center,
                                             ..default()
                                         },
-                                        background_color: color::UI_NORMAL_BUTTON.into(),
+                                        image: UiImage::default()
+                                            .with_color(color::UI_NORMAL_BUTTON),
                                         ..default()
                                     },
                                     ResetButton,
@@ -2620,7 +2624,8 @@ fn playing_enter_system(
                                             align_items: AlignItems::Center,
                                             ..default()
                                         },
-                                        background_color: color::UI_NORMAL_BUTTON.into(),
+                                        image: UiImage::default()
+                                            .with_color(color::UI_NORMAL_BUTTON),
                                         ..default()
                                     },
                                     SpeedButton,
@@ -2649,7 +2654,8 @@ fn playing_enter_system(
                                             align_items: AlignItems::Center,
                                             ..default()
                                         },
-                                        background_color: color::UI_NORMAL_BUTTON.into(),
+                                        image: UiImage::default()
+                                            .with_color(color::UI_NORMAL_BUTTON),
                                         ..default()
                                     },
                                     PixieButton,
