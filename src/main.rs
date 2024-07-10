@@ -1806,12 +1806,12 @@ fn drawing_mouse_movement_system(
     }
 
     if let Some(segments) = filtered_segments.first() {
-        line_state.segments = segments.clone();
+        line_state.segments.clone_from(segments);
         line_state.adds = filtered_adds.first().cloned().unwrap();
         line_state.stop = filtered_stops.first().cloned().unwrap();
         line_state.valid = true;
     } else if let Some(segments) = possible.first() {
-        line_state.segments = segments.clone();
+        line_state.segments.clone_from(segments);
         line_state.adds = vec![];
         line_state.valid = false;
     } else {
@@ -1926,9 +1926,6 @@ fn spawn_obstacle(commands: &mut Commands, obstacle: &Obstacle) {
                         ColliderLayer(0),
                     ));
                 });
-        }
-        _ => {
-            info!("{:?} skipped -- not implemented.", obstacle);
         }
     }
 }
