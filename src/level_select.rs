@@ -90,7 +90,7 @@ fn level_select_enter(
                             TextStyle {
                                 font: handles.fonts[0].clone(),
                                 font_size: 60.0,
-                                color: color::PIXIE[1],
+                                color: color::PIXIE[1].into(),
                             },
                         ),
                         ..default()
@@ -190,7 +190,7 @@ fn level_select_enter(
                                                 style: TextStyle {
                                                     font: handles.fonts[0].clone(),
                                                     font_size: 30.0,
-                                                    color: Color::DARK_GRAY,
+                                                    color: Srgba::gray(0.25).into(),
                                                 },
                                             },
                                         ],

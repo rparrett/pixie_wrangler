@@ -13,7 +13,6 @@ pub struct Level {
 #[derive(Deserialize, Debug)]
 pub enum Obstacle {
     Rect(Vec2, Vec2),
-    Polygon(Vec<Vec2>),
 }
 
 #[derive(Default, Debug, Deserialize, Clone, Component)]
