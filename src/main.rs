@@ -1,3 +1,6 @@
+// disable console on windows for release builds
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 #[cfg(feature = "debugdump")]
 use std::{fs::File, io::Write};
 
