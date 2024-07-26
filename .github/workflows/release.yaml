@@ -31,12 +31,18 @@ jobs:
 
       - name: Build
         run: |
-          cargo build --release --target wasm32-unknown-unknown
+          cargo build --profile web-dist --target wasm32-unknown-unknown
 
       - name: Prepare package
         run: |
-          wasm-bindgen --no-typescript --out-name bevy_game --out-dir wasm --target web target/wasm32-unknown-unknown/release/${{ env.binary }}.wasm
+          wasm-bindgen --no-typescript --out-name bevy_game --out-dir wasm --target web target/wasm32-unknown-unknown/web-dist/${{ env.binary }}.wasm
           cp -r assets wasm/
+
+      - name: Optimize Wasm
+        uses: NiklasEi/wasm-opt-action@v2
+        with:
+          file: target/wasm32-unknown-unknown/web-dist/*.wasm
+          optimize_all: true
 
       - name: Package as a zip
         working-directory: ./wasm
@@ -78,12 +84,12 @@ jobs:
 
       - name: Build
         run: |
-          cargo build --release --target x86_64-unknown-linux-gnu
+          cargo build --profile dist --target x86_64-unknown-linux-gnu
 
       - name: Prepare package
         run: |
           mkdir ${{ env.binary }}
-          cp target/x86_64-unknown-linux-gnu/release/${{ env.binary }} ${{ env.binary }}/
+          cp target/x86_64-unknown-linux-gnu/dist/${{ env.binary }} ${{ env.binary }}/
           cp -r assets ${{ env.binary }}/
 
       - name: Package as a zip
@@ -122,12 +128,12 @@ jobs:
 
       - name: Build
         run: |
-          cargo build --release --target x86_64-pc-windows-msvc
+          cargo build --profile dist --target x86_64-pc-windows-msvc
 
       - name: Prepare package
         run: |
           mkdir ${{ env.binary }}
-          cp target/x86_64-pc-windows-msvc/release/${{ env.binary }}.exe ${{ env.binary }}/
+          cp target/x86_64-pc-windows-msvc/dist/${{ env.binary }}.exe ${{ env.binary }}/
           cp -r assets ${{ env.binary }}/
 
       - name: Package as a zip
@@ -170,12 +176,12 @@ jobs:
 
       - name: Build
         run: |
-          cargo build --release --target x86_64-apple-darwin
+          cargo build --profile dist --target x86_64-apple-darwin
 
       - name: Prepare Package
         run: |
           mkdir -p ${{ env.binary }}.app/Contents/MacOS
-          cp target/x86_64-apple-darwin/release/${{ env.binary }} ${{ env.binary }}.app/Contents/MacOS/
+          cp target/x86_64-apple-darwin/dist/${{ env.binary }} ${{ env.binary }}.app/Contents/MacOS/
           cp -r assets ${{ env.binary }}.app/Contents/MacOS/
 
           cat > ${{ env.binary }}.app/Contents/Info.plist << EOF
