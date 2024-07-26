@@ -29,14 +29,13 @@ bevy_prototype_lyon = "0.12"
 bevy_easings = "0.14"
 bevy_common_assets = { version = "0.11", features = ["ron"] }
 bevy_mod_debugdump = { version = "0.11", optional = true }
-bevy_simple_prefs = "0.2"
+bevy_simple_prefs = "0.3"
 
 rand = "0.8"
 petgraph = "0.6"
-itertools = "0.10"
+itertools = "0.13"
 serde = { version = "1", features = ["derive"] }
-ron = "*"
-rstar = "0.11"
+rstar = "0.12"
 
 # Dependencies for WASM only.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
