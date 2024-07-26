@@ -37,6 +37,12 @@ itertools = "0.13"
 serde = { version = "1", features = ["derive"] }
 rstar = "0.12"
 
+# Disable low-severity logs at compile time for performance.
+log = { version = "0.4", features = [
+    "max_level_debug",
+    "release_max_level_warn",
+] }
+
 # Dependencies for WASM only.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3", features = ["console", "Window", "Storage"] }
@@ -50,6 +56,14 @@ redundant_else = "warn"
 match_same_arms = "warn"
 semicolon_if_nothing_returned = "warn"
 map_flatten = "warn"
+
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
+[profile.web-dist]
+inherits = "dist"
+opt-level = "s"
 
 # Enable only a small amount of optimization in debug mode
 [profile.dev]

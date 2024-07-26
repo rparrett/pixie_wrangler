@@ -2569,6 +2569,7 @@ dependencies = [
  "bevy_prototype_lyon",
  "bevy_simple_prefs",
  "itertools",
+ "log",
  "petgraph",
  "rand",
  "rstar",
