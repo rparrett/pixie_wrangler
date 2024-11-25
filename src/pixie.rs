@@ -167,7 +167,7 @@ pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixi
             commands.spawn((
                 ShapeBundle {
                     path: GeometryBuilder::build_as(&shape),
-                    spatial: SpatialBundle::from_transform(*transform),
+                    transform: transform.clone(),
                     ..default()
                 },
                 Fill::color(color::PIXIE[(pixie.flavor.color) as usize]),
@@ -510,12 +510,12 @@ pub fn emit_pixies_system(mut q_emitters: Query<&mut PixieEmitter>, mut commands
         commands.spawn((
             ShapeBundle {
                 path: GeometryBuilder::build_as(&shape),
-                spatial: SpatialBundle::from_transform(Transform::from_translation(
+                transform: Transform::from_translation(
                     first_segment
                         .points
                         .0
                         .extend(layer::PIXIE - first_segment.layer as f32),
-                )),
+                ),
                 ..default()
             },
             Fill::color(color::PIXIE[(emitter.flavor.color) as usize]),

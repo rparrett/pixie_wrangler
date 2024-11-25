@@ -996,9 +996,7 @@ fn draw_mouse_system(
         commands.spawn((
             ShapeBundle {
                 path: GeometryBuilder::build_as(&shape),
-                spatial: SpatialBundle::from_transform(Transform::from_translation(
-                    snapped.extend(layer::CURSOR),
-                )),
+                transform: Transform::from_translation(snapped.extend(layer::CURSOR)),
                 ..default()
             },
             Stroke::new(color, 2.0),
@@ -1025,11 +1023,7 @@ fn draw_mouse_system(
             commands.spawn((
                 ShapeBundle {
                     path: GeometryBuilder::build_as(&shapes::Line(*a, *b)),
-                    spatial: SpatialBundle::from_transform(Transform::from_xyz(
-                        0.0,
-                        0.0,
-                        layer::ROAD_OVERLAY,
-                    )),
+                    transform: Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
                     ..default()
                 },
                 Stroke::new(color, 2.0),
@@ -1056,11 +1050,7 @@ fn draw_net_ripping_system(
         commands.spawn((
             ShapeBundle {
                 path: GeometryBuilder::build_as(&shapes::Line(*a, *b)),
-                spatial: SpatialBundle::from_transform(Transform::from_xyz(
-                    0.0,
-                    0.0,
-                    layer::ROAD_OVERLAY,
-                )),
+                transform: Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
                 ..default()
             },
             Stroke::new(bevy::color::palettes::css::RED, 2.0),
@@ -1846,11 +1836,7 @@ fn spawn_road_segment(
         .spawn((
             ShapeBundle {
                 path: GeometryBuilder::build_as(&shapes::Line(segment.points.0, segment.points.1)),
-                spatial: SpatialBundle::from_transform(Transform::from_xyz(
-                    0.0,
-                    0.0,
-                    layer::ROAD - segment.layer as f32,
-                )),
+                transform: Transform::from_xyz(0.0, 0.0, layer::ROAD - segment.layer as f32),
                 ..default()
             },
             Stroke::new(color, 2.0),
@@ -1892,9 +1878,7 @@ fn spawn_obstacle(commands: &mut Commands, obstacle: &Obstacle) {
                             extents: Vec2::new(diff.x.abs(), diff.y.abs()),
                             ..default()
                         }),
-                        spatial: SpatialBundle::from_transform(Transform::from_translation(
-                            origin.extend(layer::OBSTACLE),
-                        )),
+                        transform: Transform::from_translation(origin.extend(layer::OBSTACLE)),
                         ..default()
                     },
                     Fill::color(color::OBSTACLE),
@@ -1949,9 +1933,7 @@ fn spawn_terminus(
                     radius: 5.5,
                     ..default()
                 }),
-                spatial: SpatialBundle::from_transform(Transform::from_translation(
-                    terminus.point.extend(layer::TERMINUS),
-                )),
+                transform: Transform::from_translation(terminus.point.extend(layer::TERMINUS)),
                 ..default()
             },
             Fill::color(color::BACKGROUND),
@@ -2027,11 +2009,8 @@ fn spawn_terminus(
                         radius: 5.5,
                         ..default()
                     }),
-                    spatial: SpatialBundle {
-                        transform: Transform::from_xyz(-30.0, -1.0 * label_offset, layer::TERMINUS),
-                        visibility: Visibility::Hidden,
-                        ..default()
-                    },
+                    transform: Transform::from_xyz(-30.0, -1.0 * label_offset, layer::TERMINUS),
+                    visibility: Visibility::Hidden,
                     ..default()
                 },
                 Fill::color(bevy::color::palettes::css::RED),
@@ -2235,11 +2214,7 @@ fn playing_enter_system(
                         radius: 2.5,
                         ..default()
                     }),
-                    spatial: SpatialBundle::from_transform(Transform::from_xyz(
-                        x as f32,
-                        y as f32,
-                        layer::GRID,
-                    )),
+                    transform: Transform::from_xyz(x as f32, y as f32, layer::GRID),
                     ..default()
                 },
                 Fill::color(color::GRID),
