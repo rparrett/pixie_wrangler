@@ -11,7 +11,7 @@ debugdump = ["bevy_mod_debugdump"]
 
 [dependencies]
 
-bevy = { version = "0.14", default-features = false, features = [
+bevy = { version = "0.15.0-rc.3", default-features = false, features = [
     "bevy_asset",
     "bevy_core_pipeline",
     "bevy_render",
@@ -25,11 +25,13 @@ bevy = { version = "0.14", default-features = false, features = [
     "x11",
 ] }
 
-bevy_prototype_lyon = "0.12"
-bevy_easings = "0.14"
-bevy_common_assets = { version = "0.11", features = ["ron"] }
+bevy_prototype_lyon = { git = "https://github.com/Nilirad/bevy_prototype_lyon.git" }
+bevy_easings = { path = "../bevy_easings" }
+bevy_common_assets = { git = "https://github.com/NiklasEi/bevy_common_assets", branch = "bevy-0-15", features = [
+    "ron",
+] }
 bevy_mod_debugdump = { version = "0.11", optional = true }
-bevy_simple_prefs = "0.3"
+bevy_simple_prefs = { git = "https://github.com/rparrett/bevy_simple_prefs", branch = "bevy-0.15" }
 
 rand = "0.8"
 petgraph = "0.6"
