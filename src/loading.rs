@@ -22,7 +22,7 @@ fn loading_setup(
     let mut camera = Camera2dBundle::default();
     camera.transform.translation.y -= 10.0;
 
-    commands.spawn((camera, MainCamera));
+    commands.spawn((camera, Msaa::Sample4, MainCamera));
 
     for i in 1..=NUM_LEVELS {
         handles
