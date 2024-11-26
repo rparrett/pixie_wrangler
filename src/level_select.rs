@@ -162,7 +162,7 @@ fn level_select_enter(
                                 parent
                                     .spawn((
                                         Text::default(),
-                                        // See bevy#16521
+                                        // See Bevy#16521
                                         TextFont {
                                             font: handles.fonts[0].clone(),
                                             ..default()
