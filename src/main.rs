@@ -2057,13 +2057,13 @@ fn update_cost_system(
     let potential_cost_round = (cost + potential_cost).ceil() - cost_round;
 
     for entity in q_cost.iter_mut() {
-        *writer.text(entity, 0) = format!("§{cost_round}");
+        *writer.text(entity, 1) = format!("§{cost_round}");
         if potential_cost_round > 0.0 {
-            *writer.text(entity, 1) = format!("+{potential_cost_round}");
+            *writer.text(entity, 2) = format!("+{potential_cost_round}");
         } else {
-            *writer.text(entity, 1) = "".to_string();
+            *writer.text(entity, 2) = "".to_string();
         }
-        *writer.color(entity, 1) = color::FINISHED_ROAD[line_draw.layer as usize - 1].into();
+        *writer.color(entity, 2) = color::FINISHED_ROAD[line_draw.layer as usize - 1].into();
     }
 }
 
