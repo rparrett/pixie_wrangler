@@ -650,7 +650,7 @@ fn show_score_dialog_system(
                     Text::new("★".repeat(num_stars)),
                     TextFont {
                         font: handles.fonts[0].clone(),
-                        font_size: 100.0,
+                        font_size: 83.0,
                         ..default()
                     },
                     TextColor(color::UI_WHITE),
@@ -660,7 +660,7 @@ fn show_score_dialog_system(
                     Text::new("★".repeat(3 - num_stars)),
                     TextFont {
                         font: handles.fonts[0].clone(),
-                        font_size: 100.0,
+                        font_size: 83.0,
                         ..default()
                     },
                     TextColor(Srgba::gray(0.25).into()),
@@ -671,7 +671,7 @@ fn show_score_dialog_system(
                 Text::new(format!("Æ{score}")),
                 TextFont {
                     font: handles.fonts[0].clone(),
-                    font_size: 100.0,
+                    font_size: 83.0,
                     ..default()
                 },
                 TextColor(color::FINISHED_ROAD[1]),
@@ -705,7 +705,7 @@ fn show_score_dialog_system(
                                 Text::new("DISMISS"),
                                 TextFont {
                                     font: handles.fonts[0].clone(),
-                                    font_size: 30.0,
+                                    font_size: 25.0,
                                     ..default()
                                 },
                                 TextColor(color::UI_BUTTON_TEXT),
@@ -728,7 +728,7 @@ fn show_score_dialog_system(
                                 Text::new("ONWARD →"),
                                 TextFont {
                                     font: handles.fonts[0].clone(),
-                                    font_size: 30.0,
+                                    font_size: 25.0,
                                     ..default()
                                 },
                                 TextColor(color::UI_BUTTON_TEXT),
@@ -1934,10 +1934,10 @@ fn spawn_terminus(
                 };
 
                 parent.spawn((
-                    Text::new(label),
+                    Text2d::new(label),
                     TextFont {
                         font: handles.fonts[0].clone(),
-                        font_size: 30.0,
+                        font_size: 25.0,
                         ..default()
                     },
                     TextColor(color::PIXIE[flavor.color as usize].into()),
@@ -1959,10 +1959,10 @@ fn spawn_terminus(
                 };
 
                 parent.spawn((
-                    Text::new(label),
+                    Text2d::new(label),
                     TextFont {
                         font: handles.fonts[0].clone(),
-                        font_size: 30.0,
+                        font_size: 25.0,
                         ..default()
                     },
                     TextColor(color::PIXIE[flavor.color as usize].into()),
@@ -2302,7 +2302,7 @@ fn playing_enter_system(
                                         Text::new("←"),
                                         TextFont {
                                             font: handles.fonts[0].clone(),
-                                            font_size: 30.0,
+                                            font_size: 25.0,
                                             ..default()
                                         },
                                         TextColor(color::UI_BUTTON_TEXT),
@@ -2336,7 +2336,7 @@ fn playing_enter_system(
                                             Text::new(format!("{layer}")),
                                             TextFont {
                                                 font: handles.fonts[0].clone(),
-                                                font_size: 30.0,
+                                                font_size: 25.0,
                                                 ..default()
                                             },
                                             TextColor(color::UI_BUTTON_TEXT),
@@ -2366,7 +2366,7 @@ fn playing_enter_system(
                                         Text::new("R"),
                                         TextFont {
                                             font: handles.fonts[0].clone(),
-                                            font_size: 30.0,
+                                            font_size: 25.0,
                                             ..default()
                                         },
                                         TextColor(color::UI_BUTTON_TEXT),
@@ -2414,7 +2414,7 @@ fn playing_enter_system(
                                         TextSpan::new("0".to_string()),
                                         TextFont {
                                             font: handles.fonts[0].clone(),
-                                            font_size: 30.0,
+                                            font_size: 25.0,
                                             ..default()
                                         },
                                         TextColor(color::UI_WHITE),
@@ -2423,7 +2423,7 @@ fn playing_enter_system(
                                         TextSpan::default(),
                                         TextFont {
                                             font: handles.fonts[0].clone(),
-                                            font_size: 30.0,
+                                            font_size: 25.0,
                                             ..default()
                                         },
                                         TextColor(color::PIXIE[0].into()),
@@ -2434,7 +2434,7 @@ fn playing_enter_system(
                                 Text::new("0"),
                                 TextFont {
                                     font: handles.fonts[0].clone(),
-                                    font_size: 30.0,
+                                    font_size: 25.0,
                                     ..default()
                                 },
                                 TextColor(color::PIXIE[1].into()),
@@ -2449,7 +2449,7 @@ fn playing_enter_system(
                                 Text::new("ŧ0.0"),
                                 TextFont {
                                     font: handles.fonts[0].clone(),
-                                    font_size: 30.0,
+                                    font_size: 25.0,
                                     ..default()
                                 },
                                 TextColor(color::PIXIE[2].into()),
@@ -2464,7 +2464,7 @@ fn playing_enter_system(
                                 Text::new("Æ?"),
                                 TextFont {
                                     font: handles.fonts[0].clone(),
-                                    font_size: 30.0,
+                                    font_size: 25.0,
                                     ..default()
                                 },
                                 TextColor(color::FINISHED_ROAD[1]),
@@ -2504,7 +2504,7 @@ fn playing_enter_system(
                                         Text::new("RESET"),
                                         TextFont {
                                             font: handles.fonts[0].clone(),
-                                            font_size: 30.0,
+                                            font_size: 25.0,
                                             ..default()
                                         },
                                         TextColor(color::UI_BUTTON_TEXT),
@@ -2527,7 +2527,7 @@ fn playing_enter_system(
                                         Text::new(simulation_settings.speed.label()),
                                         TextFont {
                                             font: handles.fonts[0].clone(),
-                                            font_size: 30.0,
+                                            font_size: 25.0,
                                             ..default()
                                         },
                                         TextColor(color::UI_BUTTON_TEXT),
@@ -2550,7 +2550,7 @@ fn playing_enter_system(
                                         Text::new("RELEASE THE PIXIES"),
                                         TextFont {
                                             font: handles.fonts[0].clone(),
-                                            font_size: 30.0,
+                                            font_size: 25.0,
                                             ..default()
                                         },
                                         TextColor(color::UI_BUTTON_TEXT),

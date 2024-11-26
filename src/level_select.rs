@@ -82,7 +82,7 @@ fn level_select_enter(
                         Text::new("₽IXIE WRANGLER"),
                         TextFont {
                             font: handles.fonts[0].clone(),
-                            font_size: 60.0,
+                            font_size: 50.0,
                             ..default()
                         },
                         TextColor(color::PIXIE[1].into()),
@@ -95,7 +95,7 @@ fn level_select_enter(
                         Text::new(format!("Æ{total_score}")),
                         TextFont {
                             font: handles.fonts[0].clone(),
-                            font_size: 30.0,
+                            font_size: 25.0,
                             ..default()
                         },
                         TextColor(color::FINISHED_ROAD[1]),
@@ -164,7 +164,7 @@ fn level_select_enter(
                                         TextSpan::new(star_text_one),
                                         TextFont {
                                             font: handles.fonts[0].clone(),
-                                            font_size: 30.0,
+                                            font_size: 25.0,
                                             ..default()
                                         },
                                         TextColor(color::UI_WHITE),
@@ -173,7 +173,7 @@ fn level_select_enter(
                                         TextSpan::new(star_text_two),
                                         TextFont {
                                             font: handles.fonts[0].clone(),
-                                            font_size: 30.0,
+                                            font_size: 25.0,
                                             ..default()
                                         },
                                         TextColor(Srgba::gray(0.25).into()),
@@ -184,7 +184,7 @@ fn level_select_enter(
                                     Text::new(format!("{i}")),
                                     TextFont {
                                         font: handles.fonts[0].clone(),
-                                        font_size: 60.0,
+                                        font_size: 50.0,
                                         ..default()
                                     },
                                     TextColor(level_color),
@@ -194,7 +194,7 @@ fn level_select_enter(
                                     Text::new(score_text),
                                     TextFont {
                                         font: handles.fonts[0].clone(),
-                                        font_size: 30.0,
+                                        font_size: 25.0,
                                         ..default()
                                     },
                                     TextColor(color::FINISHED_ROAD[1]),
