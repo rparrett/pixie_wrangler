@@ -4,7 +4,7 @@ use bevy_simple_prefs::PrefsStatus;
 
 pub struct LoadingPlugin;
 
-pub const NUM_LEVELS: u32 = 9;
+pub const NUM_LEVELS: u32 = 12;
 
 impl Plugin for LoadingPlugin {
     fn build(&self, app: &mut App) {

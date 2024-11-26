@@ -1,0 +1,19 @@
+Level(
+    layers: 1,
+    terminuses: [
+        // left
+        Terminus(
+            point:    Vec2(-240.0, 48.0),
+            emits:    [PixieFlavor(color: 1, net: 0)],
+            collects: [],
+        ),
+        // right
+        Terminus(
+            point:    Vec2(240.0, 48.0),
+            emits:    [],
+            collects: [PixieFlavor(color: 1, net: 0)],
+        ),
+    ],
+    obstacles: [],
+    star_thresholds: [1, 500, 900],
+)
