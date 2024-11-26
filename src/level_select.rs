@@ -159,26 +159,35 @@ fn level_select_enter(
                                         ("".to_string(), "".to_string(), "".to_string())
                                     };
 
-                                parent.spawn(Text::default()).with_children(|parent| {
-                                    parent.spawn((
-                                        TextSpan::new(star_text_one),
+                                parent
+                                    .spawn((
+                                        Text::default(),
+                                        // See bevy#16521
                                         TextFont {
                                             font: handles.fonts[0].clone(),
-                                            font_size: 25.0,
                                             ..default()
                                         },
-                                        TextColor(color::UI_WHITE),
-                                    ));
-                                    parent.spawn((
-                                        TextSpan::new(star_text_two),
-                                        TextFont {
-                                            font: handles.fonts[0].clone(),
-                                            font_size: 25.0,
-                                            ..default()
-                                        },
-                                        TextColor(Srgba::gray(0.25).into()),
-                                    ));
-                                });
+                                    ))
+                                    .with_children(|parent| {
+                                        parent.spawn((
+                                            TextSpan::new(star_text_one),
+                                            TextFont {
+                                                font: handles.fonts[0].clone(),
+                                                font_size: 25.0,
+                                                ..default()
+                                            },
+                                            TextColor(color::UI_WHITE),
+                                        ));
+                                        parent.spawn((
+                                            TextSpan::new(star_text_two),
+                                            TextFont {
+                                                font: handles.fonts[0].clone(),
+                                                font_size: 25.0,
+                                                ..default()
+                                            },
+                                            TextColor(Srgba::gray(0.25).into()),
+                                        ));
+                                    });
 
                                 parent.spawn((
                                     Text::new(format!("{i}")),

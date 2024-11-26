@@ -2403,6 +2403,11 @@ fn playing_enter_system(
                             parent
                                 .spawn((
                                     Text::default(),
+                                    // See Bevy#16521
+                                    TextFont {
+                                        font: handles.fonts[0].clone(),
+                                        ..default()
+                                    },
                                     Node {
                                         width: Val::Percent(25.),
                                         ..default()
