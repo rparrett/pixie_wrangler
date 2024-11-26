@@ -641,6 +641,7 @@ fn show_score_dialog_system(
                     duration: Duration::from_secs_f32(0.7),
                 },
             ),
+            BackgroundColor(color::DIALOG_BACKGROUND.into()),
             ScoreDialog,
         ))
         .with_children(|parent| {
