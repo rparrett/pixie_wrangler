@@ -1,4 +1,5 @@
 Level(
+    name: "Connection",
     layers: 1,
     terminuses: [
         // left

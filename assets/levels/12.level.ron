@@ -1,4 +1,5 @@
 Level(
+    name: "Traffic",
     layers: 1,
     terminuses: [
         // left

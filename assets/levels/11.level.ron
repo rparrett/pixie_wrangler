@@ -1,4 +1,5 @@
 Level(
+    name: "Layers",
     layers: 2,
     terminuses: [
         // left
