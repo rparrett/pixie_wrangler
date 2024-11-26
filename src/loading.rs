@@ -19,10 +19,12 @@ fn loading_setup(
     mut handles: ResMut<Handles>,
     asset_server: Res<AssetServer>,
 ) {
-    let mut camera = Camera2dBundle::default();
-    camera.transform.translation.y -= 10.0;
-
-    commands.spawn((camera, Msaa::Sample4, MainCamera));
+    commands.spawn((
+        Camera2d::default(),
+        Transform::from_translation(Vec3::new(0., -10., 0.)),
+        Msaa::Sample4,
+        MainCamera,
+    ));
 
     for i in 1..=NUM_LEVELS {
         handles
