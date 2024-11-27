@@ -47,6 +47,12 @@ pub fn possible_lines(
 ) -> Vec<Vec<(Vec2, Vec2)>> {
     let diff = to - from;
 
+    // we're dealing with rounded / snapped coordinates. comparing these floats
+    // should be okay.
+    if diff.x == 0.0 && diff.y == 0.0 {
+        return vec![];
+    }
+
     // if a single 45 degree or 90 degree line does the job,
     // return that.
     if diff.x == 0.0 || diff.y == 0.0 || diff.x.abs() == diff.y.abs() {
