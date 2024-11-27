@@ -23,6 +23,8 @@ bevy = { version = "0.15.0-rc.3", default-features = false, features = [
     "multi_threaded",
     "webgl2",
     "x11",
+    # TODO remove when 0.15 is released. See Bevy#16254.
+    "custom_cursor",
 ] }
 
 bevy_prototype_lyon = { git = "https://github.com/Nilirad/bevy_prototype_lyon.git" }
