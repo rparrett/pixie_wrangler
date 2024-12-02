@@ -30,7 +30,7 @@ bevy_prototype_lyon = "0.13"
 bevy_easings = "0.15"
 bevy_common_assets = { version = "0.12", features = ["ron"] }
 # TODO no release yet
-bevy_mod_debugdump = { version = "0.11", optional = true }
+bevy_mod_debugdump = { git = "https://github.com/jakobhellermann/bevy_mod_debugdump", optional = true }
 bevy_simple_prefs = "0.4"
 
 rand = "0.8"
