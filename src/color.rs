@@ -21,6 +21,7 @@ pub const PIXIE: [Srgba; 6] = [
 
 pub const BACKGROUND: Color = Color::srgb(0.05, 0.066, 0.09);
 pub const GRID: Color = Color::srgb(0.086, 0.105, 0.133);
+pub const NAME: Color = Color::srgb(0.16, 0.20, 0.25);
 pub const OBSTACLE: Color = Color::srgb(0.086, 0.105, 0.133);
 pub const BOTTOM_BAR_BACKGROUND: Color = Color::srgb(0.09, 0.11, 0.13);
 pub const DIALOG_BACKGROUND: Color = Color::srgb(0.2, 0.2, 0.2);
