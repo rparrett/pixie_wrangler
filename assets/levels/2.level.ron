@@ -1,4 +1,5 @@
 Level(
+    name: "Layers",
     layers: 2,
     terminuses: [
         // left
@@ -9,22 +10,24 @@ Level(
         ),
         Terminus(
             point:    Vec2(-240.0, -48.0),
-            emits:    [PixieFlavor(color: 1, net: 0)],
+            emits:    [PixieFlavor(color: 2, net: 0)],
             collects: [],
         ),
         // right
         Terminus(
-            point:    Vec2(240.0, 48.0),
+            point:    Vec2(240.0, 144.0),
             emits:    [],
-            collects: [PixieFlavor(color: 0, net: 0),PixieFlavor(color: 1, net: 0)],
+            collects: [PixieFlavor(color: 2, net: 0)],
+        ),
+        Terminus(
+            point:    Vec2(240.0, -48.0),
+            emits:    [],
+            collects: [PixieFlavor(color: 0, net: 0)],
         ),
     ],
     obstacles: [
-        Rect(Vec2(96.0, 0.0), Vec2(144.0, -96.0)),
-        Rect(Vec2(144.0, -48.0), Vec2(336.0, -96.0)),
-        Rect(Vec2(336.0, 192.0), Vec2(384.0, -96.0)),
-        Rect(Vec2(144.0, 192.0), Vec2(336.0, 144.0)),
-        Rect(Vec2(96.0, 192.0), Vec2(144.0, 96.0))
+        Rect((288.0, 336.0), (624.0, -288.0)),
+        Rect((-624.0, 336.0), (-288.0, -288.0)),
     ],
-    star_thresholds: [1, 350, 520],
+    star_thresholds: [1, 500, 700],
 )
