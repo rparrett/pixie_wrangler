@@ -2,71 +2,85 @@ Level(
     name: "",
     layers: 2,
     terminuses: [
-        // left
+        // inside
         Terminus(
-            point:    Vec2(-576.0, 96.0),
-            emits:    [PixieFlavor(color: 3, net: 0)],
-            collects: [],
-        ),
-        Terminus(
-            point:    Vec2(-480.0, 96.0),
-            emits:    [PixieFlavor(color: 4, net: 0)],
-            collects: [],
-        ),
-        Terminus(
-            point:    Vec2(-384.0, 96.0),
-            emits:    [PixieFlavor(color: 2, net: 0)],
-            collects: [],
-        ),
-        Terminus(
-            point:    Vec2(-288.0, 96.0),
+            point:    Vec2(-96.0, 144.0),
             emits:    [PixieFlavor(color: 0, net: 0)],
             collects: [],
         ),
         Terminus(
-            point:    Vec2(-192.0, 96.0),
+            point:    Vec2(-96.0, 48.0),
+            emits:    [PixieFlavor(color: 3, net: 0)],
+            collects: [],
+        ),
+        Terminus(
+            point:    Vec2(-96.0, -48.0),
+            emits:    [PixieFlavor(color: 2, net: 0)],
+            collects: [],
+        ),
+        Terminus(
+            point:    Vec2(-0.0, -48.0),
             emits:    [PixieFlavor(color: 1, net: 0)],
             collects: [],
         ),
-        // right
         Terminus(
-            point:    Vec2(576.0, -0.0),
-            emits:    [],
-            collects: [PixieFlavor(color: 2, net: 0)],
+            point:    Vec2(96.0, -48.0),
+            emits:    [PixieFlavor(color: 4, net: 0)],
+            collects: [],
         ),
         Terminus(
-            point:    Vec2(480.0, 0.0),
-            emits:    [],
-            collects: [PixieFlavor(color: 3, net: 0)],
+            point:    Vec2(96.0, 48.0),
+            emits:    [PixieFlavor(color: 1, net: 0)],
+            collects: [],
         ),
         Terminus(
-            point:    Vec2(384.0, -0.0),
+            point:    Vec2(96.0, 144.0),
+            emits:    [PixieFlavor(color: 5, net: 0)],
+            collects: [],
+        ),
+        Terminus(
+            point:    Vec2(-0.0, 144.0),
+            emits:    [PixieFlavor(color: 3, net: 0)],
+            collects: [],
+        ),
+        // outside left
+        Terminus(
+            point:    Vec2(-480.0, 144.0),
+            emits:    [],
+            collects: [PixieFlavor(color: 4, net: 0)],
+        ),
+        Terminus(
+            point:    Vec2(-480.0, 48.0),
             emits:    [],
             collects: [PixieFlavor(color: 1, net: 0)],
         ),
         Terminus(
-            point:    Vec2(288.0, 0.0),
+            point:    Vec2(-480.0, -48.0),
+            emits:    [],
+            collects: [PixieFlavor(color: 5, net: 0)],
+        ),
+        // outside right
+        Terminus(
+            point:    Vec2(480.0, 144.0),
+            emits:    [],
+            collects: [PixieFlavor(color: 2, net: 0)],
+        ),
+        Terminus(
+            point:    Vec2(480.0, 48.0),
+            emits:    [],
+            collects: [PixieFlavor(color: 3, net: 0)],
+        ),
+        Terminus(
+            point:    Vec2(480.0, -48.0),
             emits:    [],
             collects: [PixieFlavor(color: 0, net: 0)],
         ),
-        Terminus(
-            point:    Vec2(192.0, -0.0),
-            emits:    [],
-            collects: [PixieFlavor(color: 4, net: 0)],
-        ),
+
     ],
     obstacles: [
-        Rect(Vec2(-624.0, 48.0), Vec2(-144.0, -288.0)),
-        Rect(Vec2(144.0, 48.0), Vec2(624.0, 336.0)),
-        // blockers
-        Rect(Vec2(-536, 48), Vec2(-520, 104)),
-        Rect(Vec2(-440, 48), Vec2(-426, 104)),
-        Rect(Vec2(-344, 48), Vec2(-328, 104)),
-        Rect(Vec2(-248, 48), Vec2(-232, 104)),
-        Rect(Vec2(536, 48),  Vec2(520, -8)),
-        Rect(Vec2(440, 48),  Vec2(424, -8)),
-        Rect(Vec2(344, 48),  Vec2(328, -8)),
-        Rect(Vec2(248, 48),  Vec2(232, -8)),
+        Rect(Vec2(-48.0, 96.0), Vec2(48.0, 0.0)),
+        Rect(Vec2(-672.0, 192.0),Vec2(-528.0, -96.0)),
+        Rect(Vec2(528.0, 192.0), Vec2(672.0, -96.0))
     ],
-    star_thresholds: [190, 220, 250],
+    star_thresholds: [350, 400, 450],
 )

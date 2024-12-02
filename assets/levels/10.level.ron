@@ -1,20 +1,96 @@
 Level(
-    name: "Connection",
-    layers: 1,
+    name: "",
+    layers: 2,
     terminuses: [
         // left
         Terminus(
-            point:    Vec2(-240.0, 48.0),
-            emits:    [PixieFlavor(color: 1, net: 0)],
+            point:    Vec2(-336.0, 240.0),
+            emits:    [PixieFlavor ( color: 0, net: 0)],
+            collects: [],
+        ),
+        Terminus(
+            point:    Vec2(-336.0, 48.0),
+            emits:    [PixieFlavor ( color: 3, net: 0)],
+            collects: [],
+        ),
+        Terminus(
+            point:    Vec2(-336.0, -144.0),
+            emits:    [PixieFlavor ( color: 4, net: 0)],
+            collects: [],
+        ),
+        Terminus(
+            point:    Vec2(-336.0, 144.0),
+            emits:    [PixieFlavor ( color: 1, net: 0)],
+            collects: [],
+        ),
+        Terminus(
+            point:    Vec2(-336.0, -48.0),
+            emits:    [PixieFlavor ( color: 2, net: 0)],
             collects: [],
         ),
         // right
         Terminus(
-            point:    Vec2(240.0, 48.0),
+            point:    Vec2(336.0, 240.0),
             emits:    [],
-            collects: [PixieFlavor(color: 1, net: 0)],
+            collects: [PixieFlavor ( color: 3, net: 1)],
+        ),
+        Terminus(
+            point:    Vec2(336.0, 48.0),
+            emits:    [],
+            collects: [PixieFlavor ( color: 0, net: 1)],
+        ),
+        Terminus(
+            point:    Vec2(336.0, -144.0),
+            emits:    [],
+            collects: [PixieFlavor ( color: 4, net: 1)],
+        ),
+        Terminus(
+            point:    Vec2(336.0, 144.0),
+            emits:    [],
+            collects: [PixieFlavor ( color: 2, net: 0)],
+        ),
+        Terminus(
+            point:    Vec2(336.0, -48.0),
+            emits:    [],
+            collects: [PixieFlavor ( color: 1, net: 0)],
+        ),
+        // mid left
+        Terminus(
+            point:    Vec2(-96.0, 144.0),
+            emits:    [],
+            collects: [PixieFlavor ( color: 4, net: 0)]
+        ),
+        Terminus(
+            point:    Vec2(-96.0, 48.0),
+            emits:    [],
+            collects: [PixieFlavor ( color: 0, net: 0)]
+        ),
+        Terminus(
+            point:    Vec2(-96.0, -48.0),
+            emits:    [],
+            collects: [PixieFlavor ( color: 3, net: 0)]
+        ),
+        // mid right
+        Terminus(
+            point:    Vec2(96.0, 144.0),
+            emits:    [PixieFlavor ( color: 4, net: 1)],
+            collects: []
+        ),
+        Terminus(
+            point:    Vec2(96.0, 48.0),
+            emits:    [PixieFlavor ( color: 0, net: 1)],
+            collects: []
+        ),
+        Terminus(
+            point:    Vec2(96.0, -48.0),
+            emits:    [PixieFlavor ( color: 3, net: 1)],
+            collects: []
         ),
     ],
-    obstacles: [],
-    star_thresholds: [1, 500, 900],
+    obstacles: [
+        Rect(Vec2(-48.0, 168.0), Vec2(48.0, 120.0)),
+        Rect(Vec2(-48.0, 72.0), Vec2(48.0, 24.0)),
+        Rect(Vec2(-48.0, -72.0), Vec2(48.0, -24.0)),
+    ],
+    star_thresholds: [500, 550, 600],
 )
