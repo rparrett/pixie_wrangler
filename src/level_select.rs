@@ -57,91 +57,76 @@ fn level_select_enter(
 
     commands
         .spawn((
-            NodeBundle {
-                style: Style {
-                    width: Val::Percent(100.),
-                    height: Val::Percent(100.),
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::SpaceEvenly,
-                    ..default()
-                },
+            Node {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::SpaceEvenly,
                 ..default()
             },
             LevelSelectScreen,
         ))
         .with_children(|parent| {
             parent
-                .spawn(NodeBundle {
-                    style: Style {
-                        flex_direction: FlexDirection::Column,
-                        ..default()
-                    },
+                .spawn(Node {
+                    flex_direction: FlexDirection::Column,
                     ..default()
                 })
                 .with_children(|parent| {
-                    parent.spawn(TextBundle {
-                        style: Style {
+                    parent.spawn((
+                        Node {
                             align_self: AlignSelf::Center,
                             ..default()
                         },
-                        text: Text::from_section(
-                            "₽IXIE WRANGLER",
-                            TextStyle {
-                                font: handles.fonts[0].clone(),
-                                font_size: 60.0,
-                                color: color::PIXIE[1].into(),
-                            },
-                        ),
-                        ..default()
-                    });
-                    parent.spawn(TextBundle {
-                        style: Style {
+                        Text::new("₽IXIE WRANGLER"),
+                        TextFont {
+                            font: handles.fonts[0].clone(),
+                            font_size: 50.0,
+                            ..default()
+                        },
+                        TextColor(color::PIXIE[1].into()),
+                    ));
+                    parent.spawn((
+                        Node {
                             align_self: AlignSelf::Center,
                             ..default()
                         },
-                        text: Text::from_section(
-                            format!("Æ{total_score}"),
-                            TextStyle {
-                                font: handles.fonts[0].clone(),
-                                font_size: 30.0,
-                                color: color::FINISHED_ROAD[1],
-                            },
-                        ),
-                        ..default()
-                    });
+                        Text::new(format!("Æ{total_score}")),
+                        TextFont {
+                            font: handles.fonts[0].clone(),
+                            font_size: 25.0,
+                            ..default()
+                        },
+                        TextColor(color::FINISHED_ROAD[1]),
+                    ));
                 });
 
             let cols = (NUM_LEVELS as f32 / 3.).ceil() as u16;
 
             parent
-                .spawn(NodeBundle {
-                    style: Style {
-                        display: Display::Grid,
-                        grid_template_rows: RepeatedGridTrack::auto(3),
-                        grid_template_columns: RepeatedGridTrack::auto(cols),
-                        row_gap: Val::Px(10.),
-                        column_gap: Val::Px(10.),
-                        ..default()
-                    },
+                .spawn(Node {
+                    display: Display::Grid,
+                    grid_template_rows: RepeatedGridTrack::auto(3),
+                    grid_template_columns: RepeatedGridTrack::auto(cols),
+                    row_gap: Val::Px(10.),
+                    column_gap: Val::Px(10.),
                     ..default()
                 })
                 .with_children(|parent| {
                     for i in 1..=NUM_LEVELS {
                         parent
                             .spawn((
-                                ButtonBundle {
-                                    style: Style {
-                                        width: Val::Px(150.),
-                                        height: Val::Px(150.),
-                                        flex_direction: FlexDirection::Column,
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-                                        ..default()
-                                    },
-                                    background_color: color::UI_NORMAL_BUTTON.into(),
+                                Button,
+                                Node {
+                                    width: Val::Px(150.),
+                                    height: Val::Px(150.),
+                                    flex_direction: FlexDirection::Column,
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
                                     ..default()
                                 },
+                                BackgroundColor(color::UI_NORMAL_BUTTON),
                                 LevelSelectButton(i),
                             ))
                             .with_children(|parent| {
@@ -174,54 +159,55 @@ fn level_select_enter(
                                         ("".to_string(), "".to_string(), "".to_string())
                                     };
 
-                                parent.spawn(TextBundle {
-                                    text: Text {
-                                        sections: vec![
-                                            TextSection {
-                                                value: star_text_one,
-                                                style: TextStyle {
-                                                    font: handles.fonts[0].clone(),
-                                                    font_size: 30.0,
-                                                    color: color::UI_WHITE,
-                                                },
+                                parent
+                                    .spawn((
+                                        Text::default(),
+                                        // See Bevy#16521
+                                        TextFont {
+                                            font: handles.fonts[0].clone(),
+                                            ..default()
+                                        },
+                                    ))
+                                    .with_children(|parent| {
+                                        parent.spawn((
+                                            TextSpan::new(star_text_one),
+                                            TextFont {
+                                                font: handles.fonts[0].clone(),
+                                                font_size: 25.0,
+                                                ..default()
                                             },
-                                            TextSection {
-                                                value: star_text_two,
-                                                style: TextStyle {
-                                                    font: handles.fonts[0].clone(),
-                                                    font_size: 30.0,
-                                                    color: Srgba::gray(0.25).into(),
-                                                },
+                                            TextColor(color::UI_WHITE),
+                                        ));
+                                        parent.spawn((
+                                            TextSpan::new(star_text_two),
+                                            TextFont {
+                                                font: handles.fonts[0].clone(),
+                                                font_size: 25.0,
+                                                ..default()
                                             },
-                                        ],
+                                            TextColor(Srgba::gray(0.25).into()),
+                                        ));
+                                    });
+
+                                parent.spawn((
+                                    Text::new(format!("{i}")),
+                                    TextFont {
+                                        font: handles.fonts[0].clone(),
+                                        font_size: 50.0,
                                         ..default()
                                     },
-                                    ..default()
-                                });
+                                    TextColor(level_color),
+                                ));
 
-                                parent.spawn(TextBundle {
-                                    text: Text::from_section(
-                                        format!("{i}"),
-                                        TextStyle {
-                                            font: handles.fonts[0].clone(),
-                                            font_size: 60.0,
-                                            color: level_color,
-                                        },
-                                    ),
-                                    ..default()
-                                });
-
-                                parent.spawn(TextBundle {
-                                    text: Text::from_section(
-                                        score_text,
-                                        TextStyle {
-                                            font: handles.fonts[0].clone(),
-                                            font_size: 30.0,
-                                            color: color::FINISHED_ROAD[1],
-                                        },
-                                    ),
-                                    ..default()
-                                });
+                                parent.spawn((
+                                    Text::new(score_text),
+                                    TextFont {
+                                        font: handles.fonts[0].clone(),
+                                        font_size: 25.0,
+                                        ..default()
+                                    },
+                                    TextColor(color::FINISHED_ROAD[1]),
+                                ));
                             });
                     }
                 });
