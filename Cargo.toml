@@ -10,7 +10,6 @@ license = "MIT OR Apache-2.0"
 debugdump = ["bevy_mod_debugdump"]
 
 [dependencies]
-
 bevy = { version = "0.15", default-features = false, features = [
     "bevy_asset",
     "bevy_core_pipeline",
