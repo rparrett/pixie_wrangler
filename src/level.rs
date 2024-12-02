@@ -4,6 +4,7 @@ use serde::Deserialize;
 
 #[derive(Deserialize, Debug, Asset, TypePath)]
 pub struct Level {
+    #[allow(unused)]
     pub name: String,
     pub layers: u32,
     pub terminuses: Vec<Terminus>,
