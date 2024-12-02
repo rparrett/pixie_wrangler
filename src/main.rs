@@ -2282,9 +2282,7 @@ fn playing_enter_system(
                                     Button,
                                     Node {
                                         width: Val::Px(50.),
-                                        // horizontally center child text
                                         justify_content: JustifyContent::Center,
-                                        // vertically center child text
                                         align_items: AlignItems::Center,
                                         // extra padding to separate the back button from
                                         // the tools
@@ -2318,9 +2316,7 @@ fn playing_enter_system(
                                         Button,
                                         Node {
                                             width: Val::Px(50.),
-                                            // horizontally center child text
                                             justify_content: JustifyContent::Center,
-                                            // vertically center child text
                                             align_items: AlignItems::Center,
                                             ..default()
                                         },
