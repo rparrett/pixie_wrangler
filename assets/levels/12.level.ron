@@ -1,5 +1,6 @@
 Level(
     name: "Layers 2",
+    name_position: Vec2(-528.0, 336.0),
     layers: 3,
     terminuses: [
         // tl

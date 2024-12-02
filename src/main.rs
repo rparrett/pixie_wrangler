@@ -21,6 +21,7 @@ use bevy::{
     asset::AssetMetaCheck,
     ecs::schedule::ScheduleLabel,
     prelude::*,
+    sprite::Anchor,
     utils::{Duration, HashMap, HashSet},
     window::CursorMoved,
 };
@@ -1424,7 +1425,11 @@ fn mouse_movement_system(
         if let Ok(pos) = camera.viewport_to_world_2d(camera_transform, event.position) {
             mouse.position = pos;
 
-            mouse.snapped = snap_to_grid(mouse.position, GRID_SIZE);
+            let new = snap_to_grid(mouse.position, GRID_SIZE);
+            if mouse.snapped != new {
+                debug!("Cursor: {new}");
+                mouse.snapped = new;
+            }
 
             mouse.window_position = event.position;
         }
@@ -1895,6 +1900,26 @@ fn spawn_obstacle(commands: &mut Commands, obstacle: &Obstacle) {
     }
 }
 
+fn spawn_name(
+    commands: &mut Commands,
+    number: u32,
+    handles: &Res<Handles>,
+    name: &String,
+    name_position: &Vec2,
+) {
+    commands.spawn((
+        Text2d::new(format!("L{}: {}", number, name)),
+        TextFont {
+            font: handles.fonts[0].clone(),
+            font_size: 25.0,
+            ..default()
+        },
+        TextColor(color::NAME),
+        Anchor::TopLeft,
+        Transform::from_translation((name_position + Vec2::new(8., -8.)).extend(layer::GRID)),
+    ));
+}
+
 fn spawn_terminus(
     commands: &mut Commands,
     graph: &mut ResMut<RoadGraph>,
@@ -2213,6 +2238,14 @@ fn playing_enter_system(
     for o in level.obstacles.iter() {
         spawn_obstacle(&mut commands, o);
     }
+
+    spawn_name(
+        &mut commands,
+        selected_level.0,
+        &handles,
+        &level.name,
+        &level.name_position,
+    );
 
     println!(
         "{:?}",

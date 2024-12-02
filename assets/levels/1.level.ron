@@ -1,5 +1,6 @@
 Level(
     name: "Connection",
+    name_position: Vec2(-624.0, 336.0),
     layers: 1,
     terminuses: [
         // left
