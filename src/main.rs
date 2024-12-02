@@ -26,7 +26,7 @@ use bevy::{
 };
 
 use bevy_common_assets::ron::RonAssetPlugin;
-use bevy_easings::{Ease, EaseFunction, *};
+use bevy_easings::{Ease, EaseFunction, EasingsPlugin, *};
 use bevy_prototype_lyon::prelude::*;
 use itertools::Itertools;
 use petgraph::{
@@ -89,7 +89,7 @@ fn main() {
         .add_plugins(LoadingPlugin)
         .add_plugins(LevelSelectPlugin)
         .add_plugins(SavePlugin)
-        .add_plugins(EasingsPlugin);
+        .add_plugins(EasingsPlugin::default());
 
     app.init_state::<GameState>();
 
