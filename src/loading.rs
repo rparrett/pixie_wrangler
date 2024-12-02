@@ -20,7 +20,7 @@ fn loading_setup(
     asset_server: Res<AssetServer>,
 ) {
     commands.spawn((
-        Camera2d::default(),
+        Camera2d,
         Transform::from_translation(Vec3::new(0., -10., 0.)),
         Msaa::Sample4,
         MainCamera,

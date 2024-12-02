@@ -641,7 +641,7 @@ fn show_score_dialog_system(
                     duration: Duration::from_secs_f32(0.7),
                 },
             ),
-            BackgroundColor(color::DIALOG_BACKGROUND.into()),
+            BackgroundColor(color::DIALOG_BACKGROUND),
             ScoreDialog,
         ))
         .with_children(|parent| {
@@ -720,7 +720,7 @@ fn show_score_dialog_system(
                                 align_items: AlignItems::Center,
                                 ..default()
                             },
-                            BackgroundColor(color::UI_NORMAL_BUTTON.into()),
+                            BackgroundColor(color::UI_NORMAL_BUTTON),
                             BackButton,
                         ))
                         .with_children(|parent| {

@@ -167,7 +167,7 @@ pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixi
             commands.spawn((
                 ShapeBundle {
                     path: GeometryBuilder::build_as(&shape),
-                    transform: transform.clone(),
+                    transform: *transform,
                     ..default()
                 },
                 Fill::color(color::PIXIE[(pixie.flavor.color) as usize]),

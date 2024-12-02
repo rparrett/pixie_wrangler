@@ -126,7 +126,7 @@ fn level_select_enter(
                                     align_items: AlignItems::Center,
                                     ..default()
                                 },
-                                BackgroundColor(color::UI_NORMAL_BUTTON.into()),
+                                BackgroundColor(color::UI_NORMAL_BUTTON),
                                 LevelSelectButton(i),
                             ))
                             .with_children(|parent| {
