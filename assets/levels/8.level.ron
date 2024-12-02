@@ -1,5 +1,5 @@
 Level(
-    name: "",
+    name: "Delay Line 2",
     layers: 2,
     terminuses: [
         // left

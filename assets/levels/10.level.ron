@@ -1,5 +1,5 @@
 Level(
-    name: "",
+    name: "Jumper",
     layers: 2,
     terminuses: [
         // left
