@@ -1,5 +1,5 @@
 Level(
-    name: "Delay Line",
+    name: "delay_line",
     name_position: Vec2(-624.0, 336.0),
     layers: 2,
     terminuses: [

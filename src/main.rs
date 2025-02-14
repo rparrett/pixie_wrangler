@@ -1908,7 +1908,7 @@ fn spawn_name(
     name_position: &Vec2,
 ) {
     commands.spawn((
-        Text2d::new(format!("L{}: {}", number, name)),
+        Text2d::new(format!("/l{}/{}.pcb", number, name)),
         TextFont {
             font: handles.fonts[0].clone(),
             font_size: 25.0,
