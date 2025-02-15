@@ -1,68 +1,71 @@
 use bevy::prelude::*;
 
 pub struct RadioButtonPlugin;
-#[derive(Component)]
-pub struct RadioButtonGroup {
-    pub entities: Vec<Entity>,
-}
-#[derive(Component)]
-pub struct RadioButton {
-    pub selected: bool,
-}
-#[derive(Component)]
-pub struct RadioButtonGroupRelation(pub Entity);
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 pub struct RadioButtonSet;
 
 impl Plugin for RadioButtonPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, radio_button_system.in_set(RadioButtonSet));
+        app.add_systems(Update, radio_button_interaction.in_set(RadioButtonSet));
         app.add_systems(
             Update,
-            radio_button_group_system
-                .after(radio_button_system)
+            update_radio_button_groups
+                .after(radio_button_interaction)
                 .in_set(RadioButtonSet),
         );
     }
 }
 
-fn radio_button_group_system(
-    mut q: ParamSet<(
-        Query<(Entity, &RadioButton, &RadioButtonGroupRelation), Changed<RadioButton>>,
+/// Holds the state of the radio button and also controls the button group.
+///
+/// Setting this to `true` will cause the value to be set to `false` for every
+/// other button in the group.
+#[derive(Component)]
+pub struct RadioButton {
+    pub selected: bool,
+}
+#[derive(Component)]
+pub struct RadioButtonGroupRelation(pub Entity);
+#[derive(Component)]
+pub struct RadioButtonGroup {
+    pub entities: Vec<Entity>,
+}
+
+fn update_radio_button_groups(
+    mut button_set: ParamSet<(
+        Query<(Entity, &RadioButtonGroupRelation), Changed<RadioButton>>,
         Query<&mut RadioButton>,
     )>,
-    q_radio_group: Query<&RadioButtonGroup>,
+    groups: Query<&RadioButtonGroup>,
 ) {
-    let mut unselect = vec![];
-    for (entity, radio, group_rel) in q.p0().iter() {
-        if let Ok(radio_group) = q_radio_group.get(group_rel.0) {
-            if radio.selected {
-                for other_entity in radio_group.entities.iter() {
-                    if *other_entity != entity {
-                        unselect.push(*other_entity);
-                    }
-                }
-            }
-        }
+    let mut unselect: Vec<Entity> = vec![];
+
+    for (entity, group_rel) in &button_set.p0() {
+        let Ok(group) = groups.get(group_rel.0) else {
+            warn!("Radio button without group relation.");
+            continue;
+        };
+
+        unselect.extend(group.entities.iter().filter(|other| **other != entity));
     }
 
-    for entity in unselect.iter() {
-        if let Ok(mut other_radio) = q.p1().get_mut(*entity) {
-            other_radio.selected = false;
-        }
+    let mut buttons = button_set.p1();
+    let mut button_iter = buttons.iter_many_mut(unselect);
+    while let Some(mut other_button) = button_iter.fetch_next() {
+        other_button.selected = false;
     }
 }
 
-fn radio_button_system(
-    mut interaction_query: Query<
+fn radio_button_interaction(
+    mut interactions: Query<
         (&mut RadioButton, &Interaction),
         (Changed<Interaction>, With<Button>, With<RadioButton>),
     >,
 ) {
-    for (mut radio, interaction) in interaction_query.iter_mut() {
+    for (mut button, interaction) in &mut interactions {
         if *interaction == Interaction::Pressed {
-            radio.selected = true;
+            button.selected = true;
         }
     }
 }
