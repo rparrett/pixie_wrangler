@@ -40,7 +40,7 @@ jobs:
       - name: Upload binaries to artifacts
         uses: actions/upload-artifact@v4
         with:
-          path: ./target/bevy_web/web-dist/${{ env.binary }}.zip
+          path: ./target/bevy_web/web-dist/${{ env.binary }}/${{ env.binary }}.zip
           name: wasm
 
       - name: Upload binaries to release
