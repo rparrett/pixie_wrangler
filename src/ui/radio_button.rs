@@ -39,6 +39,9 @@ fn update_radio_button_groups(
     )>,
     groups: Query<&RadioButtonGroup>,
 ) {
+    // TODO this seems problematic if multiple buttons in the same group
+    // get changed in a particular frame.
+
     let mut unselect: Vec<Entity> = vec![];
 
     for (entity, group_rel) in &button_set.p0() {
