@@ -39,7 +39,7 @@ pub fn point_segment_collision(p: Vec2, a: Vec2, b: Vec2) -> SegmentCollision {
 
 // for reference, this is helpful
 // https://github.com/pgkelley4/line-segments-intersect/blob/master/js/line-segments-intersect.js
-// but we're differing pretty wildly in how we choose to deal with colinearities, and
+// but we're differing pretty wildly in how we choose to deal with collinearity, and
 // we threw epsilon out of the window because we're snapping to an integer grid
 pub fn segment_collision(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> SegmentCollision {
     let da = a2 - a1;
@@ -110,7 +110,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn pointseg_connecting() {
+    fn point_seg_connecting() {
         // .--
         assert!(matches!(
             point_segment_collision(
@@ -132,7 +132,7 @@ mod tests {
     }
 
     #[test]
-    fn pointseg_touching() {
+    fn point_seg_touching() {
         // -.-
         assert!(matches!(
             point_segment_collision(
@@ -153,7 +153,7 @@ mod tests {
     }
 
     #[test]
-    fn pointseg_none() {
+    fn point_seg_none() {
         assert!(matches!(
             point_segment_collision(
                 Vec2::new(1.0, 1.0),
@@ -165,7 +165,7 @@ mod tests {
     }
 
     #[test]
-    fn pointseg_collinear() {
+    fn point_seg_collinear() {
         // collinear horizontal
         assert!(matches!(
             point_segment_collision(
@@ -188,7 +188,7 @@ mod tests {
     }
 
     #[test]
-    fn segseg_collinear_none() {
+    fn seg_seg_collinear_none() {
         // collinear non-overlapping x axis
         assert!(matches!(
             segment_collision(
@@ -212,7 +212,7 @@ mod tests {
     }
 
     #[test]
-    fn segseg_intersecting() {
+    fn seg_seg_intersecting() {
         // x
         assert!(matches!(
             segment_collision(
@@ -226,7 +226,7 @@ mod tests {
     }
 
     #[test]
-    fn segseg_touching() {
+    fn seg_seg_touching() {
         // y
         assert!(matches!(
             segment_collision(
@@ -240,7 +240,7 @@ mod tests {
     }
 
     #[test]
-    fn segseg_connecting() {
+    fn seg_seg_connecting() {
         // V
         assert!(matches!(
             segment_collision(
@@ -264,7 +264,7 @@ mod tests {
     }
 
     #[test]
-    fn segseg_parallel() {
+    fn seg_seg_parallel() {
         // =
         assert!(matches!(
             segment_collision(
@@ -278,7 +278,7 @@ mod tests {
     }
 
     #[test]
-    fn segseg_overlapping() {
+    fn seg_seg_overlapping() {
         // -=-
         assert!(matches!(
             segment_collision(
@@ -292,7 +292,7 @@ mod tests {
     }
 
     #[test]
-    fn segseg_none() {
+    fn seg_seg_none() {
         // | -
         assert!(matches!(
             segment_collision(
