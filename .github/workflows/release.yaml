@@ -30,7 +30,7 @@ jobs:
           cargo install --git https://github.com/TheBevyFlock/bevy_cli bevy_cli --features wasm-opt
       - name: bundle
         run: |
-          bevy build --release --profile web-dist web --bundle
+          bevy build --yes --release --profile web-dist web --bundle
 
       - name: Package as a zip
         working-directory: ./target/bevy_web/web-dist/${{ env.binary }}
