@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use level_select::LevelSelectPlugin;
-use radio_button::{RadioButton, RadioButtonPlugin};
+use radio_button::RadioButtonPlugin;
 use score_dialog::ScoreDialogPlugin;
 
 use crate::palette;
@@ -20,7 +20,7 @@ impl Plugin for UiPlugin {
 fn button_system(
     mut q_interaction: Query<
         (&Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<Button>, Without<RadioButton>),
+        (Changed<Interaction>, With<Button>),
     >,
 ) {
     for (interaction, mut color) in q_interaction.iter_mut() {

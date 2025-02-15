@@ -1,4 +1,3 @@
-use crate::palette;
 use bevy::prelude::*;
 
 pub struct RadioButtonPlugin;
@@ -57,19 +56,13 @@ fn radio_button_group_system(
 
 fn radio_button_system(
     mut interaction_query: Query<
-        (&mut RadioButton, &Interaction, &mut BackgroundColor),
+        (&mut RadioButton, &Interaction),
         (Changed<Interaction>, With<Button>, With<RadioButton>),
     >,
 ) {
-    for (mut radio, interaction, mut color) in interaction_query.iter_mut() {
-        match *interaction {
-            Interaction::Pressed => {
-                *color = palette::UI_PRESSED_BUTTON.into();
-
-                radio.selected = true;
-            }
-            Interaction::Hovered => *color = palette::UI_HOVERED_BUTTON.into(),
-            Interaction::None => *color = palette::UI_NORMAL_BUTTON.into(),
+    for (mut radio, interaction) in interaction_query.iter_mut() {
+        if *interaction == Interaction::Pressed {
+            radio.selected = true;
         }
     }
 }
