@@ -485,7 +485,7 @@ dependencies = [
  "disqualified",
  "fixedbitset 0.5.7",
  "nonmax",
- "petgraph 0.6.5",
+ "petgraph",
  "serde",
  "smallvec",
 ]
@@ -726,7 +726,7 @@ dependencies = [
  "bevy_utils",
  "lexopt",
  "once_cell",
- "petgraph 0.6.5",
+ "petgraph",
  "pretty-type-name",
 ]
 
@@ -2817,16 +2817,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "petgraph"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3672b37090dbd86368a4145bc067582552b29c27377cad4e0a306c97f9bd7772"
-dependencies = [
- "fixedbitset 0.5.7",
- "indexmap",
-]
-
-[[package]]
 name = "pin-project"
 version = "1.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2876,7 +2866,7 @@ dependencies = [
  "bevy_simple_prefs",
  "itertools",
  "log",
- "petgraph 0.7.1",
+ "petgraph",
  "rand",
  "rstar",
  "serde",
