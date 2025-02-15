@@ -84,11 +84,14 @@ fn main() {
     #[cfg(feature = "debugdump")]
     let default = default.disable::<bevy::log::LogPlugin>();
 
+    // Bevy Plugins
     app.add_plugins(default);
+    // Third Party
     app.add_plugins((
         EasingsPlugin::default(),
         RonAssetPlugin::<Level>::new(&["level.ron"]),
     ));
+    // Our Plugins
     app.add_plugins((
         ShapePlugin,
         RadioButtonPlugin,
