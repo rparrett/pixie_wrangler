@@ -21,8 +21,7 @@ Pixie wrangler uses the [Bevy](https://bevyengine.org/) engine and is pretty eas
 ### Dependencies
 
 - [Rust](https://www.rust-lang.org/tools/install)
-
-Bevy also has a few [dependencies](https://bevyengine.org/learn/quick-start/getting-started/setup/#installing-os-dependencies) on Windows and Linux that you may need.
+- Bevy's [dependencies](https://bevyengine.org/learn/quick-start/getting-started/setup/#installing-os-dependencies)
 
 ### Native
 
