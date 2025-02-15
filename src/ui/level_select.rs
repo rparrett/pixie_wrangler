@@ -94,7 +94,7 @@ fn level_select_enter(
                             font_size: 25.0,
                             ..default()
                         },
-                        TextColor(palette::FINISHED_ROAD[1]),
+                        TextColor(palette::FINISHED_ROAD[1].into()),
                     ));
                 });
 
@@ -122,7 +122,7 @@ fn level_select_enter(
                                     align_items: AlignItems::Center,
                                     ..default()
                                 },
-                                BackgroundColor(palette::UI_NORMAL_BUTTON),
+                                BackgroundColor(palette::UI_NORMAL_BUTTON.into()),
                                 LevelSelectButton(i),
                             ))
                             .with_children(|parent| {
@@ -132,8 +132,8 @@ fn level_select_enter(
                                     .and_then(|h| levels.get(h));
 
                                 let level_color = match level {
-                                    Some(_) => palette::UI_WHITE,
-                                    None => palette::UI_GREY_RED,
+                                    Some(_) => palette::UI_LABEL,
+                                    None => palette::UI_LABEL_BAD,
                                 };
 
                                 let (score_text, star_text_one, star_text_two) =
@@ -172,7 +172,7 @@ fn level_select_enter(
                                                 font_size: 25.0,
                                                 ..default()
                                             },
-                                            TextColor(palette::UI_WHITE),
+                                            TextColor(palette::UI_LABEL.into()),
                                         ));
                                         parent.spawn((
                                             TextSpan::new(star_text_two),
@@ -192,7 +192,7 @@ fn level_select_enter(
                                         font_size: 50.0,
                                         ..default()
                                     },
-                                    TextColor(level_color),
+                                    TextColor(level_color.into()),
                                 ));
 
                                 parent.spawn((
@@ -202,7 +202,7 @@ fn level_select_enter(
                                         font_size: 25.0,
                                         ..default()
                                     },
-                                    TextColor(palette::FINISHED_ROAD[1]),
+                                    TextColor(palette::FINISHED_ROAD[1].into()),
                                 ));
                             });
                     }

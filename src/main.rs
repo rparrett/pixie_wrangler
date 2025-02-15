@@ -56,7 +56,7 @@ fn main() {
     let mut order = app.world_mut().resource_mut::<MainScheduleOrder>();
     order.insert_after(Update, AfterUpdate);
 
-    app.insert_resource(ClearColor(palette::BACKGROUND));
+    app.insert_resource(ClearColor(palette::BACKGROUND.into()));
 
     let default = DefaultPlugins
         .set(WindowPlugin {
@@ -412,7 +412,7 @@ fn tool_button_display_system(
             color.0 = if button.selected {
                 bevy::color::palettes::css::LIME.into()
             } else {
-                palette::UI_WHITE
+                palette::UI_LABEL.into()
             };
         }
     }
@@ -544,9 +544,9 @@ fn pixie_button_text_system(
             } else {
                 text.0 = "RELEASE THE PIXIES".to_string();
                 color.0 = if pathfinding.valid {
-                    palette::UI_BUTTON_TEXT
+                    palette::UI_BUTTON_TEXT.into()
                 } else {
-                    palette::UI_GREY_RED
+                    palette::UI_LABEL_BAD.into()
                 }
             }
         }
@@ -741,7 +741,7 @@ fn draw_mouse_system(
         let color = if line_drawing.drawing && line_drawing.valid {
             palette::DRAWING_ROAD[line_drawing.layer as usize - 1]
         } else if !line_drawing.drawing && line_drawing.valid {
-            palette::UI_WHITE
+            palette::UI_LABEL.into()
         } else {
             bevy::color::palettes::css::RED.into()
         };
@@ -1688,7 +1688,7 @@ fn spawn_name(
             font_size: 25.0,
             ..default()
         },
-        TextColor(palette::NAME),
+        TextColor(palette::LEVEL_NAME.into()),
         Anchor::TopLeft,
         Transform::from_translation((name_position + Vec2::new(8., -8.)).extend(layer::GRID)),
     ));
@@ -2071,7 +2071,7 @@ fn playing_enter_system(
                         column_gap: Val::Px(10.),
                         ..default()
                     },
-                    BackgroundColor(palette::BOTTOM_BAR_BACKGROUND),
+                    BackgroundColor(palette::UI_PANEL_BACKGROUND.into()),
                 ))
                 .with_children(|parent| {
                     // Container for left-aligned buttons
@@ -2099,7 +2099,7 @@ fn playing_enter_system(
                                         },
                                         ..default()
                                     },
-                                    BackgroundColor(palette::UI_NORMAL_BUTTON),
+                                    BackgroundColor(palette::UI_NORMAL_BUTTON.into()),
                                     BackButton,
                                 ))
                                 .with_children(|parent| {
@@ -2110,7 +2110,7 @@ fn playing_enter_system(
                                             font_size: 25.0,
                                             ..default()
                                         },
-                                        TextColor(palette::UI_BUTTON_TEXT),
+                                        TextColor(palette::UI_BUTTON_TEXT.into()),
                                     ));
                                 });
 
@@ -2127,7 +2127,7 @@ fn playing_enter_system(
                                             align_items: AlignItems::Center,
                                             ..default()
                                         },
-                                        BackgroundColor(palette::UI_NORMAL_BUTTON),
+                                        BackgroundColor(palette::UI_NORMAL_BUTTON.into()),
                                         LayerButton(layer),
                                         ToolButton,
                                         RadioButton {
@@ -2142,7 +2142,7 @@ fn playing_enter_system(
                                                 font_size: 25.0,
                                                 ..default()
                                             },
-                                            TextColor(palette::UI_BUTTON_TEXT),
+                                            TextColor(palette::UI_BUTTON_TEXT.into()),
                                         ));
                                     })
                                     .id();
@@ -2159,7 +2159,7 @@ fn playing_enter_system(
                                         align_items: AlignItems::Center,
                                         ..default()
                                     },
-                                    BackgroundColor(palette::UI_NORMAL_BUTTON),
+                                    BackgroundColor(palette::UI_NORMAL_BUTTON.into()),
                                     NetRippingButton,
                                     ToolButton,
                                     RadioButton { selected: false },
@@ -2172,7 +2172,7 @@ fn playing_enter_system(
                                             font_size: 25.0,
                                             ..default()
                                         },
-                                        TextColor(palette::UI_BUTTON_TEXT),
+                                        TextColor(palette::UI_BUTTON_TEXT.into()),
                                     ));
                                 })
                                 .id();
@@ -2225,7 +2225,7 @@ fn playing_enter_system(
                                             font_size: 25.0,
                                             ..default()
                                         },
-                                        TextColor(palette::UI_WHITE),
+                                        TextColor(palette::UI_LABEL.into()),
                                     ));
                                     parent.spawn((
                                         TextSpan::default(),
@@ -2275,7 +2275,7 @@ fn playing_enter_system(
                                     font_size: 25.0,
                                     ..default()
                                 },
-                                TextColor(palette::FINISHED_ROAD[1]),
+                                TextColor(palette::FINISHED_ROAD[1].into()),
                                 Node {
                                     width: Val::Percent(25.),
                                     ..default()
@@ -2304,7 +2304,7 @@ fn playing_enter_system(
                                         align_items: AlignItems::Center,
                                         ..default()
                                     },
-                                    BackgroundColor(palette::UI_NORMAL_BUTTON),
+                                    BackgroundColor(palette::UI_NORMAL_BUTTON.into()),
                                     ResetButton,
                                 ))
                                 .with_children(|parent| {
@@ -2315,7 +2315,7 @@ fn playing_enter_system(
                                             font_size: 25.0,
                                             ..default()
                                         },
-                                        TextColor(palette::UI_BUTTON_TEXT),
+                                        TextColor(palette::UI_BUTTON_TEXT.into()),
                                     ));
                                 });
                             parent
@@ -2327,7 +2327,7 @@ fn playing_enter_system(
                                         align_items: AlignItems::Center,
                                         ..default()
                                     },
-                                    BackgroundColor(palette::UI_NORMAL_BUTTON),
+                                    BackgroundColor(palette::UI_NORMAL_BUTTON.into()),
                                     SpeedButton,
                                 ))
                                 .with_children(|parent| {
@@ -2338,7 +2338,7 @@ fn playing_enter_system(
                                             font_size: 25.0,
                                             ..default()
                                         },
-                                        TextColor(palette::UI_BUTTON_TEXT),
+                                        TextColor(palette::UI_BUTTON_TEXT.into()),
                                     ));
                                 });
                             parent
@@ -2350,7 +2350,7 @@ fn playing_enter_system(
                                         align_items: AlignItems::Center,
                                         ..default()
                                     },
-                                    BackgroundColor(palette::UI_NORMAL_BUTTON),
+                                    BackgroundColor(palette::UI_NORMAL_BUTTON.into()),
                                     PixieButton,
                                 ))
                                 .with_children(|parent| {
@@ -2361,7 +2361,7 @@ fn playing_enter_system(
                                             font_size: 25.0,
                                             ..default()
                                         },
-                                        TextColor(palette::UI_BUTTON_TEXT),
+                                        TextColor(palette::UI_BUTTON_TEXT.into()),
                                     ));
                                 });
                         });

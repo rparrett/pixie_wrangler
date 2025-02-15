@@ -1,35 +1,35 @@
 use bevy::prelude::*;
 
-pub const FINISHED_ROAD: [Color; 3] = [
-    Color::srgb(0.251, 0.435, 0.729),
-    Color::srgb(0.247, 0.725, 0.314),
-    Color::srgb(0.247, 0.725, 0.714),
+pub const FINISHED_ROAD: [Srgba; 3] = [
+    bevy::color::palettes::tailwind::CYAN_600,
+    bevy::color::palettes::tailwind::GREEN_600,
+    bevy::color::palettes::tailwind::INDIGO_600,
 ];
-pub const DRAWING_ROAD: [Color; 3] = [
-    Color::srgb(0.102, 0.18, 0.298),
-    Color::srgb(0.102, 0.298, 0.125),
-    Color::srgb(0.102, 0.298, 0.298),
+pub const DRAWING_ROAD: [Srgba; 3] = [
+    bevy::color::palettes::tailwind::CYAN_700,
+    bevy::color::palettes::tailwind::GREEN_700,
+    bevy::color::palettes::tailwind::INDIGO_700,
 ];
 pub const PIXIE: [Srgba; 6] = [
-    bevy::color::palettes::css::AQUAMARINE,
-    bevy::color::palettes::css::DEEP_PINK,
-    bevy::color::palettes::css::ORANGE,
-    bevy::color::palettes::css::PURPLE,
-    bevy::color::palettes::css::DARK_GREEN,
-    bevy::color::palettes::css::YELLOW,
+    bevy::color::palettes::tailwind::CYAN_500,
+    bevy::color::palettes::tailwind::FUCHSIA_500,
+    bevy::color::palettes::tailwind::ORANGE_500,
+    bevy::color::palettes::tailwind::VIOLET_500,
+    bevy::color::palettes::tailwind::LIME_500,
+    bevy::color::palettes::tailwind::YELLOW_500,
 ];
 
-pub const BACKGROUND: Color = Color::srgb(0.05, 0.066, 0.09);
-pub const GRID: Color = Color::srgb(0.086, 0.105, 0.133);
-pub const NAME: Color = Color::srgb(0.16, 0.20, 0.25);
-pub const OBSTACLE: Color = Color::srgb(0.086, 0.105, 0.133);
-pub const BOTTOM_BAR_BACKGROUND: Color = Color::srgb(0.09, 0.11, 0.13);
-pub const DIALOG_BACKGROUND: Color = Color::srgb(0.2, 0.2, 0.2);
-pub const OVERLAY: Color = Color::srgba(0.0, 0.0, 0.0, 0.7);
+pub const BACKGROUND: Srgba = bevy::color::palettes::tailwind::GRAY_950;
+pub const GRID: Srgba = bevy::color::palettes::tailwind::GRAY_900;
+pub const LEVEL_NAME: Srgba = bevy::color::palettes::tailwind::GRAY_700;
+pub const OBSTACLE: Srgba = bevy::color::palettes::tailwind::GRAY_900;
 
-pub const UI_WHITE: Color = Color::srgb(0.788, 0.82, 0.851);
-pub const UI_GREY_RED: Color = Color::srgb(1.0, 0.341, 0.341);
-pub const UI_NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
-pub const UI_HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
-pub const UI_PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
-pub const UI_BUTTON_TEXT: Color = Color::srgb(0.9, 0.9, 0.9);
+pub const DARK_OVERLAY: Color = Color::srgba(0.0, 0.0, 0.0, 0.7);
+
+pub const UI_LABEL: Srgba = bevy::color::palettes::tailwind::NEUTRAL_200;
+pub const UI_LABEL_BAD: Srgba = bevy::color::palettes::tailwind::RED_400;
+pub const UI_NORMAL_BUTTON: Srgba = bevy::color::palettes::tailwind::NEUTRAL_800;
+pub const UI_HOVERED_BUTTON: Srgba = bevy::color::palettes::tailwind::NEUTRAL_700;
+pub const UI_PRESSED_BUTTON: Srgba = bevy::color::palettes::tailwind::LIME_700;
+pub const UI_BUTTON_TEXT: Srgba = bevy::color::palettes::tailwind::NEUTRAL_100;
+pub const UI_PANEL_BACKGROUND: Srgba = bevy::color::palettes::tailwind::NEUTRAL_900;
