@@ -7,12 +7,10 @@ pub struct RadioButtonSet;
 
 impl Plugin for RadioButtonPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, radio_button_interaction.in_set(RadioButtonSet));
+        app.add_systems(Update, interaction.in_set(RadioButtonSet));
         app.add_systems(
             Update,
-            update_radio_button_groups
-                .after(radio_button_interaction)
-                .in_set(RadioButtonSet),
+            update_groups.after(interaction).in_set(RadioButtonSet),
         );
     }
 }
@@ -32,7 +30,7 @@ pub struct RadioButtonGroup {
     pub entities: Vec<Entity>,
 }
 
-fn update_radio_button_groups(
+fn update_groups(
     mut button_set: ParamSet<(
         Query<(Entity, &RadioButtonGroupRelation), Changed<RadioButton>>,
         Query<&mut RadioButton>,
@@ -60,7 +58,7 @@ fn update_radio_button_groups(
     }
 }
 
-fn radio_button_interaction(
+fn interaction(
     mut interactions: Query<
         (&mut RadioButton, &Interaction),
         (Changed<Interaction>, With<Button>, With<RadioButton>),
