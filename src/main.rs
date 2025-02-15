@@ -741,9 +741,9 @@ fn draw_mouse_system(
         let color = if line_drawing.drawing && line_drawing.valid {
             theme::DRAWING_ROAD[line_drawing.layer as usize - 1]
         } else if !line_drawing.drawing && line_drawing.valid {
-            theme::UI_LABEL.into()
+            theme::UI_LABEL
         } else {
-            bevy::color::palettes::css::RED.into()
+            bevy::color::palettes::css::RED
         };
         commands.spawn((
             ShapeBundle {
@@ -768,7 +768,7 @@ fn draw_mouse_system(
         let color = if line_drawing.valid {
             theme::DRAWING_ROAD[line_drawing.layer as usize - 1]
         } else {
-            bevy::color::palettes::css::RED.into()
+            bevy::color::palettes::css::RED
         };
 
         for (a, b) in line_drawing.segments.iter() {
