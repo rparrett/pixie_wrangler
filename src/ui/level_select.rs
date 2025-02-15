@@ -13,11 +13,7 @@ impl Plugin for LevelSelectPlugin {
 
         app.add_systems(
             Update,
-            (
-                level_select_update,
-                crate::button_system,
-                level_select_button_system,
-            )
+            (level_select_update, level_select_button_system)
                 .run_if(in_state(GameState::LevelSelect)),
         );
 

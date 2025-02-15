@@ -12,12 +12,7 @@ use crate::{
     pixie::{Pixie, PixieEmitter, PixieFlavor, PixiePlugin},
     save::{BestScores, SavePlugin, Solution, Solutions},
     sim::{SimulationPlugin, SimulationSettings, SimulationState},
-    ui::{
-        level_select::LevelSelectPlugin,
-        radio_button::{
-            RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonPlugin,
-        },
-    },
+    ui::radio_button::{RadioButton, RadioButtonGroup, RadioButtonGroupRelation},
 };
 
 use bevy::{
@@ -42,7 +37,7 @@ use petgraph::{
 };
 
 use sim::SimulationSteps;
-use ui::{radio_button::RadioButtonSet, score_dialog::ScoreDialogPlugin};
+use ui::{radio_button::RadioButtonSet, UiPlugin};
 
 mod collision;
 mod color;
@@ -94,13 +89,11 @@ fn main() {
     // Our Plugins
     app.add_plugins((
         ShapePlugin,
-        RadioButtonPlugin,
         PixiePlugin,
         SimulationPlugin,
         LoadingPlugin,
-        LevelSelectPlugin,
         SavePlugin,
-        ScoreDialogPlugin,
+        UiPlugin,
     ));
 
     app.init_state::<GameState>();
@@ -169,7 +162,6 @@ fn main() {
     app.add_systems(
         Update,
         (
-            button_system,
             pixie_button_system,
             reset_button_system,
             speed_button_system,
@@ -448,21 +440,6 @@ fn tool_button_system(
     {
         if !matches!(drawing_state.mode, DrawingMode::NetRipping) {
             drawing_state.mode = DrawingMode::NetRipping;
-        }
-    }
-}
-
-fn button_system(
-    mut q_interaction: Query<
-        (&Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<Button>, Without<RadioButton>),
-    >,
-) {
-    for (interaction, mut color) in q_interaction.iter_mut() {
-        match *interaction {
-            Interaction::Pressed => *color = color::UI_PRESSED_BUTTON.into(),
-            Interaction::Hovered => *color = color::UI_HOVERED_BUTTON.into(),
-            Interaction::None => *color = color::UI_NORMAL_BUTTON.into(),
         }
     }
 }
