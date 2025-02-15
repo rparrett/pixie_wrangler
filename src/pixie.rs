@@ -2,9 +2,10 @@ use rstar::{RTree, RTreeObject, AABB};
 use std::time::Duration;
 
 use crate::{
-    color, layer,
+    layer,
     lines::corner_angle,
     lines::{distance_on_path, travel, traveled_segments},
+    palette,
     sim::SIMULATION_TIMESTEP,
     GameState, PixieCount, RoadSegment, GRID_SIZE,
 };
@@ -170,7 +171,7 @@ pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixi
                     transform: *transform,
                     ..default()
                 },
-                Fill::color(color::PIXIE[(pixie.flavor.color) as usize]),
+                Fill::color(palette::PIXIE[(pixie.flavor.color) as usize]),
                 PixieFragment {
                     direction: Vec2::new(theta.cos(), theta.sin()),
                     ..default()
@@ -518,7 +519,7 @@ pub fn emit_pixies_system(mut q_emitters: Query<&mut PixieEmitter>, mut commands
                 ),
                 ..default()
             },
-            Fill::color(color::PIXIE[(emitter.flavor.color) as usize]),
+            Fill::color(palette::PIXIE[(emitter.flavor.color) as usize]),
             Pixie {
                 flavor: emitter.flavor,
                 path: emitter.path.clone(),

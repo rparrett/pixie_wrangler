@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy_easings::{Ease, EaseFunction, *};
 
 use crate::{
-    color, level::Level, pixie::PixieEmitter, sim::SimulationState, AfterUpdate, BackButton,
+    level::Level, palette, pixie::PixieEmitter, sim::SimulationState, AfterUpdate, BackButton,
     DrawingInteraction, GameState, Handles, PixieCount, PlayAreaNode, Score, ScoreUi,
     SelectedLevel,
 };
@@ -93,7 +93,7 @@ fn show_score_dialog_system(
                     duration: Duration::from_secs_f32(0.7),
                 },
             ),
-            BackgroundColor(color::DIALOG_BACKGROUND),
+            BackgroundColor(palette::DIALOG_BACKGROUND),
             ScoreDialog,
         ))
         .with_children(|parent| {
@@ -105,7 +105,7 @@ fn show_score_dialog_system(
                         font_size: 83.0,
                         ..default()
                     },
-                    TextColor(color::UI_WHITE),
+                    TextColor(palette::UI_WHITE),
                 ));
 
                 parent.spawn((
@@ -126,7 +126,7 @@ fn show_score_dialog_system(
                     font_size: 83.0,
                     ..default()
                 },
-                TextColor(color::FINISHED_ROAD[1]),
+                TextColor(palette::FINISHED_ROAD[1]),
             ));
 
             // bottom buttons
@@ -149,7 +149,7 @@ fn show_score_dialog_system(
                                 align_items: AlignItems::Center,
                                 ..default()
                             },
-                            BackgroundColor(color::UI_NORMAL_BUTTON),
+                            BackgroundColor(palette::UI_NORMAL_BUTTON),
                             DismissScoreDialogButton,
                         ))
                         .with_children(|parent| {
@@ -160,7 +160,7 @@ fn show_score_dialog_system(
                                     font_size: 25.0,
                                     ..default()
                                 },
-                                TextColor(color::UI_BUTTON_TEXT),
+                                TextColor(palette::UI_BUTTON_TEXT),
                             ));
                         });
                     parent
@@ -172,7 +172,7 @@ fn show_score_dialog_system(
                                 align_items: AlignItems::Center,
                                 ..default()
                             },
-                            BackgroundColor(color::UI_NORMAL_BUTTON),
+                            BackgroundColor(palette::UI_NORMAL_BUTTON),
                             BackButton,
                         ))
                         .with_children(|parent| {
@@ -183,7 +183,7 @@ fn show_score_dialog_system(
                                     font_size: 25.0,
                                     ..default()
                                 },
-                                TextColor(color::UI_BUTTON_TEXT),
+                                TextColor(palette::UI_BUTTON_TEXT),
                             ));
                         });
                 });
@@ -191,7 +191,7 @@ fn show_score_dialog_system(
         .id();
     if let Ok((entity, mut color)) = q_node.get_single_mut() {
         commands.entity(entity).add_children(&[dialog_entity]);
-        *color = color::OVERLAY.into();
+        *color = palette::OVERLAY.into();
     }
 }
 

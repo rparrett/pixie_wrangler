@@ -1,4 +1,4 @@
-use crate::{color, level::Level, loading::NUM_LEVELS, save::BestScores, GameState, Handles};
+use crate::{level::Level, loading::NUM_LEVELS, palette, save::BestScores, GameState, Handles};
 use bevy::prelude::*;
 
 pub struct LevelSelectPlugin;
@@ -81,7 +81,7 @@ fn level_select_enter(
                             font_size: 50.0,
                             ..default()
                         },
-                        TextColor(color::PIXIE[1].into()),
+                        TextColor(palette::PIXIE[1].into()),
                     ));
                     parent.spawn((
                         Node {
@@ -94,7 +94,7 @@ fn level_select_enter(
                             font_size: 25.0,
                             ..default()
                         },
-                        TextColor(color::FINISHED_ROAD[1]),
+                        TextColor(palette::FINISHED_ROAD[1]),
                     ));
                 });
 
@@ -122,7 +122,7 @@ fn level_select_enter(
                                     align_items: AlignItems::Center,
                                     ..default()
                                 },
-                                BackgroundColor(color::UI_NORMAL_BUTTON),
+                                BackgroundColor(palette::UI_NORMAL_BUTTON),
                                 LevelSelectButton(i),
                             ))
                             .with_children(|parent| {
@@ -132,8 +132,8 @@ fn level_select_enter(
                                     .and_then(|h| levels.get(h));
 
                                 let level_color = match level {
-                                    Some(_) => color::UI_WHITE,
-                                    None => color::UI_GREY_RED,
+                                    Some(_) => palette::UI_WHITE,
+                                    None => palette::UI_GREY_RED,
                                 };
 
                                 let (score_text, star_text_one, star_text_two) =
@@ -172,7 +172,7 @@ fn level_select_enter(
                                                 font_size: 25.0,
                                                 ..default()
                                             },
-                                            TextColor(color::UI_WHITE),
+                                            TextColor(palette::UI_WHITE),
                                         ));
                                         parent.spawn((
                                             TextSpan::new(star_text_two),
@@ -202,7 +202,7 @@ fn level_select_enter(
                                         font_size: 25.0,
                                         ..default()
                                     },
-                                    TextColor(color::FINISHED_ROAD[1]),
+                                    TextColor(palette::FINISHED_ROAD[1]),
                                 ));
                             });
                     }
