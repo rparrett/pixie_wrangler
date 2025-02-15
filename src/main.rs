@@ -62,7 +62,6 @@ fn main() {
         .set(WindowPlugin {
             primary_window: Some(Window {
                 title: String::from("Pixie Wrangler"),
-                canvas: Some("#bevy-canvas".to_string()),
                 ..default()
             }),
             ..default()
