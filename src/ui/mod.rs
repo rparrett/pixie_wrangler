@@ -3,7 +3,7 @@ use level_select::LevelSelectPlugin;
 use radio_button::RadioButtonPlugin;
 use score_dialog::ScoreDialogPlugin;
 
-use crate::palette;
+use crate::theme;
 
 pub mod level_select;
 pub mod radio_button;
@@ -25,9 +25,9 @@ fn button_system(
 ) {
     for (interaction, mut color) in q_interaction.iter_mut() {
         match *interaction {
-            Interaction::Pressed => *color = palette::UI_PRESSED_BUTTON.into(),
-            Interaction::Hovered => *color = palette::UI_HOVERED_BUTTON.into(),
-            Interaction::None => *color = palette::UI_NORMAL_BUTTON.into(),
+            Interaction::Pressed => *color = theme::UI_PRESSED_BUTTON.into(),
+            Interaction::Hovered => *color = theme::UI_HOVERED_BUTTON.into(),
+            Interaction::None => *color = theme::UI_NORMAL_BUTTON.into(),
         }
     }
 }

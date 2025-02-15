@@ -44,10 +44,10 @@ mod layer;
 mod level;
 mod lines;
 mod loading;
-mod palette;
 mod pixie;
 mod save;
 mod sim;
+mod theme;
 mod ui;
 
 fn main() {
@@ -56,7 +56,7 @@ fn main() {
     let mut order = app.world_mut().resource_mut::<MainScheduleOrder>();
     order.insert_after(Update, AfterUpdate);
 
-    app.insert_resource(ClearColor(palette::BACKGROUND.into()));
+    app.insert_resource(ClearColor(theme::BACKGROUND.into()));
 
     let default = DefaultPlugins
         .set(WindowPlugin {
@@ -412,7 +412,7 @@ fn tool_button_display_system(
             color.0 = if button.selected {
                 bevy::color::palettes::css::LIME.into()
             } else {
-                palette::UI_LABEL.into()
+                theme::UI_LABEL.into()
             };
         }
     }
@@ -544,9 +544,9 @@ fn pixie_button_text_system(
             } else {
                 text.0 = "RELEASE THE PIXIES".to_string();
                 color.0 = if pathfinding.valid {
-                    palette::UI_BUTTON_TEXT.into()
+                    theme::UI_BUTTON_TEXT.into()
                 } else {
-                    palette::UI_LABEL_BAD.into()
+                    theme::UI_LABEL_BAD.into()
                 }
             }
         }
@@ -739,9 +739,9 @@ fn draw_mouse_system(
             ..default()
         };
         let color = if line_drawing.drawing && line_drawing.valid {
-            palette::DRAWING_ROAD[line_drawing.layer as usize - 1]
+            theme::DRAWING_ROAD[line_drawing.layer as usize - 1]
         } else if !line_drawing.drawing && line_drawing.valid {
-            palette::UI_LABEL.into()
+            theme::UI_LABEL.into()
         } else {
             bevy::color::palettes::css::RED.into()
         };
@@ -766,7 +766,7 @@ fn draw_mouse_system(
 
     if line_drawing.drawing {
         let color = if line_drawing.valid {
-            palette::DRAWING_ROAD[line_drawing.layer as usize - 1]
+            theme::DRAWING_ROAD[line_drawing.layer as usize - 1]
         } else {
             bevy::color::palettes::css::RED.into()
         };
@@ -1588,7 +1588,7 @@ fn spawn_road_segment(
     graph: &mut RoadGraph,
     segment: RoadSegment,
 ) -> (Entity, NodeIndex, NodeIndex) {
-    let color = palette::FINISHED_ROAD[segment.layer as usize - 1];
+    let color = theme::FINISHED_ROAD[segment.layer as usize - 1];
     let ent = commands
         .spawn((
             ShapeBundle {
@@ -1638,7 +1638,7 @@ fn spawn_obstacle(commands: &mut Commands, obstacle: &Obstacle) {
                         transform: Transform::from_translation(origin.extend(layer::OBSTACLE)),
                         ..default()
                     },
-                    Fill::color(palette::OBSTACLE),
+                    Fill::color(theme::OBSTACLE),
                 ))
                 .with_children(|parent| {
                     parent.spawn((
@@ -1688,7 +1688,7 @@ fn spawn_name(
             font_size: 25.0,
             ..default()
         },
-        TextColor(palette::LEVEL_NAME.into()),
+        TextColor(theme::LEVEL_NAME.into()),
         Anchor::TopLeft,
         Transform::from_translation((name_position + Vec2::new(8., -8.)).extend(layer::GRID)),
     ));
@@ -1713,8 +1713,8 @@ fn spawn_terminus(
                 transform: Transform::from_translation(terminus.point.extend(layer::TERMINUS)),
                 ..default()
             },
-            Fill::color(palette::BACKGROUND),
-            Stroke::new(palette::FINISHED_ROAD[0], 2.0),
+            Fill::color(theme::BACKGROUND),
+            Stroke::new(theme::FINISHED_ROAD[0], 2.0),
             terminus.clone(),
         ))
         .with_children(|parent| {
@@ -1739,7 +1739,7 @@ fn spawn_terminus(
                         font_size: 25.0,
                         ..default()
                     },
-                    TextColor(palette::PIXIE[flavor.color as usize].into()),
+                    TextColor(theme::PIXIE[flavor.color as usize].into()),
                     TextLayout::new_with_justify(JustifyText::Center),
                     Transform::from_translation(label_pos.extend(layer::TERMINUS)),
                 ));
@@ -1764,7 +1764,7 @@ fn spawn_terminus(
                         font_size: 25.0,
                         ..default()
                     },
-                    TextColor(palette::PIXIE[flavor.color as usize].into()),
+                    TextColor(theme::PIXIE[flavor.color as usize].into()),
                     TextLayout::new_with_justify(JustifyText::Center),
                     Transform::from_translation(label_pos.extend(layer::TERMINUS)),
                 ));
@@ -1862,7 +1862,7 @@ fn update_cost_system(
         } else {
             *writer.text(entity, 2) = "".to_string();
         }
-        *writer.color(entity, 2) = palette::FINISHED_ROAD[line_draw.layer as usize - 1].into();
+        *writer.color(entity, 2) = theme::FINISHED_ROAD[line_draw.layer as usize - 1].into();
     }
 }
 
@@ -1990,7 +1990,7 @@ fn playing_enter_system(
                     transform: Transform::from_xyz(x as f32, y as f32, layer::GRID),
                     ..default()
                 },
-                Fill::color(palette::GRID),
+                Fill::color(theme::GRID),
                 GridPoint,
             ));
         }
@@ -2071,7 +2071,7 @@ fn playing_enter_system(
                         column_gap: Val::Px(10.),
                         ..default()
                     },
-                    BackgroundColor(palette::UI_PANEL_BACKGROUND.into()),
+                    BackgroundColor(theme::UI_PANEL_BACKGROUND.into()),
                 ))
                 .with_children(|parent| {
                     // Container for left-aligned buttons
@@ -2099,7 +2099,7 @@ fn playing_enter_system(
                                         },
                                         ..default()
                                     },
-                                    BackgroundColor(palette::UI_NORMAL_BUTTON.into()),
+                                    BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
                                     BackButton,
                                 ))
                                 .with_children(|parent| {
@@ -2110,7 +2110,7 @@ fn playing_enter_system(
                                             font_size: 25.0,
                                             ..default()
                                         },
-                                        TextColor(palette::UI_BUTTON_TEXT.into()),
+                                        TextColor(theme::UI_BUTTON_TEXT.into()),
                                     ));
                                 });
 
@@ -2127,7 +2127,7 @@ fn playing_enter_system(
                                             align_items: AlignItems::Center,
                                             ..default()
                                         },
-                                        BackgroundColor(palette::UI_NORMAL_BUTTON.into()),
+                                        BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
                                         LayerButton(layer),
                                         ToolButton,
                                         RadioButton {
@@ -2142,7 +2142,7 @@ fn playing_enter_system(
                                                 font_size: 25.0,
                                                 ..default()
                                             },
-                                            TextColor(palette::UI_BUTTON_TEXT.into()),
+                                            TextColor(theme::UI_BUTTON_TEXT.into()),
                                         ));
                                     })
                                     .id();
@@ -2159,7 +2159,7 @@ fn playing_enter_system(
                                         align_items: AlignItems::Center,
                                         ..default()
                                     },
-                                    BackgroundColor(palette::UI_NORMAL_BUTTON.into()),
+                                    BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
                                     NetRippingButton,
                                     ToolButton,
                                     RadioButton { selected: false },
@@ -2172,7 +2172,7 @@ fn playing_enter_system(
                                             font_size: 25.0,
                                             ..default()
                                         },
-                                        TextColor(palette::UI_BUTTON_TEXT.into()),
+                                        TextColor(theme::UI_BUTTON_TEXT.into()),
                                     ));
                                 })
                                 .id();
@@ -2225,7 +2225,7 @@ fn playing_enter_system(
                                             font_size: 25.0,
                                             ..default()
                                         },
-                                        TextColor(palette::UI_LABEL.into()),
+                                        TextColor(theme::UI_LABEL.into()),
                                     ));
                                     parent.spawn((
                                         TextSpan::default(),
@@ -2234,7 +2234,7 @@ fn playing_enter_system(
                                             font_size: 25.0,
                                             ..default()
                                         },
-                                        TextColor(palette::PIXIE[0].into()),
+                                        TextColor(theme::PIXIE[0].into()),
                                     ));
                                 });
 
@@ -2245,7 +2245,7 @@ fn playing_enter_system(
                                     font_size: 25.0,
                                     ..default()
                                 },
-                                TextColor(palette::PIXIE[1].into()),
+                                TextColor(theme::PIXIE[1].into()),
                                 Node {
                                     width: Val::Percent(25.),
                                     ..default()
@@ -2260,7 +2260,7 @@ fn playing_enter_system(
                                     font_size: 25.0,
                                     ..default()
                                 },
-                                TextColor(palette::PIXIE[2].into()),
+                                TextColor(theme::PIXIE[2].into()),
                                 Node {
                                     width: Val::Percent(25.),
                                     ..default()
@@ -2275,7 +2275,7 @@ fn playing_enter_system(
                                     font_size: 25.0,
                                     ..default()
                                 },
-                                TextColor(palette::FINISHED_ROAD[1].into()),
+                                TextColor(theme::FINISHED_ROAD[1].into()),
                                 Node {
                                     width: Val::Percent(25.),
                                     ..default()
@@ -2304,7 +2304,7 @@ fn playing_enter_system(
                                         align_items: AlignItems::Center,
                                         ..default()
                                     },
-                                    BackgroundColor(palette::UI_NORMAL_BUTTON.into()),
+                                    BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
                                     ResetButton,
                                 ))
                                 .with_children(|parent| {
@@ -2315,7 +2315,7 @@ fn playing_enter_system(
                                             font_size: 25.0,
                                             ..default()
                                         },
-                                        TextColor(palette::UI_BUTTON_TEXT.into()),
+                                        TextColor(theme::UI_BUTTON_TEXT.into()),
                                     ));
                                 });
                             parent
@@ -2327,7 +2327,7 @@ fn playing_enter_system(
                                         align_items: AlignItems::Center,
                                         ..default()
                                     },
-                                    BackgroundColor(palette::UI_NORMAL_BUTTON.into()),
+                                    BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
                                     SpeedButton,
                                 ))
                                 .with_children(|parent| {
@@ -2338,7 +2338,7 @@ fn playing_enter_system(
                                             font_size: 25.0,
                                             ..default()
                                         },
-                                        TextColor(palette::UI_BUTTON_TEXT.into()),
+                                        TextColor(theme::UI_BUTTON_TEXT.into()),
                                     ));
                                 });
                             parent
@@ -2350,7 +2350,7 @@ fn playing_enter_system(
                                         align_items: AlignItems::Center,
                                         ..default()
                                     },
-                                    BackgroundColor(palette::UI_NORMAL_BUTTON.into()),
+                                    BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
                                     PixieButton,
                                 ))
                                 .with_children(|parent| {
@@ -2361,7 +2361,7 @@ fn playing_enter_system(
                                             font_size: 25.0,
                                             ..default()
                                         },
-                                        TextColor(palette::UI_BUTTON_TEXT.into()),
+                                        TextColor(theme::UI_BUTTON_TEXT.into()),
                                     ));
                                 });
                         });
