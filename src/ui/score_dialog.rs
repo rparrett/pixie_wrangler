@@ -115,7 +115,7 @@ fn show_score_dialog_system(
                         font_size: 83.0,
                         ..default()
                     },
-                    TextColor(Srgba::gray(0.25).into()),
+                    TextColor(theme::UI_LABEL_MUTED.into()),
                 ));
             });
 

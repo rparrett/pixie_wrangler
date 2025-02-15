@@ -181,7 +181,7 @@ fn level_select_enter(
                                                 font_size: 25.0,
                                                 ..default()
                                             },
-                                            TextColor(Srgba::gray(0.25).into()),
+                                            TextColor(theme::UI_LABEL_MUTED.into()),
                                         ));
                                     });
 

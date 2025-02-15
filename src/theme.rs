@@ -27,6 +27,7 @@ pub const OBSTACLE: Srgba = bevy::color::palettes::tailwind::GRAY_900;
 pub const DARK_OVERLAY: Color = Color::srgba(0.0, 0.0, 0.0, 0.7);
 
 pub const UI_LABEL: Srgba = bevy::color::palettes::tailwind::NEUTRAL_200;
+pub const UI_LABEL_MUTED: Srgba = bevy::color::palettes::tailwind::NEUTRAL_600;
 pub const UI_LABEL_BAD: Srgba = bevy::color::palettes::tailwind::RED_400;
 pub const UI_NORMAL_BUTTON: Srgba = bevy::color::palettes::tailwind::NEUTRAL_800;
 pub const UI_HOVERED_BUTTON: Srgba = bevy::color::palettes::tailwind::NEUTRAL_700;
