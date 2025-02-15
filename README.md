@@ -27,14 +27,18 @@ Bevy also has a few [dependencies](https://bevyengine.org/learn/quick-start/gett
 ### Native
 
 ```bash
+cargo run
 cargo run --release
+cargo run --profile dist
 ```
 
 ### Web
 
 ```bash
-cargo install cargo-make
-cargo make --profile release serve
+cargo install --git https://github.com/TheBevyFlock/bevy_cli bevy_cli --features wasm-opt
+bevy run web
+bevy run --release web
+bevy run --release --profile web-dist web --bundle
 ```
 
 ## Contributing
