@@ -38,7 +38,7 @@ jobs:
           zip --recurse-paths ${{ env.binary }}.zip .
 
       - name: Upload binaries to artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           path: ./target/bevy_web/web-dist/${{ env.binary }}.zip
           name: wasm
@@ -85,7 +85,7 @@ jobs:
           zip -r ${{ env.binary }}.zip ${{ env.binary }}
 
       - name: Upload binaries to artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           path: ${{ env.binary }}.zip
           name: linux
@@ -129,7 +129,7 @@ jobs:
           Compress-Archive -Path ${{ env.binary }} -DestinationPath ${{ env.binary }}.zip
 
       - name: Upload binaries to artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           path: ${{ env.binary }}.zip
           name: windows
@@ -190,7 +190,7 @@ jobs:
           zip -r ${{ env.binary }}.zip ${{ env.binary }}.app
 
       - name: Upload binaries to artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           path: ${{ env.binary }}.zip
           name: mac
@@ -230,7 +230,7 @@ jobs:
 
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: ./builds
 
