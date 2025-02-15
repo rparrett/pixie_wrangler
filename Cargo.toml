@@ -43,6 +43,9 @@ log = { version = "0.4", features = [
     "release_max_level_warn",
 ] }
 
+[dev-dependencies]
+approx = "0.5.1"
+
 # Dependencies for WASM only.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3", features = ["console", "Window", "Storage"] }
@@ -72,6 +75,3 @@ opt-level = 1
 # Enable high optimizations for dependencies (incl. Bevy), but not for our code:
 [profile.dev.package."*"]
 opt-level = 3
-
-[dev-dependencies]
-approx = "0.5.1"
