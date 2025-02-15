@@ -12,7 +12,7 @@ pub enum Axis {
 }
 
 /// Given three points forming two line segments, return the angle formed
-/// at the middle. Returns values in the range of 0.0..=180.0
+/// at the middle. Returns values in the range of 0.0..=PI radians.
 ///
 /// ```text
 /// a - b
@@ -162,4 +162,42 @@ pub fn travel(start: Vec2, distance: f32, segments: &[RoadSegment]) -> (Vec2, us
     }
 
     (segments.last().unwrap().points.1, i)
+}
+
+#[cfg(test)]
+mod tests {
+    use approx::abs_diff_eq;
+
+    use super::*;
+
+    #[test]
+    fn corner_angle_straight_line() {
+        let angle = corner_angle(
+            Vec2::new(0.0, 0.0),
+            Vec2::new(1.0, 0.0),
+            Vec2::new(2.0, 0.0),
+        );
+        assert!(abs_diff_eq!(angle, std::f32::consts::PI));
+
+        let angle = corner_angle(
+            Vec2::new(2.0, 0.0),
+            Vec2::new(1.0, 0.0),
+            Vec2::new(0.0, 0.0),
+        );
+        assert!(abs_diff_eq!(angle, std::f32::consts::PI));
+
+        let angle = corner_angle(
+            Vec2::new(0.0, 0.0),
+            Vec2::new(0.0, 1.0),
+            Vec2::new(0.0, 2.0),
+        );
+        assert!(abs_diff_eq!(angle, std::f32::consts::PI));
+
+        let angle = corner_angle(
+            Vec2::new(0.0, 2.0),
+            Vec2::new(0.0, 1.0),
+            Vec2::new(0.0, 0.0),
+        );
+        assert!(abs_diff_eq!(angle, std::f32::consts::PI));
+    }
 }

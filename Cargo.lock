@@ -2854,6 +2854,7 @@ dependencies = [
 name = "pixie_wrangler"
 version = "0.6.0"
 dependencies = [
+ "approx",
  "bevy",
  "bevy_common_assets",
  "bevy_easings",
