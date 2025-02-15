@@ -7,13 +7,17 @@ use std::{fs::File, io::Write};
 use crate::{
     collision::{point_segment_collision, segment_collision, SegmentCollision},
     level::{Level, Obstacle, Terminus},
-    level_select::LevelSelectPlugin,
     lines::{possible_lines, Axis},
     loading::LoadingPlugin,
     pixie::{Pixie, PixieEmitter, PixieFlavor, PixiePlugin},
-    radio_button::{RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonPlugin},
     save::{BestScores, SavePlugin, Solution, Solutions},
     sim::{SimulationPlugin, SimulationSettings, SimulationState},
+    ui::{
+        level_select::LevelSelectPlugin,
+        radio_button::{
+            RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonPlugin,
+        },
+    },
 };
 
 use bevy::{
@@ -27,7 +31,7 @@ use bevy::{
 };
 
 use bevy_common_assets::ron::RonAssetPlugin;
-use bevy_easings::{Ease, EaseFunction, EasingsPlugin, *};
+use bevy_easings::EasingsPlugin;
 use bevy_prototype_lyon::prelude::*;
 use itertools::Itertools;
 use petgraph::{
@@ -37,20 +41,19 @@ use petgraph::{
     visit::{DfsPostOrder, Walker},
 };
 
-use radio_button::RadioButtonSet;
 use sim::SimulationSteps;
+use ui::{radio_button::RadioButtonSet, score_dialog::ScoreDialogPlugin};
 
 mod collision;
 mod color;
 mod layer;
 mod level;
-mod level_select;
 mod lines;
 mod loading;
 mod pixie;
-mod radio_button;
 mod save;
 mod sim;
+mod ui;
 
 fn main() {
     let mut app = App::new();
@@ -81,16 +84,21 @@ fn main() {
     #[cfg(feature = "debugdump")]
     let default = default.disable::<bevy::log::LogPlugin>();
 
-    app.add_plugins(default)
-        .add_plugins(RonAssetPlugin::<Level>::new(&["level.ron"]))
-        .add_plugins(ShapePlugin)
-        .add_plugins(RadioButtonPlugin)
-        .add_plugins(PixiePlugin)
-        .add_plugins(SimulationPlugin)
-        .add_plugins(LoadingPlugin)
-        .add_plugins(LevelSelectPlugin)
-        .add_plugins(SavePlugin)
-        .add_plugins(EasingsPlugin::default());
+    app.add_plugins(default);
+    app.add_plugins((
+        EasingsPlugin::default(),
+        RonAssetPlugin::<Level>::new(&["level.ron"]),
+    ));
+    app.add_plugins((
+        ShapePlugin,
+        RadioButtonPlugin,
+        PixiePlugin,
+        SimulationPlugin,
+        LoadingPlugin,
+        LevelSelectPlugin,
+        SavePlugin,
+        ScoreDialogPlugin,
+    ));
 
     app.init_state::<GameState>();
 
@@ -154,13 +162,6 @@ fn main() {
             .in_set(DrawingInteraction),
     );
 
-    app.add_systems(
-        Update,
-        dismiss_score_dialog_button_system
-            .after(DrawingInteraction)
-            .run_if(in_state(GameState::Playing)),
-    );
-
     // whenever
     app.add_systems(
         Update,
@@ -200,7 +201,6 @@ fn main() {
             update_pixie_count_text_system,
             update_elapsed_text_system,
             update_score_text_system,
-            show_score_dialog_system,
         )
             .in_set(ScoreUi),
     );
@@ -293,12 +293,7 @@ struct SpeedButton;
 #[derive(Component)]
 struct BackButton;
 #[derive(Component)]
-struct DismissScoreDialogButton;
-#[derive(Component)]
 struct PlayAreaNode;
-#[derive(Component)]
-struct ScoreDialog;
-
 #[derive(Resource, Default)]
 struct SelectedLevel(u32);
 #[derive(Resource, Default)]
@@ -578,213 +573,12 @@ fn pixie_button_text_system(
     }
 }
 
-fn show_score_dialog_system(
-    mut commands: Commands,
-    sim_state: Res<SimulationState>,
-    handles: Res<Handles>,
-    selected_level: Res<SelectedLevel>,
-    levels: Res<Assets<Level>>,
-    score: Res<Score>,
-    mut q_node: Query<(Entity, &mut BackgroundColor), With<PlayAreaNode>>,
-    q_dialog: Query<Entity, With<ScoreDialog>>,
-) {
-    if !sim_state.is_changed() && !score.is_changed() {
-        return;
-    }
-
-    if *sim_state != SimulationState::Finished {
-        return;
-    }
-
-    if q_dialog.get_single().is_ok() {
-        return;
-    }
-
-    let Some(level) = handles
-        .levels
-        .get(selected_level.0 as usize - 1)
-        .and_then(|h| levels.get(h))
-    else {
-        return;
-    };
-
-    let Some(score) = score.0 else { return };
-
-    let num_stars = level
-        .star_thresholds
-        .iter()
-        .filter(|t| **t <= score)
-        .count();
-
-    let dialog_node = Node {
-        width: Val::Px(320.0),
-        height: Val::Px(300.0),
-        margin: UiRect {
-            top: Val::Px(-1000.0),
-            ..default()
-        },
-        padding: UiRect::all(Val::Px(20.0)),
-        flex_direction: FlexDirection::Column,
-        justify_content: JustifyContent::SpaceBetween,
-        align_items: AlignItems::Center,
-        ..default()
-    };
-    let mut dialog_node_to = dialog_node.clone();
-    dialog_node_to.margin.top = Val::Px(0.0);
-
-    let dialog_entity = commands
-        .spawn((
-            dialog_node.clone(),
-            dialog_node.ease_to(
-                dialog_node_to,
-                EaseFunction::QuadraticInOut,
-                EasingType::Once {
-                    duration: Duration::from_secs_f32(0.7),
-                },
-            ),
-            BackgroundColor(color::DIALOG_BACKGROUND),
-            ScoreDialog,
-        ))
-        .with_children(|parent| {
-            parent.spawn(Text::default()).with_children(|parent| {
-                parent.spawn((
-                    Text::new("★".repeat(num_stars)),
-                    TextFont {
-                        font: handles.fonts[0].clone(),
-                        font_size: 83.0,
-                        ..default()
-                    },
-                    TextColor(color::UI_WHITE),
-                ));
-
-                parent.spawn((
-                    Text::new("★".repeat(3 - num_stars)),
-                    TextFont {
-                        font: handles.fonts[0].clone(),
-                        font_size: 83.0,
-                        ..default()
-                    },
-                    TextColor(Srgba::gray(0.25).into()),
-                ));
-            });
-
-            parent.spawn((
-                Text::new(format!("Æ{score}")),
-                TextFont {
-                    font: handles.fonts[0].clone(),
-                    font_size: 83.0,
-                    ..default()
-                },
-                TextColor(color::FINISHED_ROAD[1]),
-            ));
-
-            // bottom buttons
-            parent
-                .spawn(Node {
-                    width: Val::Percent(100.),
-                    height: Val::Px(70.),
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Stretch,
-                    column_gap: Val::Px(10.),
-                    ..default()
-                })
-                .with_children(|parent| {
-                    parent
-                        .spawn((
-                            Button,
-                            Node {
-                                flex_grow: 1.,
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BackgroundColor(color::UI_NORMAL_BUTTON),
-                            DismissScoreDialogButton,
-                        ))
-                        .with_children(|parent| {
-                            parent.spawn((
-                                Text::new("DISMISS"),
-                                TextFont {
-                                    font: handles.fonts[0].clone(),
-                                    font_size: 25.0,
-                                    ..default()
-                                },
-                                TextColor(color::UI_BUTTON_TEXT),
-                            ));
-                        });
-                    parent
-                        .spawn((
-                            Button,
-                            Node {
-                                flex_grow: 1.,
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            BackgroundColor(color::UI_NORMAL_BUTTON),
-                            BackButton,
-                        ))
-                        .with_children(|parent| {
-                            parent.spawn((
-                                Text::new("ONWARD →"),
-                                TextFont {
-                                    font: handles.fonts[0].clone(),
-                                    font_size: 25.0,
-                                    ..default()
-                                },
-                                TextColor(color::UI_BUTTON_TEXT),
-                            ));
-                        });
-                });
-        })
-        .id();
-    if let Ok((entity, mut color)) = q_node.get_single_mut() {
-        commands.entity(entity).add_children(&[dialog_entity]);
-        *color = color::OVERLAY.into();
-    }
-}
-
 fn back_button_system(
     q_interaction: Query<&Interaction, (Changed<Interaction>, With<Button>, With<BackButton>)>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     for _ in q_interaction.iter().filter(|i| **i == Interaction::Pressed) {
         next_state.set(GameState::LevelSelect);
-    }
-}
-
-fn dismiss_score_dialog_button_system(
-    mut commands: Commands,
-    mut sim_state: ResMut<SimulationState>,
-    mut pixie_count: ResMut<PixieCount>,
-    q_interaction: Query<
-        &Interaction,
-        (
-            Changed<Interaction>,
-            With<Button>,
-            With<DismissScoreDialogButton>,
-        ),
-    >,
-    q_dialog: Query<Entity, With<ScoreDialog>>,
-    q_emitters: Query<Entity, With<PixieEmitter>>,
-    mut q_node: Query<&mut BackgroundColor, With<PlayAreaNode>>,
-    mut score: ResMut<Score>,
-) {
-    for _ in q_interaction.iter().filter(|i| **i == Interaction::Pressed) {
-        if let Ok(entity) = q_dialog.get_single() {
-            commands.entity(entity).despawn_recursive();
-            *sim_state = SimulationState::default();
-            *pixie_count = PixieCount::default();
-            *score = Score::default();
-        }
-
-        for entity in q_emitters.iter() {
-            commands.entity(entity).despawn();
-        }
-
-        if let Ok(mut color) = q_node.get_single_mut() {
-            *color = Color::NONE.into();
-        }
     }
 }
 
