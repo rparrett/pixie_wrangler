@@ -2,11 +2,17 @@ use bevy::prelude::*;
 
 #[derive(Debug)]
 pub enum SegmentCollision {
+    /// Two segments share some portion of their length (collinear and overlapping)
     Overlapping,
+    /// Two segments meet at exactly one endpoint (forming a corner/junction)
     Connecting,
+    /// Two collinear segments meet at exactly one endpoint (extending in the same line)
     ConnectingParallel,
+    /// One segment's endpoint lies somewhere along the other segment (T-junction)
     Touching,
+    /// Two segments cross each other at an interior point (X-intersection)
     Intersecting,
+    /// No collision between the segments
     None,
 }
 
