@@ -335,8 +335,8 @@ impl Default for LineDrawingState {
     fn default() -> Self {
         Self {
             drawing: false,
-            start: Vec2::new(0.0, 0.0),
-            end: Vec2::new(0.0, 0.0),
+            start: Vec2::ZERO,
+            end: Vec2::ZERO,
             valid: false,
             stop: false,
             segments: vec![],

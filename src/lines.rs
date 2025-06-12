@@ -172,32 +172,16 @@ mod tests {
 
     #[test]
     fn corner_angle_straight_line() {
-        let angle = corner_angle(
-            Vec2::new(0.0, 0.0),
-            Vec2::new(1.0, 0.0),
-            Vec2::new(2.0, 0.0),
-        );
+        let angle = corner_angle(Vec2::ZERO, Vec2::new(1.0, 0.0), Vec2::new(2.0, 0.0));
         assert!(abs_diff_eq!(angle, std::f32::consts::PI));
 
-        let angle = corner_angle(
-            Vec2::new(2.0, 0.0),
-            Vec2::new(1.0, 0.0),
-            Vec2::new(0.0, 0.0),
-        );
+        let angle = corner_angle(Vec2::new(2.0, 0.0), Vec2::new(1.0, 0.0), Vec2::ZERO);
         assert!(abs_diff_eq!(angle, std::f32::consts::PI));
 
-        let angle = corner_angle(
-            Vec2::new(0.0, 0.0),
-            Vec2::new(0.0, 1.0),
-            Vec2::new(0.0, 2.0),
-        );
+        let angle = corner_angle(Vec2::ZERO, Vec2::new(0.0, 1.0), Vec2::new(0.0, 2.0));
         assert!(abs_diff_eq!(angle, std::f32::consts::PI));
 
-        let angle = corner_angle(
-            Vec2::new(0.0, 2.0),
-            Vec2::new(0.0, 1.0),
-            Vec2::new(0.0, 0.0),
-        );
+        let angle = corner_angle(Vec2::new(0.0, 2.0), Vec2::new(0.0, 1.0), Vec2::ZERO);
         assert!(abs_diff_eq!(angle, std::f32::consts::PI));
     }
 }

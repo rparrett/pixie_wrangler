@@ -127,8 +127,8 @@ mod tests {
         // start
         assert!(matches!(
             point_segment_collision(
-                Vec2::new(0.0, 0.0),
-                Vec2::new(0.0, 0.0),
+                Vec2::ZERO,
+                Vec2::ZERO,
                 Vec2::new(1.0, 2.0),
             ),
             PointCollision::End
@@ -138,7 +138,7 @@ mod tests {
         assert!(matches!(
             point_segment_collision(
                 Vec2::new(1.0, 2.0),
-                Vec2::new(0.0, 0.0),
+                Vec2::ZERO,
                 Vec2::new(1.0, 2.0),
             ),
             PointCollision::End
@@ -150,7 +150,7 @@ mod tests {
         // -.-  (point in middle of horizontal segment)
         assert!(matches!(
             point_segment_collision(
-                Vec2::new(0.0, 0.0),
+                Vec2::ZERO,
                 Vec2::new(-1.0, 0.0),
                 Vec2::new(1.0, 0.0),
             ),
@@ -160,7 +160,7 @@ mod tests {
         // Point in middle of vertical segment
         assert!(matches!(
             point_segment_collision(
-                Vec2::new(0.0, 0.0),
+                Vec2::ZERO,
                 Vec2::new(0.0, -1.0),
                 Vec2::new(0.0, 1.0),
             ),
@@ -171,7 +171,7 @@ mod tests {
         assert!(matches!(
             point_segment_collision(
                 Vec2::new(1.0, 1.0),
-                Vec2::new(0.0, 0.0),
+                Vec2::ZERO,
                 Vec2::new(2.0, 2.0),
             ),
             PointCollision::Middle
@@ -183,7 +183,7 @@ mod tests {
         assert!(matches!(
             point_segment_collision(
                 Vec2::new(1.0, 1.0),
-                Vec2::new(0.0, 0.0),
+                Vec2::ZERO,
                 Vec2::new(1.0, 0.0)
             ),
             PointCollision::None
@@ -195,7 +195,7 @@ mod tests {
         // collinear horizontal
         assert!(matches!(
             point_segment_collision(
-                Vec2::new(0.0, 0.0),
+                Vec2::ZERO,
                 Vec2::new(1.0, 0.0),
                 Vec2::new(2.0, 0.0)
             ),
@@ -205,7 +205,7 @@ mod tests {
         // collinear vertical
         assert!(matches!(
             point_segment_collision(
-                Vec2::new(0.0, 0.0),
+                Vec2::ZERO,
                 Vec2::new(0.0, 1.0),
                 Vec2::new(0.0, 2.0)
             ),
@@ -218,7 +218,7 @@ mod tests {
         // collinear non-overlapping x axis
         assert!(matches!(
             segment_collision(
-                Vec2::new(0.0, 0.0),
+                Vec2::ZERO,
                 Vec2::new(1.0, 0.0),
                 Vec2::new(2.0, 0.0),
                 Vec2::new(3.0, 0.0),
@@ -228,7 +228,7 @@ mod tests {
         // collinear non-overlapping y axis
         assert!(matches!(
             segment_collision(
-                Vec2::new(0.0, 0.0),
+                Vec2::ZERO,
                 Vec2::new(0.0, 1.0),
                 Vec2::new(0.0, 2.0),
                 Vec2::new(0.0, 3.0),
@@ -258,9 +258,9 @@ mod tests {
             Vec2::new(-1.0, 1.0),
             Vec2::new(1.0, -1.0),
             Vec2::new(1.0, 1.0),
-            Vec2::new(0.0, 0.0),
+            Vec2::ZERO,
         ) {
-            assert_eq!(point, Vec2::new(0.0, 0.0));
+            assert_eq!(point, Vec2::ZERO);
         } else {
             panic!("Expected Touching collision");
         }
@@ -270,9 +270,9 @@ mod tests {
             Vec2::new(-2.0, 0.0),
             Vec2::new(2.0, 0.0),
             Vec2::new(0.0, -1.0),
-            Vec2::new(0.0, 0.0),
+            Vec2::ZERO,
         ) {
-            assert_eq!(point, Vec2::new(0.0, 0.0));
+            assert_eq!(point, Vec2::ZERO);
         } else {
             panic!("Expected Touching collision");
         }
@@ -282,9 +282,9 @@ mod tests {
             Vec2::new(0.0, -2.0),
             Vec2::new(0.0, 2.0),
             Vec2::new(-1.0, 0.0),
-            Vec2::new(0.0, 0.0),
+            Vec2::ZERO,
         ) {
-            assert_eq!(point, Vec2::new(0.0, 0.0));
+            assert_eq!(point, Vec2::ZERO);
         } else {
             panic!("Expected Touching collision");
         }
@@ -295,11 +295,11 @@ mod tests {
         // V shape - two segments meeting at (0,0)
         if let SegmentCollision::Connecting(point) = segment_collision(
             Vec2::new(-2.0, 2.0),
-            Vec2::new(0.0, 0.0),
-            Vec2::new(0.0, 0.0),
+            Vec2::ZERO,
+            Vec2::ZERO,
             Vec2::new(2.0, 2.0),
         ) {
-            assert_eq!(point, Vec2::new(0.0, 0.0));
+            assert_eq!(point, Vec2::ZERO);
         } else {
             panic!("Expected Connecting collision");
         }
@@ -318,7 +318,7 @@ mod tests {
 
         // L shape
         if let SegmentCollision::Connecting(point) = segment_collision(
-            Vec2::new(0.0, 0.0),
+            Vec2::ZERO,
             Vec2::new(2.0, 0.0),
             Vec2::new(2.0, 0.0),
             Vec2::new(2.0, 2.0),
@@ -333,7 +333,7 @@ mod tests {
     fn seg_seg_connecting_parallel() {
         // Two collinear segments meeting end-to-end
         if let SegmentCollision::ConnectingParallel(point) = segment_collision(
-            Vec2::new(0.0, 0.0),
+            Vec2::ZERO,
             Vec2::new(1.0, 0.0),
             Vec2::new(1.0, 0.0),
             Vec2::new(2.0, 0.0),
@@ -345,7 +345,7 @@ mod tests {
 
         // Vertical collinear segments
         if let SegmentCollision::ConnectingParallel(point) = segment_collision(
-            Vec2::new(0.0, 0.0),
+            Vec2::ZERO,
             Vec2::new(0.0, 1.0),
             Vec2::new(0.0, 1.0),
             Vec2::new(0.0, 2.0),
@@ -357,12 +357,12 @@ mod tests {
 
         // Diagonal collinear segments
         if let SegmentCollision::ConnectingParallel(point) = segment_collision(
-            Vec2::new(0.0, 0.0),
+            Vec2::ZERO,
             Vec2::new(1.0, 1.0),
             Vec2::new(-1.0, -1.0),
-            Vec2::new(0.0, 0.0),
+            Vec2::ZERO,
         ) {
-            assert_eq!(point, Vec2::new(0.0, 0.0));
+            assert_eq!(point, Vec2::ZERO);
         } else {
             panic!("Expected ConnectingParallel collision");
         }
@@ -403,7 +403,7 @@ mod tests {
             segment_collision(
                 Vec2::new(-10.0, -10.0),
                 Vec2::new(-10.0, 10.0),
-                Vec2::new(0.0, 0.0),
+                Vec2::ZERO,
                 Vec2::new(10.0, 0.0),
             ),
             SegmentCollision::None
