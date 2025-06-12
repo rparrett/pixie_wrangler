@@ -76,7 +76,6 @@ enum SegmentConnection {
     Split(Entity),
 }
 
-#[allow(clippy::too_many_arguments)]
 fn drawing_mouse_click_system(
     mut commands: Commands,
     mouse_input: ResMut<ButtonInput<MouseButton>>,
