@@ -158,11 +158,8 @@ pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixi
         // pixie fragments in opposite directions, and then we wouldn't have to iter
         // every pixie again
 
-        // after doing some profiling though, compared to the effort of actually rendering
-        // "lots of things," that's probably a micro-optimization.
-
         for _ in 0..2 {
-            let theta = rng.gen_range(0.0..std::f32::consts::TAU);
+            let (sin, cos) = rng.gen_range(0.0..std::f32::consts::TAU).sin_cos();
 
             commands.spawn((
                 ShapeBundle {
@@ -172,7 +169,7 @@ pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixi
                 },
                 Fill::color(theme::PIXIE[(pixie.flavor.color) as usize]),
                 PixieFragment {
-                    direction: Vec2::new(theta.cos(), theta.sin()),
+                    direction: Vec2::new(cos, sin),
                     ..default()
                 },
             ));
