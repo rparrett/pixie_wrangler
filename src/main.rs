@@ -214,7 +214,7 @@ fn main() {
         let settings = bevy_mod_debugdump::schedule_graph::Settings {
             ambiguity_enable: false,
             ambiguity_enable_on_world: false,
-            ..Default::default()
+            ..default()
         };
 
         let dot = bevy_mod_debugdump::schedule_graph_dot(&mut app, Update, &settings);

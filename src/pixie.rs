@@ -148,7 +148,7 @@ pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixi
     let shape = shapes::RegularPolygon {
         sides: 3,
         feature: shapes::RegularPolygonFeature::Radius(PIXIE_RADIUS / 2.0),
-        ..shapes::RegularPolygon::default()
+        ..default()
     };
 
     for (entity, pixie, transform) in query.iter().filter(|(_, p, _)| p.exploding) {
