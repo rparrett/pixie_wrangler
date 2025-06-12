@@ -9,6 +9,7 @@ use crate::{
     level::{Level, Obstacle, Terminus},
     lines::{possible_lines, Axis},
     loading::LoadingPlugin,
+    net_ripping::NetRippingPlugin,
     pixie::{Pixie, PixieEmitter, PixieFlavor, PixiePlugin},
     save::{BestScores, SavePlugin, Solution, Solutions},
     sim::{SimulationPlugin, SimulationSettings, SimulationState},
@@ -29,11 +30,11 @@ use bevy_common_assets::ron::RonAssetPlugin;
 use bevy_easings::EasingsPlugin;
 use bevy_prototype_lyon::prelude::*;
 use itertools::Itertools;
+use net_ripping::NetRippingState;
 use petgraph::{
     algo::astar,
     dot::{Config, Dot},
     stable_graph::{NodeIndex, StableUnGraph},
-    visit::{DfsPostOrder, Walker},
 };
 
 use sim::SimulationSteps;
@@ -44,6 +45,7 @@ mod layer;
 mod level;
 mod lines;
 mod loading;
+mod net_ripping;
 mod pixie;
 mod save;
 mod sim;
@@ -87,6 +89,7 @@ fn main() {
     ));
     // Our Plugins
     app.add_plugins((
+        NetRippingPlugin,
         ShapePlugin,
         PixiePlugin,
         SimulationPlugin,
@@ -121,7 +124,6 @@ fn main() {
     app.add_systems(
         Update,
         (
-            net_ripping_mouse_movement_system,
             not_drawing_mouse_movement_system,
             drawing_mouse_movement_system,
         )
@@ -148,13 +150,7 @@ fn main() {
     );
     app.add_systems(
         Update,
-        (
-            drawing_mouse_click_system,
-            net_ripping_mouse_click_system,
-            draw_mouse_system,
-            draw_net_ripping_system,
-        )
-            .in_set(DrawingInteraction),
+        (drawing_mouse_click_system, draw_mouse_system).in_set(DrawingInteraction),
     );
 
     // whenever
@@ -202,9 +198,9 @@ fn main() {
     app.init_resource::<SelectedLevel>();
     app.init_resource::<DrawingState>();
     app.init_resource::<LineDrawingState>();
-    app.init_resource::<NetRippingState>();
     app.init_resource::<PathfindingState>();
-    app.init_resource::<MouseState>();
+    app.init_resource::<MousePos>();
+    app.init_resource::<MouseSnappedPos>();
     app.init_resource::<RoadGraph>();
     app.init_resource::<PixieCount>();
     app.init_resource::<Cost>();
@@ -259,8 +255,6 @@ struct MainCamera;
 struct Cursor;
 #[derive(Component)]
 struct DrawingLine;
-#[derive(Component)]
-struct RippingLine;
 #[derive(Component)]
 struct GridPoint;
 #[derive(Component)]
@@ -347,12 +341,6 @@ impl Default for LineDrawingState {
         }
     }
 }
-#[derive(Resource, Default)]
-struct NetRippingState {
-    entities: Vec<Entity>,
-    nodes: Vec<NodeIndex>,
-    segments: Vec<(Vec2, Vec2)>,
-}
 
 #[derive(Resource, Default)]
 struct PathfindingState {
@@ -370,11 +358,13 @@ struct RoadGraph {
 }
 
 #[derive(Resource, Default, Debug)]
-struct MouseState {
-    position: Vec2,
-    snapped: Vec2,
-    window_position: Vec2,
+struct MousePos {
+    world: Vec2,
+    window: Vec2,
 }
+#[derive(Resource, Default, Debug)]
+struct MouseSnappedPos(Vec2);
+
 #[derive(Component)]
 enum Collider {
     Point(Vec2),
@@ -723,13 +713,11 @@ fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {
 fn draw_mouse_system(
     mut commands: Commands,
     line_drawing: Res<LineDrawingState>,
-    mouse: Res<MouseState>,
+    mouse_snapped: Res<MouseSnappedPos>,
     q_cursor: Query<Entity, With<Cursor>>,
     q_drawing: Query<Entity, With<DrawingLine>>,
 ) {
-    if mouse.is_changed() || line_drawing.is_changed() {
-        let snapped = snap_to_grid(mouse.position, GRID_SIZE);
-
+    if mouse_snapped.is_changed() || line_drawing.is_changed() {
         for entity in q_cursor.iter() {
             commands.entity(entity).despawn();
         }
@@ -747,7 +735,7 @@ fn draw_mouse_system(
         commands.spawn((
             ShapeBundle {
                 path: GeometryBuilder::build_as(&shape),
-                transform: Transform::from_translation(snapped.extend(layer::CURSOR)),
+                transform: Transform::from_translation(mouse_snapped.0.extend(layer::CURSOR)),
                 ..default()
             },
             Stroke::new(color, 2.0),
@@ -781,32 +769,6 @@ fn draw_mouse_system(
                 DrawingLine,
             ));
         }
-    }
-}
-
-fn draw_net_ripping_system(
-    mut commands: Commands,
-    ripping_state: Res<NetRippingState>,
-    q_ripping: Query<Entity, With<RippingLine>>,
-) {
-    if !ripping_state.is_changed() {
-        return;
-    }
-
-    for ent in q_ripping.iter() {
-        commands.entity(ent).despawn();
-    }
-
-    for (a, b) in ripping_state.segments.iter() {
-        commands.spawn((
-            ShapeBundle {
-                path: GeometryBuilder::build_as(&shapes::Line(*a, *b)),
-                transform: Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
-                ..default()
-            },
-            Stroke::new(bevy::color::palettes::css::RED, 2.0),
-            RippingLine,
-        ));
     }
 }
 
@@ -899,41 +861,12 @@ fn keyboard_system(
     }
 }
 
-fn net_ripping_mouse_click_system(
-    mut commands: Commands,
-    mouse_input: ResMut<ButtonInput<MouseButton>>,
-    mut ripping_state: ResMut<NetRippingState>,
-    sim_state: Res<SimulationState>,
-    drawing_state: Res<DrawingState>,
-    mut graph: ResMut<RoadGraph>,
-) {
-    if !matches!(drawing_state.mode, DrawingMode::NetRipping) {
-        return;
-    }
-
-    if *sim_state != SimulationState::NotStarted {
-        return;
-    }
-
-    if mouse_input.just_pressed(MouseButton::Left) {
-        for entity in ripping_state.entities.iter() {
-            commands.entity(*entity).despawn_recursive();
-        }
-        for node in ripping_state.nodes.iter() {
-            graph.graph.remove_node(*node);
-        }
-
-        ripping_state.entities = vec![];
-        ripping_state.nodes = vec![];
-        ripping_state.segments = vec![];
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 fn drawing_mouse_click_system(
     mut commands: Commands,
     mouse_input: ResMut<ButtonInput<MouseButton>>,
-    mouse: Res<MouseState>,
+    mouse: Res<MousePos>,
+    mouse_snapped: Res<MouseSnappedPos>,
     drawing_state: ResMut<DrawingState>,
     mut line_state: ResMut<LineDrawingState>,
     sim_state: Res<SimulationState>,
@@ -947,7 +880,7 @@ fn drawing_mouse_click_system(
         return;
     };
 
-    if mouse.window_position.y > window.resolution.height() - BOTTOM_BAR_HEIGHT {
+    if mouse.window.y > window.resolution.height() - BOTTOM_BAR_HEIGHT {
         return;
     }
 
@@ -966,7 +899,7 @@ fn drawing_mouse_click_system(
     if !line_state.drawing {
         if line_state.valid {
             line_state.drawing = true;
-            line_state.start = mouse.snapped;
+            line_state.start = mouse_snapped.0;
             line_state.end = line_state.start;
         }
         return;
@@ -1189,95 +1122,23 @@ fn drawing_mouse_click_system(
 
 fn mouse_movement_system(
     mut cursor_moved_events: EventReader<CursorMoved>,
-    mut mouse: ResMut<MouseState>,
+    mut mouse: ResMut<MousePos>,
+    mut mouse_snapped: ResMut<MouseSnappedPos>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
 ) {
     let (camera, camera_transform) = q_camera.single();
 
     for event in cursor_moved_events.read() {
         if let Ok(pos) = camera.viewport_to_world_2d(camera_transform, event.position) {
-            mouse.position = pos;
+            mouse.world = pos;
 
-            let new = snap_to_grid(mouse.position, GRID_SIZE);
-            if mouse.snapped != new {
-                debug!("Cursor: {new}");
-                mouse.snapped = new;
+            let new_snapped = snap_to_grid(mouse.world, GRID_SIZE);
+            if mouse_snapped.bypass_change_detection().0 != new_snapped {
+                debug!("Cursor: {new_snapped}");
+                mouse_snapped.0 = new_snapped;
             }
 
-            mouse.window_position = event.position;
-        }
-    }
-}
-
-fn net_ripping_mouse_movement_system(
-    drawing_state: Res<DrawingState>,
-    mouse: Res<MouseState>,
-    mut ripping_state: ResMut<NetRippingState>,
-    sim_state: Res<SimulationState>,
-    graph: Res<RoadGraph>,
-    q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
-    q_road_segments: Query<&RoadSegment>,
-    q_segment_nodes: Query<&SegmentGraphNodes>,
-) {
-    if !matches!(drawing_state.mode, DrawingMode::NetRipping) {
-        return;
-    }
-
-    if *sim_state != SimulationState::NotStarted {
-        return;
-    }
-
-    if !mouse.is_changed() && !drawing_state.is_changed() {
-        return;
-    }
-
-    // TODO we don't need to do this work if mouse.snapped is not changed.
-    // maybe we need a separate resource / change detection for MouseSnappingState
-    // or something.
-
-    ripping_state.entities = vec![];
-    ripping_state.nodes = vec![];
-    ripping_state.segments = vec![];
-
-    let mut collisions: Vec<_> = q_colliders
-        .iter()
-        .filter_map(|(parent, collider, layer)| match collider {
-            Collider::Segment(segment) => {
-                match point_segment_collision(mouse.snapped, segment.0, segment.1) {
-                    PointCollision::None => None,
-                    _ => {
-                        if layer.0 == 0 {
-                            None
-                        } else {
-                            Some((parent.get(), layer.0))
-                        }
-                    }
-                }
-            }
-            _ => None,
-        })
-        .collect();
-
-    if collisions.is_empty() {
-        return;
-    }
-
-    // if there are multiple collisions, choose one on the top-most layer
-
-    collisions.sort_by(|a, b| a.1.cmp(&b.1));
-
-    if let Some((entity, _layer)) = collisions.first() {
-        if let Ok(node) = q_segment_nodes.get(*entity) {
-            let dfs = DfsPostOrder::new(&graph.graph, node.0);
-            for index in dfs.iter(&graph.graph) {
-                if let Some(net_entity) = graph.graph.node_weight(index) {
-                    if let Ok(seg) = q_road_segments.get(*net_entity) {
-                        ripping_state.entities.push(*net_entity);
-                        ripping_state.nodes.push(index);
-                        ripping_state.segments.push(seg.points);
-                    }
-                }
-            }
+            mouse.window = event.position;
         }
     }
 }
@@ -1285,14 +1146,14 @@ fn net_ripping_mouse_movement_system(
 fn not_drawing_mouse_movement_system(
     mut line_state: ResMut<LineDrawingState>,
     drawing_state: Res<DrawingState>,
-    mouse: Res<MouseState>,
+    mouse_snapped: Res<MouseSnappedPos>,
     q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
 ) {
     if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
         return;
     }
 
-    if !mouse.is_changed() {
+    if !mouse_snapped.is_changed() {
         return;
     }
 
@@ -1304,7 +1165,7 @@ fn not_drawing_mouse_movement_system(
         .iter()
         .any(|(_parent, collider, layer)| match collider {
             Collider::Segment(segment) => {
-                match point_segment_collision(mouse.snapped, segment.0, segment.1) {
+                match point_segment_collision(mouse_snapped.0, segment.0, segment.1) {
                     PointCollision::None => false,
                     _ => layer.0 == 0,
                 }
@@ -1322,7 +1183,7 @@ fn not_drawing_mouse_movement_system(
 fn drawing_mouse_movement_system(
     mut line_state: ResMut<LineDrawingState>,
     sim_state: Res<SimulationState>,
-    mouse: Res<MouseState>,
+    mouse_snapped: Res<MouseSnappedPos>,
     q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
 ) {
     if !line_state.drawing {
@@ -1333,29 +1194,37 @@ fn drawing_mouse_movement_system(
         return;
     }
 
-    if mouse.snapped == line_state.end && line_state.layer == line_state.prev_layer {
+    if !mouse_snapped.is_changed() {
         return;
     }
 
-    line_state.end = mouse.snapped;
+    if mouse_snapped.0 == line_state.end && line_state.layer == line_state.prev_layer {
+        return;
+    }
+
+    line_state.end = mouse_snapped.0;
     line_state.prev_layer = line_state.layer;
 
     // line drawing can be coerced to follow one axis or another by moving the mouse to a
     // position that is a straight line from the starting point in that axis.
 
-    if line_state.start.x == mouse.snapped.x {
+    if line_state.start.x == mouse_snapped.0.x {
         line_state.axis_preference = Some(Axis::Y);
-    } else if line_state.start.y == mouse.snapped.y {
+    } else if line_state.start.y == mouse_snapped.0.y {
         line_state.axis_preference = Some(Axis::X);
     }
 
-    if mouse.snapped == line_state.start {
+    if mouse_snapped.0 == line_state.start {
         line_state.segments = vec![];
         line_state.adds = vec![];
         line_state.valid = true;
     }
 
-    let possible = possible_lines(line_state.start, mouse.snapped, line_state.axis_preference);
+    let possible = possible_lines(
+        line_state.start,
+        mouse_snapped.0,
+        line_state.axis_preference,
+    );
 
     // groan
     let mut filtered_adds = vec![];
