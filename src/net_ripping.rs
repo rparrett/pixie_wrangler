@@ -10,8 +10,8 @@ use crate::{
     collision::{point_segment_collision, PointCollision},
     layer,
     sim::SimulationState,
-    Collider, ColliderLayer, DrawingInteraction, DrawingMode, DrawingMouseMovement, DrawingState,
-    MouseSnappedPos, RoadGraph, RoadSegment, SegmentGraphNodes,
+    Collider, ColliderLayer, DrawingInteraction, DrawingMouseMovement, MouseSnappedPos, RoadGraph,
+    RoadSegment, SegmentGraphNodes, SelectedTool, Tool,
 };
 
 pub struct NetRippingPlugin;
@@ -40,7 +40,7 @@ pub struct NetRippingState {
 struct RippingLine;
 
 fn net_ripping_mouse_movement_system(
-    drawing_state: Res<DrawingState>,
+    selected_tool: Res<SelectedTool>,
     mouse_snapped: Res<MouseSnappedPos>,
     mut ripping_state: ResMut<NetRippingState>,
     sim_state: Res<SimulationState>,
@@ -49,7 +49,7 @@ fn net_ripping_mouse_movement_system(
     q_road_segments: Query<&RoadSegment>,
     q_segment_nodes: Query<&SegmentGraphNodes>,
 ) {
-    if !matches!(drawing_state.mode, DrawingMode::NetRipping) {
+    if !matches!(selected_tool.0, Tool::NetRipping) {
         return;
     }
 
@@ -57,7 +57,7 @@ fn net_ripping_mouse_movement_system(
         return;
     }
 
-    if !mouse_snapped.is_changed() && !drawing_state.is_changed() {
+    if !mouse_snapped.is_changed() && !selected_tool.is_changed() {
         return;
     }
 
@@ -113,10 +113,10 @@ fn net_ripping_mouse_click_system(
     mouse_input: ResMut<ButtonInput<MouseButton>>,
     mut ripping_state: ResMut<NetRippingState>,
     sim_state: Res<SimulationState>,
-    drawing_state: Res<DrawingState>,
+    selected_tool: Res<SelectedTool>,
     mut graph: ResMut<RoadGraph>,
 ) {
-    if !matches!(drawing_state.mode, DrawingMode::NetRipping) {
+    if !matches!(selected_tool.0, Tool::NetRipping) {
         return;
     }
 

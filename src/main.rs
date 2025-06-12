@@ -5,15 +5,17 @@
 use std::{fs::File, io::Write};
 
 use crate::{
-    collision::{point_segment_collision, segment_collision, PointCollision, SegmentCollision},
     level::{Level, Obstacle, Terminus},
-    lines::{possible_lines, Axis},
     loading::LoadingPlugin,
     net_ripping::NetRippingPlugin,
     pixie::{Pixie, PixieEmitter, PixieFlavor, PixiePlugin},
+    road_drawing::{RoadDrawingPlugin, RoadDrawingState},
     save::{BestScores, SavePlugin, Solution, Solutions},
-    sim::{SimulationPlugin, SimulationSettings, SimulationState},
-    ui::radio_button::{RadioButton, RadioButtonGroup, RadioButtonGroupRelation},
+    sim::{SimulationPlugin, SimulationSettings, SimulationState, SimulationSteps},
+    ui::{
+        radio_button::{RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonSet},
+        UiPlugin,
+    },
 };
 
 use bevy::{
@@ -22,7 +24,7 @@ use bevy::{
     ecs::schedule::ScheduleLabel,
     prelude::*,
     sprite::Anchor,
-    utils::{Duration, HashMap, HashSet},
+    utils::{Duration, HashMap},
     window::CursorMoved,
 };
 
@@ -37,9 +39,6 @@ use petgraph::{
     stable_graph::{NodeIndex, StableUnGraph},
 };
 
-use sim::SimulationSteps;
-use ui::{radio_button::RadioButtonSet, UiPlugin};
-
 mod collision;
 mod layer;
 mod level;
@@ -47,6 +46,7 @@ mod lines;
 mod loading;
 mod net_ripping;
 mod pixie;
+mod road_drawing;
 mod save;
 mod sim;
 mod theme;
@@ -89,6 +89,7 @@ fn main() {
     ));
     // Our Plugins
     app.add_plugins((
+        RoadDrawingPlugin,
         NetRippingPlugin,
         ShapePlugin,
         PixiePlugin,
@@ -124,15 +125,6 @@ fn main() {
     app.add_systems(
         Update,
         (
-            not_drawing_mouse_movement_system,
-            drawing_mouse_movement_system,
-        )
-            .in_set(DrawingMouseMovement),
-    );
-
-    app.add_systems(
-        Update,
-        (
             tool_button_system,
             tool_button_display_system,
             drawing_mode_change_system,
@@ -148,10 +140,7 @@ fn main() {
             .after(DrawingMouseMovement)
             .run_if(in_state(GameState::Playing)),
     );
-    app.add_systems(
-        Update,
-        (drawing_mouse_click_system, draw_mouse_system).in_set(DrawingInteraction),
-    );
+    app.add_systems(Update, draw_mouse_system.in_set(DrawingInteraction));
 
     // whenever
     app.add_systems(
@@ -196,8 +185,7 @@ fn main() {
     );
 
     app.init_resource::<SelectedLevel>();
-    app.init_resource::<DrawingState>();
-    app.init_resource::<LineDrawingState>();
+    app.init_resource::<SelectedTool>();
     app.init_resource::<PathfindingState>();
     app.init_resource::<MousePos>();
     app.init_resource::<MouseSnappedPos>();
@@ -302,45 +290,14 @@ struct PointGraphNode(NodeIndex);
 struct SegmentGraphNodes(NodeIndex, NodeIndex);
 
 #[derive(Default)]
-enum DrawingMode {
+enum Tool {
     #[default]
     LineDrawing,
     NetRipping,
 }
 
 #[derive(Resource, Default)]
-struct DrawingState {
-    mode: DrawingMode,
-}
-#[derive(Resource)]
-struct LineDrawingState {
-    drawing: bool,
-    start: Vec2,
-    end: Vec2,
-    valid: bool,
-    stop: bool,
-    segments: Vec<(Vec2, Vec2)>,
-    adds: Vec<AddSegment>,
-    axis_preference: Option<Axis>,
-    layer: u32,
-    prev_layer: u32,
-}
-impl Default for LineDrawingState {
-    fn default() -> Self {
-        Self {
-            drawing: false,
-            start: Vec2::ZERO,
-            end: Vec2::ZERO,
-            valid: false,
-            stop: false,
-            segments: vec![],
-            adds: vec![],
-            axis_preference: None,
-            layer: 1,
-            prev_layer: 1,
-        }
-    }
-}
+struct SelectedTool(Tool);
 
 #[derive(Resource, Default)]
 struct PathfindingState {
@@ -373,19 +330,6 @@ enum Collider {
 #[derive(Component)]
 struct ColliderLayer(u32);
 
-#[derive(Clone, Debug)]
-struct AddSegment {
-    points: (Vec2, Vec2),
-    connections: (Vec<SegmentConnection>, Vec<SegmentConnection>),
-}
-#[derive(Clone, Debug)]
-enum SegmentConnection {
-    Previous,
-    Add(Entity),
-    TryExtend(Entity),
-    Split(Entity),
-}
-
 const GRID_SIZE: f32 = 48.0;
 const BOTTOM_BAR_HEIGHT: f32 = 70.0;
 const LAYER_TWO_MULTIPLIER: f32 = 2.0;
@@ -408,8 +352,8 @@ fn tool_button_display_system(
 }
 
 fn tool_button_system(
-    mut drawing_state: ResMut<DrawingState>,
-    mut line_state: ResMut<LineDrawingState>,
+    mut selected_tool: ResMut<SelectedTool>,
+    mut road_state: ResMut<RoadDrawingState>,
     q_interaction_layer: Query<(&Interaction, &LayerButton), Changed<Interaction>>,
     q_interaction_rip: Query<&Interaction, (Changed<Interaction>, With<NetRippingButton>)>,
 ) {
@@ -417,9 +361,9 @@ fn tool_button_system(
         .iter()
         .filter(|(i, _)| **i == Interaction::Pressed)
     {
-        line_state.layer = layer_button.0;
-        if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
-            drawing_state.mode = DrawingMode::LineDrawing;
+        road_state.layer = layer_button.0;
+        if !matches!(selected_tool.0, Tool::LineDrawing) {
+            selected_tool.0 = Tool::LineDrawing;
         }
     }
 
@@ -427,8 +371,8 @@ fn tool_button_system(
         .iter()
         .filter(|i| **i == Interaction::Pressed)
     {
-        if !matches!(drawing_state.mode, DrawingMode::NetRipping) {
-            drawing_state.mode = DrawingMode::NetRipping;
+        if !matches!(selected_tool.0, Tool::NetRipping) {
+            selected_tool.0 = Tool::NetRipping;
         }
     }
 }
@@ -555,7 +499,7 @@ fn pixie_button_system(
     mut commands: Commands,
     mut pixie_count: ResMut<PixieCount>,
     mut sim_state: ResMut<SimulationState>,
-    mut line_state: ResMut<LineDrawingState>,
+    mut road_state: ResMut<RoadDrawingState>,
     pathfinding: Res<PathfindingState>,
     q_interaction: Query<&Interaction, (Changed<Interaction>, With<Button>, With<PixieButton>)>,
     q_emitters: Query<Entity, With<PixieEmitter>>,
@@ -568,8 +512,8 @@ fn pixie_button_system(
     }
 
     for _ in q_interaction.iter().filter(|i| **i == Interaction::Pressed) {
-        line_state.drawing = false;
-        line_state.segments = vec![];
+        road_state.drawing = false;
+        road_state.segments = vec![];
 
         if *sim_state == SimulationState::Running {
             // If the sim is ongoing, the button is a cancel button.
@@ -642,7 +586,7 @@ fn reset_button_system(
     mut graph: ResMut<RoadGraph>,
     mut pixie_count: ResMut<PixieCount>,
     mut sim_state: ResMut<SimulationState>,
-    mut line_state: ResMut<LineDrawingState>,
+    mut road_state: ResMut<RoadDrawingState>,
     q_road_chunks: Query<Entity, With<RoadSegment>>,
     q_pixies: Query<Entity, With<Pixie>>,
     q_emitters: Query<Entity, With<PixieEmitter>>,
@@ -676,8 +620,8 @@ fn reset_button_system(
             commands.entity(entity).insert(PointGraphNode(node));
         }
 
-        line_state.drawing = false;
-        line_state.segments = vec![];
+        road_state.drawing = false;
+        road_state.segments = vec![];
 
         *sim_state = SimulationState::default();
 
@@ -712,7 +656,7 @@ fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {
 
 fn draw_mouse_system(
     mut commands: Commands,
-    line_drawing: Res<LineDrawingState>,
+    line_drawing: Res<RoadDrawingState>,
     mouse_snapped: Res<MouseSnappedPos>,
     q_cursor: Query<Entity, With<Cursor>>,
     q_drawing: Query<Entity, With<DrawingLine>>,
@@ -773,31 +717,31 @@ fn draw_mouse_system(
 }
 
 fn drawing_mode_change_system(
-    drawing_state: Res<DrawingState>,
-    mut line_state: ResMut<LineDrawingState>,
+    selected_tool: Res<SelectedTool>,
+    mut road_state: ResMut<RoadDrawingState>,
     mut ripping_state: ResMut<NetRippingState>,
 ) {
-    if !drawing_state.is_changed() {
+    if !selected_tool.is_changed() {
         return;
     }
 
-    match drawing_state.mode {
-        DrawingMode::LineDrawing => {
+    match selected_tool.0 {
+        Tool::LineDrawing => {
             ripping_state.entities = vec![];
             ripping_state.nodes = vec![];
             ripping_state.segments = vec![];
         }
-        DrawingMode::NetRipping => {
-            line_state.drawing = false;
-            line_state.segments = vec![];
+        Tool::NetRipping => {
+            road_state.drawing = false;
+            road_state.segments = vec![];
         }
     }
 }
 
 fn keyboard_system(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut line_state: ResMut<LineDrawingState>,
-    mut drawing_state: ResMut<DrawingState>,
+    mut road_state: ResMut<RoadDrawingState>,
+    mut selected_tool: ResMut<SelectedTool>,
     levels: Res<Assets<Level>>,
     selected_level: Res<SelectedLevel>,
     handles: Res<Handles>,
@@ -826,11 +770,11 @@ fn keyboard_system(
             .unwrap();
 
         if layer <= level.layers {
-            if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
-                drawing_state.mode = DrawingMode::LineDrawing;
+            if !matches!(selected_tool.0, Tool::LineDrawing) {
+                selected_tool.0 = Tool::LineDrawing;
             }
 
-            line_state.layer = layer;
+            road_state.layer = layer;
 
             for (ent, _) in q_layer_button
                 .iter()
@@ -842,15 +786,15 @@ fn keyboard_system(
             }
         }
     } else if keyboard_input.pressed(KeyCode::Escape) {
-        if matches!(drawing_state.mode, DrawingMode::NetRipping) {
-            drawing_state.mode = DrawingMode::LineDrawing;
+        if matches!(selected_tool.0, Tool::NetRipping) {
+            selected_tool.0 = Tool::LineDrawing;
         } else {
-            line_state.drawing = false;
-            line_state.segments = vec![];
+            road_state.drawing = false;
+            road_state.segments = vec![];
         }
     } else if keyboard_input.pressed(KeyCode::KeyR) {
-        if !matches!(drawing_state.mode, DrawingMode::NetRipping) {
-            drawing_state.mode = DrawingMode::NetRipping;
+        if !matches!(selected_tool.0, Tool::NetRipping) {
+            selected_tool.0 = Tool::NetRipping;
         }
 
         if let Ok(ent) = q_net_ripping_button.get_single() {
@@ -859,265 +803,6 @@ fn keyboard_system(
             }
         }
     }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn drawing_mouse_click_system(
-    mut commands: Commands,
-    mouse_input: ResMut<ButtonInput<MouseButton>>,
-    mouse: Res<MousePos>,
-    mouse_snapped: Res<MouseSnappedPos>,
-    drawing_state: ResMut<DrawingState>,
-    mut line_state: ResMut<LineDrawingState>,
-    sim_state: Res<SimulationState>,
-    mut graph: ResMut<RoadGraph>,
-    q_point_nodes: Query<&PointGraphNode>,
-    q_segment_nodes: Query<&SegmentGraphNodes>,
-    q_road_segments: Query<&RoadSegment>,
-    q_window: Query<&Window>,
-) {
-    let Ok(window) = q_window.get_single() else {
-        return;
-    };
-
-    if mouse.window.y > window.resolution.height() - BOTTOM_BAR_HEIGHT {
-        return;
-    }
-
-    if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
-        return;
-    }
-
-    if *sim_state != SimulationState::NotStarted {
-        return;
-    }
-
-    if !mouse_input.just_pressed(MouseButton::Left) {
-        return;
-    }
-
-    if !line_state.drawing {
-        if line_state.valid {
-            line_state.drawing = true;
-            line_state.start = mouse_snapped.0;
-            line_state.end = line_state.start;
-        }
-        return;
-    }
-
-    if line_state.end == line_state.start {
-        line_state.drawing = false;
-        return;
-    }
-
-    if !line_state.valid {
-        return;
-    }
-
-    if line_state.adds.is_empty() {
-        return;
-    }
-
-    let mut previous_end: Option<NodeIndex> = None;
-
-    for add in line_state.adds.iter() {
-        // SegmentConnection::TryExtend is only valid if extending the
-        // target segment would not break any existing connections.
-
-        let valid_extension_a = add.connections.0.len() == 1
-            && add
-                .connections
-                .0
-                .iter()
-                .all(|c| matches!(c, SegmentConnection::TryExtend(_)));
-        let valid_extension_b = add.connections.1.len() == 1
-            && add
-                .connections
-                .1
-                .iter()
-                .all(|c| matches!(c, SegmentConnection::TryExtend(_)));
-
-        let mut points = add.points;
-
-        if valid_extension_a {
-            if let SegmentConnection::TryExtend(entity) = add.connections.0.first().unwrap() {
-                let segment = q_road_segments.get(*entity).unwrap();
-
-                if add.points.0 == segment.points.0 {
-                    points.0 = segment.points.1;
-                } else {
-                    points.0 = segment.points.0;
-                }
-            }
-        }
-        if valid_extension_b {
-            if let SegmentConnection::TryExtend(entity) = add.connections.1.first().unwrap() {
-                let segment = q_road_segments.get(*entity).unwrap();
-
-                if add.points.1 == segment.points.1 {
-                    points.1 = segment.points.0;
-                } else {
-                    points.1 = segment.points.1;
-                }
-            }
-        }
-
-        let (_, start_node, end_node) = spawn_road_segment(
-            &mut commands,
-            &mut graph,
-            RoadSegment {
-                points,
-                layer: line_state.layer,
-            },
-        );
-
-        for (node, is_start, connections, point) in [
-            (start_node, true, &add.connections.0, add.points.0),
-            (end_node, false, &add.connections.1, add.points.1),
-        ]
-        .iter()
-        {
-            for connection in connections.iter() {
-                match connection {
-                    SegmentConnection::Add(entity) => {
-                        // seems like I should really just store whether the entity is a
-                        // segment or point in SegmentConnection::Add
-
-                        let s_nodes = q_segment_nodes.get(*entity);
-                        let segment = q_road_segments.get(*entity);
-                        let p_nodes = q_point_nodes.get(*entity);
-
-                        match (s_nodes, segment, p_nodes) {
-                            (Ok(segment_nodes), Ok(segment), Err(_)) => {
-                                if segment.points.0 == *point {
-                                    graph.graph.add_edge(*node, segment_nodes.0, 0.0);
-                                }
-                                if segment.points.1 == *point {
-                                    graph.graph.add_edge(*node, segment_nodes.1, 0.0);
-                                }
-                            }
-                            (Err(_), Err(_), Ok(p_nodes)) => {
-                                graph.graph.add_edge(*node, p_nodes.0, 0.0);
-                            }
-                            _ => {
-                                warn!("Encountered a thing that should not happen while adding a connection.");
-                            }
-                        }
-                    }
-                    SegmentConnection::TryExtend(entity) => {
-                        let t_segment = q_road_segments.get(*entity);
-                        let t_nodes = q_segment_nodes.get(*entity);
-
-                        if let (Ok(t_nodes), Ok(t_segment)) = (t_nodes, t_segment) {
-                            if (*is_start && valid_extension_a) || (!is_start && valid_extension_b)
-                            {
-                                let neighbors = if t_segment.points.0 == *point {
-                                    graph.graph.neighbors(t_nodes.1).collect::<Vec<_>>()
-                                } else {
-                                    graph.graph.neighbors(t_nodes.0).collect::<Vec<_>>()
-                                };
-
-                                for neighbor in neighbors {
-                                    graph.graph.add_edge(
-                                        neighbor,
-                                        if *is_start { start_node } else { end_node },
-                                        0.0,
-                                    );
-                                }
-
-                                commands.entity(*entity).despawn_recursive();
-                                graph.graph.remove_node(t_nodes.0);
-                                graph.graph.remove_node(t_nodes.1);
-                            } else {
-                                // normal add
-                                if t_segment.points.0 == *point {
-                                    graph.graph.add_edge(*node, t_nodes.0, 0.0);
-                                }
-                                if t_segment.points.1 == *point {
-                                    graph.graph.add_edge(*node, t_nodes.1, 0.0);
-                                }
-                            }
-                        }
-                    }
-                    SegmentConnection::Previous => {
-                        if *is_start {
-                            if let Some(previous_end) = previous_end {
-                                graph.graph.add_edge(*node, previous_end, 0.0);
-                            }
-                        }
-                    }
-                    SegmentConnection::Split(entity) => {
-                        let s_nodes = q_segment_nodes.get(*entity).unwrap();
-                        let segment = q_road_segments.get(*entity).unwrap();
-
-                        // get neighboring NodeIndex from split line's start node
-                        let start_neighbors = graph.graph.neighbors(s_nodes.0).collect::<Vec<_>>();
-
-                        // get neighboring NodeIndex from split line's end node
-                        let end_neighbors = graph.graph.neighbors(s_nodes.1).collect::<Vec<_>>();
-
-                        // despawn split line
-                        commands.entity(*entity).despawn_recursive();
-
-                        // create a new segment on (entity start, this_point)
-                        let (_, start_node_a, end_node_a) = spawn_road_segment(
-                            &mut commands,
-                            &mut graph,
-                            RoadSegment {
-                                points: (segment.points.0, *point),
-                                layer: segment.layer,
-                            },
-                        );
-
-                        // reconnect new segment to split line's old start node neighbors
-                        for neighbor in start_neighbors {
-                            graph.graph.add_edge(neighbor, start_node_a, 0.0);
-                        }
-                        graph.graph.add_edge(end_node_a, *node, 0.0);
-
-                        // create a new segment on (entity end, this_point)
-                        let (_, start_node_b, end_node_b) = spawn_road_segment(
-                            &mut commands,
-                            &mut graph,
-                            RoadSegment {
-                                points: (*point, segment.points.1),
-                                layer: segment.layer,
-                            },
-                        );
-
-                        // reconnect new segment to split line's old end node neighbors
-                        for neighbor in end_neighbors {
-                            graph.graph.add_edge(end_node_b, neighbor, 0.0);
-                        }
-                        graph.graph.add_edge(*node, start_node_b, 0.0);
-
-                        // connect the two new segments together
-                        graph.graph.add_edge(end_node_a, start_node_b, 0.0);
-
-                        // remove all graph edges and nodes associated with the split line
-                        graph.graph.remove_node(s_nodes.0);
-                        graph.graph.remove_node(s_nodes.1);
-                    }
-                };
-            }
-        }
-
-        previous_end = Some(end_node);
-    }
-
-    if line_state.stop {
-        line_state.drawing = false;
-        line_state.stop = false;
-    }
-
-    line_state.start = line_state.end;
-    line_state.adds = vec![];
-    line_state.segments = vec![];
-
-    println!(
-        "{:?}",
-        Dot::with_config(&graph.graph, &[Config::EdgeNoLabel, Config::NodeIndexLabel])
-    );
 }
 
 fn mouse_movement_system(
@@ -1140,283 +825,6 @@ fn mouse_movement_system(
 
             mouse.window = event.position;
         }
-    }
-}
-
-fn not_drawing_mouse_movement_system(
-    mut line_state: ResMut<LineDrawingState>,
-    drawing_state: Res<DrawingState>,
-    mouse_snapped: Res<MouseSnappedPos>,
-    q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
-) {
-    if !matches!(drawing_state.mode, DrawingMode::LineDrawing) {
-        return;
-    }
-
-    if !mouse_snapped.is_changed() {
-        return;
-    }
-
-    if line_state.drawing {
-        return;
-    }
-
-    let bad = q_colliders
-        .iter()
-        .any(|(_parent, collider, layer)| match collider {
-            Collider::Segment(segment) => {
-                match point_segment_collision(mouse_snapped.0, segment.0, segment.1) {
-                    PointCollision::None => false,
-                    _ => layer.0 == 0,
-                }
-            }
-            _ => false,
-        });
-
-    if bad && line_state.valid {
-        line_state.valid = false;
-    } else if !bad && !line_state.valid {
-        line_state.valid = true;
-    }
-}
-
-fn drawing_mouse_movement_system(
-    mut line_state: ResMut<LineDrawingState>,
-    sim_state: Res<SimulationState>,
-    mouse_snapped: Res<MouseSnappedPos>,
-    q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
-) {
-    if !line_state.drawing {
-        return;
-    }
-
-    if *sim_state != SimulationState::NotStarted {
-        return;
-    }
-
-    if !mouse_snapped.is_changed() {
-        return;
-    }
-
-    if mouse_snapped.0 == line_state.end && line_state.layer == line_state.prev_layer {
-        return;
-    }
-
-    line_state.end = mouse_snapped.0;
-    line_state.prev_layer = line_state.layer;
-
-    // line drawing can be coerced to follow one axis or another by moving the mouse to a
-    // position that is a straight line from the starting point in that axis.
-
-    if line_state.start.x == mouse_snapped.0.x {
-        line_state.axis_preference = Some(Axis::Y);
-    } else if line_state.start.y == mouse_snapped.0.y {
-        line_state.axis_preference = Some(Axis::X);
-    }
-
-    if mouse_snapped.0 == line_state.start {
-        line_state.segments = vec![];
-        line_state.adds = vec![];
-        line_state.valid = true;
-    }
-
-    let possible = possible_lines(
-        line_state.start,
-        mouse_snapped.0,
-        line_state.axis_preference,
-    );
-
-    // groan
-    let mut filtered_adds = vec![];
-    let mut filtered_segments = vec![];
-    let mut filtered_stops = vec![];
-
-    for possibility in possible.iter() {
-        let mut adds = vec![];
-        let mut ok = true;
-        let mut stop = false;
-
-        for (segment_i, (a, b)) in possibility.iter().enumerate() {
-            let mut connections = (vec![], vec![]);
-
-            let mut split_layers: (HashSet<u32>, HashSet<u32>) =
-                (HashSet::default(), HashSet::default());
-
-            if segment_i == 1 {
-                connections.0.push(SegmentConnection::Previous);
-            }
-
-            for (parent, collider, layer) in q_colliders.iter() {
-                match collider {
-                    Collider::Segment(s) => {
-                        let collision = segment_collision(s.0, s.1, *a, *b);
-
-                        match collision {
-                            SegmentCollision::Intersecting => {
-                                if layer.0 == line_state.layer || layer.0 == 0 {
-                                    ok = false;
-                                    break;
-                                }
-                            }
-                            SegmentCollision::Overlapping => {
-                                ok = false;
-                                break;
-                            }
-                            SegmentCollision::Touching(intersection_point) => {
-                                // "Touching" collisions are allowed only if they are the
-                                // start or end of the line we are currently drawing.
-
-                                if layer.0 == 0 {
-                                    ok = false;
-                                    break;
-                                }
-
-                                let start_touching = intersection_point == line_state.start;
-                                let end_touching = intersection_point == line_state.end;
-
-                                if !start_touching && !end_touching {
-                                    ok = false;
-                                    break;
-                                }
-
-                                // account for the specific scenario where two lines on
-                                // different layers are being "split" at the point where
-                                // they would intersect. do this by keeping track of the
-                                // layers that have been split so far, and calling foul
-                                // if we're about to split another.
-
-                                if start_touching
-                                    && !split_layers.0.contains(&layer.0)
-                                    && !split_layers.0.is_empty()
-                                {
-                                    ok = false;
-                                    break;
-                                }
-
-                                if end_touching
-                                    && !split_layers.1.contains(&layer.0)
-                                    && !split_layers.1.is_empty()
-                                {
-                                    ok = false;
-                                    break;
-                                }
-
-                                if start_touching {
-                                    connections.0.push(SegmentConnection::Split(parent.get()));
-                                    split_layers.0.insert(layer.0);
-                                }
-                                if end_touching {
-                                    connections.1.push(SegmentConnection::Split(parent.get()));
-                                    split_layers.1.insert(layer.0);
-                                }
-                            }
-                            SegmentCollision::Connecting(intersection_point)
-                            | SegmentCollision::ConnectingParallel(intersection_point) => {
-                                // "Connecting" collisions are allowed only if they are the
-                                // start or end of the line we are currently drawing.
-
-                                if layer.0 == 0 {
-                                    ok = false;
-                                    break;
-                                }
-
-                                let start_touching = intersection_point == line_state.start;
-                                let end_touching = intersection_point == line_state.end;
-
-                                if !start_touching && !end_touching {
-                                    ok = false;
-                                    break;
-                                }
-
-                                if (line_state.start == *a && start_touching)
-                                    || (line_state.end == *a && end_touching)
-                                {
-                                    if matches!(collision, SegmentCollision::ConnectingParallel(_))
-                                        && layer.0 == line_state.layer
-                                    {
-                                        connections
-                                            .0
-                                            .push(SegmentConnection::TryExtend(parent.get()));
-                                    } else {
-                                        connections.0.push(SegmentConnection::Add(parent.get()));
-                                    }
-                                }
-                                if (line_state.start == *b && start_touching)
-                                    || (line_state.end == *b && end_touching)
-                                {
-                                    if matches!(collision, SegmentCollision::ConnectingParallel(_))
-                                        && layer.0 == line_state.layer
-                                    {
-                                        connections
-                                            .1
-                                            .push(SegmentConnection::TryExtend(parent.get()));
-                                    } else {
-                                        connections.1.push(SegmentConnection::Add(parent.get()));
-                                    }
-                                }
-                            }
-                            SegmentCollision::None => {}
-                        }
-                    }
-                    Collider::Point(p) => match point_segment_collision(*p, *a, *b) {
-                        PointCollision::Middle => {
-                            // don't allow the midpoint of the line to connect to a
-                            // terminus
-                            ok = false;
-                            break;
-                        }
-                        PointCollision::End => {
-                            if *p != line_state.start && *p != line_state.end {
-                                ok = false;
-                                break;
-                            }
-
-                            if *p == line_state.end {
-                                stop = true;
-                            }
-
-                            if *a == *p {
-                                connections.0.push(SegmentConnection::Add(parent.get()));
-                            }
-                            if *b == *p {
-                                connections.1.push(SegmentConnection::Add(parent.get()));
-                            }
-                        }
-                        PointCollision::None => {}
-                    },
-                }
-            }
-
-            if !ok {
-                break;
-            }
-
-            adds.push(AddSegment {
-                points: (*a, *b),
-                connections,
-            });
-        }
-
-        if ok {
-            filtered_adds.push(adds);
-            filtered_segments.push(possibility.clone());
-            filtered_stops.push(stop);
-        }
-    }
-
-    if let Some(segments) = filtered_segments.first() {
-        line_state.segments.clone_from(segments);
-        line_state.adds = filtered_adds.first().cloned().unwrap();
-        line_state.stop = filtered_stops.first().cloned().unwrap();
-        line_state.valid = true;
-    } else if let Some(segments) = possible.first() {
-        line_state.segments.clone_from(segments);
-        line_state.adds = vec![];
-        line_state.valid = false;
-    } else {
-        line_state.segments = vec![];
-        line_state.adds = vec![];
-        line_state.valid = false;
     }
 }
 
@@ -1650,7 +1058,7 @@ fn spawn_terminus(
 
 fn update_cost_system(
     graph: Res<RoadGraph>,
-    line_draw: Res<LineDrawingState>,
+    line_draw: Res<RoadDrawingState>,
     mut r_cost: ResMut<Cost>,
     q_segments: Query<(&RoadSegment, &Children)>,
     q_colliders: Query<&ColliderLayer>,
@@ -1820,8 +1228,8 @@ fn playing_enter_system(
     commands.insert_resource(Score::default());
     commands.insert_resource(PixieCount::default());
     commands.insert_resource(Cost::default());
-    commands.insert_resource(DrawingState::default());
-    commands.insert_resource(LineDrawingState::default());
+    commands.insert_resource(SelectedTool::default());
+    commands.insert_resource(RoadDrawingState::default());
     commands.insert_resource(NetRippingState::default());
     commands.insert_resource(SimulationState::default());
     commands.insert_resource(PathfindingState::default());
