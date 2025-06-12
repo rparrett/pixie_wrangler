@@ -5,7 +5,7 @@
 use std::{fs::File, io::Write};
 
 use crate::{
-    collision::{point_segment_collision, segment_collision, SegmentCollision},
+    collision::{point_segment_collision, segment_collision, PointCollision, SegmentCollision},
     level::{Level, Obstacle, Terminus},
     lines::{possible_lines, Axis},
     loading::LoadingPlugin,
@@ -1244,7 +1244,7 @@ fn net_ripping_mouse_movement_system(
         .filter_map(|(parent, collider, layer)| match collider {
             Collider::Segment(segment) => {
                 match point_segment_collision(mouse.snapped, segment.0, segment.1) {
-                    SegmentCollision::None => None,
+                    PointCollision::None => None,
                     _ => {
                         if layer.0 == 0 {
                             None
@@ -1305,7 +1305,7 @@ fn not_drawing_mouse_movement_system(
         .any(|(_parent, collider, layer)| match collider {
             Collider::Segment(segment) => {
                 match point_segment_collision(mouse.snapped, segment.0, segment.1) {
-                    SegmentCollision::None => false,
+                    PointCollision::None => false,
                     _ => layer.0 == 0,
                 }
             }
@@ -1393,26 +1393,17 @@ fn drawing_mouse_movement_system(
                                 ok = false;
                                 break;
                             }
-                            SegmentCollision::Touching => {
+                            SegmentCollision::Touching(intersection_point) => {
                                 // "Touching" collisions are allowed only if they are the
                                 // start or end of the line we are currently drawing.
-                                //
-                                // Ideally, segment_collision would return the intersection
-                                // point(s) and we could just check that.
 
                                 if layer.0 == 0 {
                                     ok = false;
                                     break;
                                 }
 
-                                let start_touching = matches!(
-                                    point_segment_collision(line_state.start, s.0, s.1),
-                                    SegmentCollision::Touching
-                                );
-                                let end_touching = matches!(
-                                    point_segment_collision(line_state.end, s.0, s.1),
-                                    SegmentCollision::Touching
-                                );
+                                let start_touching = intersection_point == line_state.start;
+                                let end_touching = intersection_point == line_state.end;
 
                                 if !start_touching && !end_touching {
                                     ok = false;
@@ -1450,26 +1441,18 @@ fn drawing_mouse_movement_system(
                                     split_layers.1.insert(layer.0);
                                 }
                             }
-                            SegmentCollision::Connecting | SegmentCollision::ConnectingParallel => {
+                            SegmentCollision::Connecting(intersection_point)
+                            | SegmentCollision::ConnectingParallel(intersection_point) => {
                                 // "Connecting" collisions are allowed only if they are the
                                 // start or end of the line we are currently drawing.
-                                //
-                                // Ideally, segment_collision would return the intersection
-                                // point(s) and we could just check that.
 
                                 if layer.0 == 0 {
                                     ok = false;
                                     break;
                                 }
 
-                                let start_touching = matches!(
-                                    point_segment_collision(line_state.start, s.0, s.1),
-                                    SegmentCollision::Connecting
-                                );
-                                let end_touching = matches!(
-                                    point_segment_collision(line_state.end, s.0, s.1),
-                                    SegmentCollision::Connecting
-                                );
+                                let start_touching = intersection_point == line_state.start;
+                                let end_touching = intersection_point == line_state.end;
 
                                 if !start_touching && !end_touching {
                                     ok = false;
@@ -1479,7 +1462,7 @@ fn drawing_mouse_movement_system(
                                 if (line_state.start == *a && start_touching)
                                     || (line_state.end == *a && end_touching)
                                 {
-                                    if matches!(collision, SegmentCollision::ConnectingParallel)
+                                    if matches!(collision, SegmentCollision::ConnectingParallel(_))
                                         && layer.0 == line_state.layer
                                     {
                                         connections
@@ -1492,7 +1475,7 @@ fn drawing_mouse_movement_system(
                                 if (line_state.start == *b && start_touching)
                                     || (line_state.end == *b && end_touching)
                                 {
-                                    if matches!(collision, SegmentCollision::ConnectingParallel)
+                                    if matches!(collision, SegmentCollision::ConnectingParallel(_))
                                         && layer.0 == line_state.layer
                                     {
                                         connections
@@ -1507,10 +1490,13 @@ fn drawing_mouse_movement_system(
                         }
                     }
                     Collider::Point(p) => match point_segment_collision(*p, *a, *b) {
-                        SegmentCollision::Connecting => {
+                        PointCollision::Middle => {
                             // don't allow the midpoint of the line to connect to a
                             // terminus
-
+                            ok = false;
+                            break;
+                        }
+                        PointCollision::End => {
                             if *p != line_state.start && *p != line_state.end {
                                 ok = false;
                                 break;
@@ -1527,11 +1513,7 @@ fn drawing_mouse_movement_system(
                                 connections.1.push(SegmentConnection::Add(parent.get()));
                             }
                         }
-                        SegmentCollision::None => {}
-                        _ => {
-                            ok = false;
-                            break;
-                        }
+                        PointCollision::None => {}
                     },
                 }
             }

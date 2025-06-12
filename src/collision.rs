@@ -5,28 +5,34 @@ pub enum SegmentCollision {
     /// Two segments share some portion of their length (collinear and overlapping)
     Overlapping,
     /// Two segments meet at exactly one endpoint (forming a corner/junction)
-    Connecting,
+    Connecting(Vec2),
     /// Two collinear segments meet at exactly one endpoint (extending in the same line)
-    ConnectingParallel,
+    ConnectingParallel(Vec2),
     /// One segment's endpoint lies somewhere along the other segment (T-junction)
-    Touching,
+    Touching(Vec2),
     /// Two segments cross each other at an interior point (X-intersection)
     Intersecting,
     /// No collision between the segments
     None,
 }
 
+pub enum PointCollision {
+    End,
+    Middle,
+    None,
+}
+
 // we should possibly also be using tolerances on the first two comparisons, but
 // things generally seem to be working as-is.
-pub fn point_segment_collision(p: Vec2, a: Vec2, b: Vec2) -> SegmentCollision {
+pub fn point_segment_collision(p: Vec2, a: Vec2, b: Vec2) -> PointCollision {
     if p == a || p == b {
-        return SegmentCollision::Connecting;
+        return PointCollision::End;
     }
 
     let diff = b - a;
     let len2 = diff.length_squared();
     if len2 == 0.0 {
-        return SegmentCollision::Touching;
+        return PointCollision::Middle;
     }
 
     let d1 = p - a;
@@ -37,10 +43,10 @@ pub fn point_segment_collision(p: Vec2, a: Vec2, b: Vec2) -> SegmentCollision {
     let dist = p.distance(proj);
 
     if dist <= 0.0001 {
-        SegmentCollision::Touching
-    } else {
-        SegmentCollision::None
+        return PointCollision::Middle;
     }
+
+    PointCollision::None
 }
 
 // for reference, this is helpful
@@ -75,12 +81,12 @@ pub fn segment_collision(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> SegmentColli
             return SegmentCollision::Overlapping;
         }
 
-        if dx.0 == 0.0 && dy.0 == 0.0
-            || dx.1 == 0.0 && dy.1 == 0.0
-            || dx.2 == 0.0 && dy.2 == 0.0
-            || dx.3 == 0.0 && dy.3 == 0.0
-        {
-            return SegmentCollision::ConnectingParallel;
+        // Check for end-to-end connection
+        if (dx.0 == 0.0 && dy.0 == 0.0) || (dx.1 == 0.0 && dy.1 == 0.0) {
+            return SegmentCollision::ConnectingParallel(a1);
+        }
+        if (dx.2 == 0.0 && dy.2 == 0.0) || (dx.3 == 0.0 && dy.3 == 0.0) {
+            return SegmentCollision::ConnectingParallel(a2);
         }
 
         return SegmentCollision::None;
@@ -93,15 +99,16 @@ pub fn segment_collision(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> SegmentColli
 
     let u = numerator / denominator;
     let t = dab.perp_dot(db) / denominator;
+    let intersection = a1 + t * da;
 
     if (t == 1.0 || t == 0.0) && (u == 0.0 || u == 1.0) {
-        return SegmentCollision::Connecting;
+        return SegmentCollision::Connecting(intersection);
     }
 
     let col = (0.0..=1.0).contains(&t) && (0.0..=1.0).contains(&u);
 
     if col && (t == 0.0 || u == 0.0 || t == 1.0 || u == 1.0) {
-        return SegmentCollision::Touching;
+        return SegmentCollision::Touching(intersection);
     }
 
     if col {
@@ -117,44 +124,57 @@ mod tests {
 
     #[test]
     fn point_seg_connecting() {
-        // .--
+        // start
         assert!(matches!(
             point_segment_collision(
                 Vec2::new(0.0, 0.0),
                 Vec2::new(0.0, 0.0),
-                Vec2::new(1.0, 2.0)
+                Vec2::new(1.0, 2.0),
             ),
-            SegmentCollision::Connecting
+            PointCollision::End
         ));
-        // --.
+
+        // end
         assert!(matches!(
             point_segment_collision(
                 Vec2::new(1.0, 2.0),
                 Vec2::new(0.0, 0.0),
-                Vec2::new(1.0, 2.0)
+                Vec2::new(1.0, 2.0),
             ),
-            SegmentCollision::Connecting
+            PointCollision::End
         ));
     }
 
     #[test]
     fn point_seg_touching() {
-        // -.-
+        // -.-  (point in middle of horizontal segment)
         assert!(matches!(
             point_segment_collision(
                 Vec2::new(0.0, 0.0),
                 Vec2::new(-1.0, 0.0),
-                Vec2::new(1.0, 0.0)
+                Vec2::new(1.0, 0.0),
             ),
-            SegmentCollision::Touching
+            PointCollision::Middle
         ));
+
+        // Point in middle of vertical segment
         assert!(matches!(
             point_segment_collision(
                 Vec2::new(0.0, 0.0),
                 Vec2::new(0.0, -1.0),
-                Vec2::new(0.0, 1.0)
+                Vec2::new(0.0, 1.0),
             ),
-            SegmentCollision::Touching
+            PointCollision::Middle
+        ));
+
+        // Point in middle of diagonal segment
+        assert!(matches!(
+            point_segment_collision(
+                Vec2::new(1.0, 1.0),
+                Vec2::new(0.0, 0.0),
+                Vec2::new(2.0, 2.0),
+            ),
+            PointCollision::Middle
         ));
     }
 
@@ -166,7 +186,7 @@ mod tests {
                 Vec2::new(0.0, 0.0),
                 Vec2::new(1.0, 0.0)
             ),
-            SegmentCollision::None
+            PointCollision::None
         ));
     }
 
@@ -179,7 +199,7 @@ mod tests {
                 Vec2::new(1.0, 0.0),
                 Vec2::new(2.0, 0.0)
             ),
-            SegmentCollision::None
+            PointCollision::None
         ));
 
         // collinear vertical
@@ -189,7 +209,7 @@ mod tests {
                 Vec2::new(0.0, 1.0),
                 Vec2::new(0.0, 2.0)
             ),
-            SegmentCollision::None
+            PointCollision::None
         ));
     }
 
@@ -233,40 +253,119 @@ mod tests {
 
     #[test]
     fn seg_seg_touching() {
-        // y
-        assert!(matches!(
-            segment_collision(
-                Vec2::new(-1.0, 1.0),
-                Vec2::new(1.0, -1.0),
-                Vec2::new(1.0, 1.0),
-                Vec2::new(0.0, 0.0),
-            ),
-            SegmentCollision::Touching
-        ));
+        // One segment's endpoint touches the middle of another segment
+        if let SegmentCollision::Touching(point) = segment_collision(
+            Vec2::new(-1.0, 1.0),
+            Vec2::new(1.0, -1.0),
+            Vec2::new(1.0, 1.0),
+            Vec2::new(0.0, 0.0),
+        ) {
+            assert_eq!(point, Vec2::new(0.0, 0.0));
+        } else {
+            panic!("Expected Touching collision");
+        }
+
+        // Horizontal T-junction: vertical segment touches middle of horizontal
+        if let SegmentCollision::Touching(point) = segment_collision(
+            Vec2::new(-2.0, 0.0),
+            Vec2::new(2.0, 0.0),
+            Vec2::new(0.0, -1.0),
+            Vec2::new(0.0, 0.0),
+        ) {
+            assert_eq!(point, Vec2::new(0.0, 0.0));
+        } else {
+            panic!("Expected Touching collision");
+        }
+
+        // Vertical T-junction: horizontal segment touches middle of vertical
+        if let SegmentCollision::Touching(point) = segment_collision(
+            Vec2::new(0.0, -2.0),
+            Vec2::new(0.0, 2.0),
+            Vec2::new(-1.0, 0.0),
+            Vec2::new(0.0, 0.0),
+        ) {
+            assert_eq!(point, Vec2::new(0.0, 0.0));
+        } else {
+            panic!("Expected Touching collision");
+        }
     }
 
     #[test]
     fn seg_seg_connecting() {
-        // V
-        assert!(matches!(
-            segment_collision(
-                Vec2::new(-2.0, 2.0),
-                Vec2::new(0.0, 0.0),
-                Vec2::new(0.0, 0.0),
-                Vec2::new(2.0, 2.0),
-            ),
-            SegmentCollision::Connecting
-        ));
-        // V
-        assert!(matches!(
-            segment_collision(
-                Vec2::new(2.0, 2.0),
-                Vec2::new(0.0, 0.0),
-                Vec2::new(-2.0, 2.0),
-                Vec2::new(0.0, 0.0),
-            ),
-            SegmentCollision::Connecting
-        ));
+        // V shape - two segments meeting at (0,0)
+        if let SegmentCollision::Connecting(point) = segment_collision(
+            Vec2::new(-2.0, 2.0),
+            Vec2::new(0.0, 0.0),
+            Vec2::new(0.0, 0.0),
+            Vec2::new(2.0, 2.0),
+        ) {
+            assert_eq!(point, Vec2::new(0.0, 0.0));
+        } else {
+            panic!("Expected Connecting collision");
+        }
+
+        // Another V shape - segments meeting at (0,1.0)
+        if let SegmentCollision::Connecting(point) = segment_collision(
+            Vec2::new(2.0, 2.0),
+            Vec2::new(0.0, 1.0),
+            Vec2::new(-2.0, 2.0),
+            Vec2::new(0.0, 1.0),
+        ) {
+            assert_eq!(point, Vec2::new(0.0, 1.0));
+        } else {
+            panic!("Expected Connecting collision");
+        }
+
+        // L shape
+        if let SegmentCollision::Connecting(point) = segment_collision(
+            Vec2::new(0.0, 0.0),
+            Vec2::new(2.0, 0.0),
+            Vec2::new(2.0, 0.0),
+            Vec2::new(2.0, 2.0),
+        ) {
+            assert_eq!(point, Vec2::new(2.0, 0.0));
+        } else {
+            panic!("Expected Connecting collision");
+        }
+    }
+
+    #[test]
+    fn seg_seg_connecting_parallel() {
+        // Two collinear segments meeting end-to-end
+        if let SegmentCollision::ConnectingParallel(point) = segment_collision(
+            Vec2::new(0.0, 0.0),
+            Vec2::new(1.0, 0.0),
+            Vec2::new(1.0, 0.0),
+            Vec2::new(2.0, 0.0),
+        ) {
+            assert_eq!(point, Vec2::new(1.0, 0.0));
+        } else {
+            panic!("Expected ConnectingParallel collision");
+        }
+
+        // Vertical collinear segments
+        if let SegmentCollision::ConnectingParallel(point) = segment_collision(
+            Vec2::new(0.0, 0.0),
+            Vec2::new(0.0, 1.0),
+            Vec2::new(0.0, 1.0),
+            Vec2::new(0.0, 2.0),
+        ) {
+            assert_eq!(point, Vec2::new(0.0, 1.0));
+        } else {
+            panic!("Expected ConnectingParallel collision");
+        }
+
+        // Diagonal collinear segments
+        if let SegmentCollision::ConnectingParallel(point) = segment_collision(
+            Vec2::new(0.0, 0.0),
+            Vec2::new(1.0, 1.0),
+            Vec2::new(-1.0, -1.0),
+            Vec2::new(0.0, 0.0),
+        ) {
+            assert_eq!(point, Vec2::new(0.0, 0.0));
+        } else {
+            panic!("Expected ConnectingParallel collision");
+        }
     }
 
     #[test]

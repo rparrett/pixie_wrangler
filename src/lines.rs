@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    collision::{point_segment_collision, SegmentCollision},
+    collision::{point_segment_collision, PointCollision},
     RoadSegment,
 };
 
@@ -86,7 +86,7 @@ pub fn distance_on_path(start: Vec2, point: Vec2, segments: &[(Vec2, Vec2)]) -> 
 
     for segment in segments.iter() {
         match point_segment_collision(point, segment.0, segment.1) {
-            SegmentCollision::None => {
+            PointCollision::None => {
                 total_dist += starting_point.distance(segment.1);
                 starting_point = segment.0;
             }
