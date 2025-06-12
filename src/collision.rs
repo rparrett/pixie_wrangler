@@ -126,21 +126,13 @@ mod tests {
     fn point_seg_connecting() {
         // start
         assert!(matches!(
-            point_segment_collision(
-                Vec2::ZERO,
-                Vec2::ZERO,
-                Vec2::new(1.0, 2.0),
-            ),
+            point_segment_collision(Vec2::ZERO, Vec2::ZERO, Vec2::new(1.0, 2.0),),
             PointCollision::End
         ));
 
         // end
         assert!(matches!(
-            point_segment_collision(
-                Vec2::new(1.0, 2.0),
-                Vec2::ZERO,
-                Vec2::new(1.0, 2.0),
-            ),
+            point_segment_collision(Vec2::new(1.0, 2.0), Vec2::ZERO, Vec2::new(1.0, 2.0),),
             PointCollision::End
         ));
     }
@@ -149,31 +141,19 @@ mod tests {
     fn point_seg_touching() {
         // -.-  (point in middle of horizontal segment)
         assert!(matches!(
-            point_segment_collision(
-                Vec2::ZERO,
-                Vec2::new(-1.0, 0.0),
-                Vec2::new(1.0, 0.0),
-            ),
+            point_segment_collision(Vec2::ZERO, Vec2::new(-1.0, 0.0), Vec2::new(1.0, 0.0),),
             PointCollision::Middle
         ));
 
         // Point in middle of vertical segment
         assert!(matches!(
-            point_segment_collision(
-                Vec2::ZERO,
-                Vec2::new(0.0, -1.0),
-                Vec2::new(0.0, 1.0),
-            ),
+            point_segment_collision(Vec2::ZERO, Vec2::new(0.0, -1.0), Vec2::new(0.0, 1.0),),
             PointCollision::Middle
         ));
 
         // Point in middle of diagonal segment
         assert!(matches!(
-            point_segment_collision(
-                Vec2::new(1.0, 1.0),
-                Vec2::ZERO,
-                Vec2::new(2.0, 2.0),
-            ),
+            point_segment_collision(Vec2::new(1.0, 1.0), Vec2::ZERO, Vec2::new(2.0, 2.0),),
             PointCollision::Middle
         ));
     }
@@ -181,11 +161,7 @@ mod tests {
     #[test]
     fn point_seg_none() {
         assert!(matches!(
-            point_segment_collision(
-                Vec2::new(1.0, 1.0),
-                Vec2::ZERO,
-                Vec2::new(1.0, 0.0)
-            ),
+            point_segment_collision(Vec2::new(1.0, 1.0), Vec2::ZERO, Vec2::new(1.0, 0.0)),
             PointCollision::None
         ));
     }
@@ -194,21 +170,13 @@ mod tests {
     fn point_seg_collinear() {
         // collinear horizontal
         assert!(matches!(
-            point_segment_collision(
-                Vec2::ZERO,
-                Vec2::new(1.0, 0.0),
-                Vec2::new(2.0, 0.0)
-            ),
+            point_segment_collision(Vec2::ZERO, Vec2::new(1.0, 0.0), Vec2::new(2.0, 0.0)),
             PointCollision::None
         ));
 
         // collinear vertical
         assert!(matches!(
-            point_segment_collision(
-                Vec2::ZERO,
-                Vec2::new(0.0, 1.0),
-                Vec2::new(0.0, 2.0)
-            ),
+            point_segment_collision(Vec2::ZERO, Vec2::new(0.0, 1.0), Vec2::new(0.0, 2.0)),
             PointCollision::None
         ));
     }
