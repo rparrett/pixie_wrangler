@@ -1,4 +1,4 @@
-use bevy::{prelude::*, utils::HashSet};
+use bevy::{platform::collections::HashSet, prelude::*};
 
 use crate::{
     collision::{point_segment_collision, segment_collision, PointCollision, SegmentCollision},
@@ -338,7 +338,7 @@ fn not_drawing_mouse_movement_system(
     mut road_state: ResMut<RoadDrawingState>,
     selected_tool: Res<SelectedTool>,
     mouse_snapped: Res<MouseSnappedPos>,
-    q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
+    q_colliders: Query<(&ChildOf, &Collider, &ColliderLayer)>,
 ) {
     if !matches!(selected_tool.0, Tool::LineDrawing) {
         return;
@@ -375,7 +375,7 @@ fn drawing_mouse_movement_system(
     mut road_state: ResMut<RoadDrawingState>,
     sim_state: Res<SimulationState>,
     mouse_snapped: Res<MouseSnappedPos>,
-    q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
+    q_colliders: Query<(&ChildOf, &Collider, &ColliderLayer)>,
 ) {
     if !road_state.drawing {
         return;

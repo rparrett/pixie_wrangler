@@ -1,6 +1,6 @@
 use crate::RoadSegment;
 
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{platform::collections::HashMap, prelude::*};
 use bevy_simple_prefs::{Prefs, PrefsPlugin};
 
 #[derive(Prefs, Reflect, Default)]
