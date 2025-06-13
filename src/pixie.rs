@@ -165,6 +165,7 @@ pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixi
                 ShapeBuilder::with(&shape)
                     .fill(theme::PIXIE[(pixie.flavor.color) as usize])
                     .build(),
+                *transform,
                 PixieFragment {
                     direction: Vec2::new(cos, sin),
                     ..default()
