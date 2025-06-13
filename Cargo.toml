@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0"
 debugdump = ["bevy_mod_debugdump"]
 
 [dependencies]
-bevy = { version = "0.15", default-features = false, features = [
+bevy = { version = "0.16", default-features = false, features = [
     "bevy_asset",
     "bevy_core_pipeline",
     "bevy_render",
@@ -25,11 +25,11 @@ bevy = { version = "0.15", default-features = false, features = [
     "x11",
 ] }
 
-bevy_prototype_lyon = "0.13"
-bevy_easings = "0.15"
-bevy_common_assets = { version = "0.12", features = ["ron"] }
-bevy_mod_debugdump = { version = "0.12", optional = true }
-bevy_simple_prefs = "0.4"
+bevy_prototype_lyon = { git = "https://github.com/rparrett/bevy_prototype_lyon", branch = "fix-dynamic-examples" }
+bevy_easings = "0.16"
+bevy_common_assets = { version = "0.13", features = ["ron"] }
+bevy_mod_debugdump = { version = "0.13", optional = true }
+bevy_simple_prefs = "0.6"
 
 rand = "0.8"
 petgraph = "0.6"
@@ -45,10 +45,6 @@ log = { version = "0.4", features = [
 
 [dev-dependencies]
 approx = "0.5.1"
-
-# Dependencies for WASM only.
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-web-sys = { version = "0.3", features = ["console", "Window", "Storage"] }
 
 [lints.clippy]
 type_complexity = "allow"

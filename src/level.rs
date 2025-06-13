@@ -1,5 +1,5 @@
 use crate::PixieFlavor;
-use bevy::{prelude::*, reflect::TypePath, utils::HashSet};
+use bevy::{platform::collections::HashSet, prelude::*, reflect::TypePath};
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug, Asset, TypePath)]
