@@ -101,7 +101,10 @@ fn main() {
 
     app.init_state::<GameState>();
 
-    app.add_systems(OnEnter(GameState::Playing), playing_enter_system);
+    app.add_systems(
+        OnEnter(GameState::Playing),
+        (reset_game, spawn_level, spawn_game_ui).chain(),
+    );
     app.add_systems(OnExit(GameState::Playing), playing_exit_system);
 
     app.configure_sets(Update, DrawingInput.run_if(in_state(GameState::Playing)));
@@ -1214,17 +1217,7 @@ fn save_solution_system(
     solutions.0.insert(level.0, Solution { segments });
 }
 
-fn playing_enter_system(
-    mut commands: Commands,
-    mut more_commands: Commands,
-    mut graph: ResMut<RoadGraph>,
-    levels: Res<Assets<Level>>,
-    selected_level: Res<SelectedLevel>,
-    handles: Res<Handles>,
-    solutions: Res<Solutions>,
-    simulation_settings: Res<SimulationSettings>,
-) {
-    // Reset
+fn reset_game(mut commands: Commands, mut graph: ResMut<RoadGraph>) {
     commands.insert_resource(Score::default());
     commands.insert_resource(PixieCount::default());
     commands.insert_resource(Cost::default());
@@ -1234,7 +1227,16 @@ fn playing_enter_system(
     commands.insert_resource(SimulationState::default());
     commands.insert_resource(PathfindingState::default());
     graph.graph.clear();
+}
 
+fn spawn_level(
+    mut commands: Commands,
+    mut graph: ResMut<RoadGraph>,
+    levels: Res<Assets<Level>>,
+    selected_level: Res<SelectedLevel>,
+    handles: Res<Handles>,
+    solutions: Res<Solutions>,
+) {
     // Build arena
 
     for x in ((-25 * (GRID_SIZE as i32))..=25 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
@@ -1306,6 +1308,20 @@ fn playing_enter_system(
     }
 
     // Build UI
+}
+
+fn spawn_game_ui(
+    mut commands: Commands,
+    simulation_settings: Res<SimulationSettings>,
+    levels: Res<Assets<Level>>,
+    selected_level: Res<SelectedLevel>,
+    handles: Res<Handles>,
+) {
+    let level = levels
+        .get(&handles.levels[selected_level.0 as usize - 1])
+        .unwrap();
+
+    let mut tool_button_ids = vec![];
 
     commands
         .spawn(Node {
@@ -1373,7 +1389,6 @@ fn playing_enter_system(
                                 });
 
                             // Tool Buttons
-                            let mut tool_button_ids = vec![];
 
                             for layer in 1..=level.layers {
                                 let id = parent
@@ -1436,18 +1451,6 @@ fn playing_enter_system(
                                 .id();
 
                             tool_button_ids.push(net_ripping_id);
-
-                            let tool_group_id = more_commands
-                                .spawn(RadioButtonGroup {
-                                    entities: tool_button_ids.clone(),
-                                })
-                                .id();
-
-                            for id in tool_button_ids.iter() {
-                                more_commands
-                                    .entity(*id)
-                                    .insert(RadioButtonGroupRelation(tool_group_id));
-                            }
                         });
 
                     // Container for score, etc
@@ -1638,4 +1641,16 @@ fn playing_enter_system(
                 PlayAreaNode,
             ));
         });
+
+    let tool_group_id = commands
+        .spawn(RadioButtonGroup {
+            entities: tool_button_ids.clone(),
+        })
+        .id();
+
+    for id in tool_button_ids.iter() {
+        commands
+            .entity(*id)
+            .insert(RadioButtonGroupRelation(tool_group_id));
+    }
 }
