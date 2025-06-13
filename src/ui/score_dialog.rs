@@ -47,7 +47,7 @@ fn show_score_dialog_system(
         return;
     }
 
-    if q_dialog.get_single().is_ok() {
+    if q_dialog.single().is_ok() {
         return;
     }
 
@@ -189,7 +189,7 @@ fn show_score_dialog_system(
                 });
         })
         .id();
-    if let Ok((entity, mut color)) = q_node.get_single_mut() {
+    if let Ok((entity, mut color)) = q_node.single_mut() {
         commands.entity(entity).add_children(&[dialog_entity]);
         *color = theme::DARK_OVERLAY.into();
     }
@@ -213,8 +213,8 @@ fn dismiss_score_dialog_button_system(
     mut score: ResMut<Score>,
 ) {
     for _ in q_interaction.iter().filter(|i| **i == Interaction::Pressed) {
-        if let Ok(entity) = q_dialog.get_single() {
-            commands.entity(entity).despawn_recursive();
+        if let Ok(entity) = q_dialog.single() {
+            commands.entity(entity).despawn();
             *sim_state = SimulationState::default();
             *pixie_count = PixieCount::default();
             *score = Score::default();
@@ -224,7 +224,7 @@ fn dismiss_score_dialog_button_system(
             commands.entity(entity).despawn();
         }
 
-        if let Ok(mut color) = q_node.get_single_mut() {
+        if let Ok(mut color) = q_node.single_mut() {
             *color = Color::NONE.into();
         }
     }

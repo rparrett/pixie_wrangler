@@ -344,7 +344,7 @@ pub fn move_pixies_system(
 
     for (entity, mut pixie, mut transform) in query.iter_mut() {
         if pixie.path_index > pixie.path.len() - 1 {
-            commands.entity(entity).despawn_recursive();
+            commands.entity(entity).despawn();
             score.0 += 1;
             continue;
         }

@@ -603,7 +603,7 @@ fn reset_button_system(
             .chain(q_pixies.iter())
             .chain(q_emitters.iter())
         {
-            commands.entity(chunk).despawn_recursive();
+            commands.entity(chunk).despawn();
         }
 
         for mut visibility in q_indicator.iter_mut() {
@@ -790,7 +790,7 @@ fn keyboard_system(
             selected_tool.0 = Tool::NetRipping;
         }
 
-        if let Ok(ent) = q_net_ripping_button.get_single() {
+        if let Ok(ent) = q_net_ripping_button.single() {
             if let Ok(mut radio) = q_radio_button.get_mut(ent) {
                 radio.selected = true;
             }

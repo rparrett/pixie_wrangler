@@ -218,7 +218,7 @@ fn level_select_exit(
     mut mouse: ResMut<ButtonInput<MouseButton>>,
 ) {
     for entity in query.iter() {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
 
     mouse.reset(MouseButton::Left);

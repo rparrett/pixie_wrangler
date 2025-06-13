@@ -127,7 +127,7 @@ fn net_ripping_mouse_click_system(
 
     if mouse_input.just_pressed(MouseButton::Left) {
         for entity in ripping_state.entities.iter() {
-            commands.entity(*entity).despawn_recursive();
+            commands.entity(*entity).despawn();
         }
         for node in ripping_state.nodes.iter() {
             graph.graph.remove_node(*node);
