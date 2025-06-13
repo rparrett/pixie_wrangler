@@ -385,7 +385,7 @@ fn drawing_mouse_movement_system(
         return;
     }
 
-    if !mouse_snapped.is_changed() {
+    if !mouse_snapped.is_changed() && !road_state.is_changed() {
         return;
     }
 
