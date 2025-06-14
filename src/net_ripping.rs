@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
-use bevy_prototype_lyon::{draw::Stroke, entity::ShapeBundle, prelude::GeometryBuilder, shapes};
+use bevy_prototype_lyon::prelude::*;
+
 use petgraph::{
     stable_graph::NodeIndex,
     visit::{DfsPostOrder, Walker},
@@ -45,7 +46,7 @@ fn net_ripping_mouse_movement_system(
     mut ripping_state: ResMut<NetRippingState>,
     sim_state: Res<SimulationState>,
     graph: Res<RoadGraph>,
-    q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
+    q_colliders: Query<(&ChildOf, &Collider, &ColliderLayer)>,
     q_road_segments: Query<&RoadSegment>,
     q_segment_nodes: Query<&SegmentGraphNodes>,
 ) {
@@ -67,7 +68,7 @@ fn net_ripping_mouse_movement_system(
 
     let mut collisions: Vec<_> = q_colliders
         .iter()
-        .filter_map(|(parent, collider, layer)| match collider {
+        .filter_map(|(child_of, collider, layer)| match collider {
             Collider::Segment(segment) => {
                 match point_segment_collision(mouse_snapped.0, segment.0, segment.1) {
                     PointCollision::None => None,
@@ -75,7 +76,7 @@ fn net_ripping_mouse_movement_system(
                         if layer.0 == 0 {
                             None
                         } else {
-                            Some((parent.get(), layer.0))
+                            Some((child_of.parent(), layer.0))
                         }
                     }
                 }
@@ -126,7 +127,7 @@ fn net_ripping_mouse_click_system(
 
     if mouse_input.just_pressed(MouseButton::Left) {
         for entity in ripping_state.entities.iter() {
-            commands.entity(*entity).despawn_recursive();
+            commands.entity(*entity).despawn();
         }
         for node in ripping_state.nodes.iter() {
             graph.graph.remove_node(*node);
@@ -153,12 +154,10 @@ fn draw_net_ripping_system(
 
     for (a, b) in ripping_state.segments.iter() {
         commands.spawn((
-            ShapeBundle {
-                path: GeometryBuilder::build_as(&shapes::Line(*a, *b)),
-                transform: Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
-                ..default()
-            },
-            Stroke::new(bevy::color::palettes::css::RED, 2.0),
+            ShapeBuilder::with(&shapes::Line(*a, *b))
+                .stroke((bevy::color::palettes::css::RED, 2.0))
+                .build(),
+            Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
             RippingLine,
         ));
     }

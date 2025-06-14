@@ -10,8 +10,8 @@ use crate::{
 };
 
 use bevy::{
+    platform::collections::{HashMap, HashSet},
     prelude::*,
-    utils::{HashMap, HashSet},
 };
 
 use bevy_prototype_lyon::prelude::*;
@@ -162,12 +162,10 @@ pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixi
             let (sin, cos) = rng.gen_range(0.0..std::f32::consts::TAU).sin_cos();
 
             commands.spawn((
-                ShapeBundle {
-                    path: GeometryBuilder::build_as(&shape),
-                    transform: *transform,
-                    ..default()
-                },
-                Fill::color(theme::PIXIE[(pixie.flavor.color) as usize]),
+                ShapeBuilder::with(&shape)
+                    .fill(theme::PIXIE[(pixie.flavor.color) as usize])
+                    .build(),
+                *transform,
                 PixieFragment {
                     direction: Vec2::new(cos, sin),
                     ..default()
@@ -215,10 +213,10 @@ pub fn collide_pixies_system(
 
     // prevent any pixie that is attracting another from itself being
     // attracted
-    let mut attractors = HashSet::default();
+    let mut attractors = HashSet::new();
     // prevent pixies that are overlapping from mutually slowing down
     // for each other
-    let mut followers = HashMap::default();
+    let mut followers = HashMap::new();
 
     for (e1, t1) in query.iter() {
         let p1 = pixie_query.get(e1).unwrap();
@@ -347,7 +345,7 @@ pub fn move_pixies_system(
 
     for (entity, mut pixie, mut transform) in query.iter_mut() {
         if pixie.path_index > pixie.path.len() - 1 {
-            commands.entity(entity).despawn_recursive();
+            commands.entity(entity).despawn();
             score.0 += 1;
             continue;
         }
@@ -505,17 +503,15 @@ pub fn emit_pixies_system(mut q_emitters: Query<&mut PixieEmitter>, mut commands
         let first_segment = emitter.path.first().unwrap();
 
         commands.spawn((
-            ShapeBundle {
-                path: GeometryBuilder::build_as(&shape),
-                transform: Transform::from_translation(
-                    first_segment
-                        .points
-                        .0
-                        .extend(layer::PIXIE - first_segment.layer as f32),
-                ),
-                ..default()
-            },
-            Fill::color(theme::PIXIE[(emitter.flavor.color) as usize]),
+            ShapeBuilder::with(&shape)
+                .fill(theme::PIXIE[(emitter.flavor.color) as usize])
+                .build(),
+            Transform::from_translation(
+                first_segment
+                    .points
+                    .0
+                    .extend(layer::PIXIE - first_segment.layer as f32),
+            ),
             Pixie {
                 flavor: emitter.flavor,
                 path: emitter.path.clone(),

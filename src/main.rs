@@ -1,6 +1,7 @@
 // disable console on windows for release builds
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::time::Duration;
 #[cfg(feature = "debugdump")]
 use std::{fs::File, io::Write};
 
@@ -19,13 +20,8 @@ use crate::{
 };
 
 use bevy::{
-    app::MainScheduleOrder,
-    asset::AssetMetaCheck,
-    ecs::schedule::ScheduleLabel,
-    prelude::*,
-    sprite::Anchor,
-    utils::{Duration, HashMap},
-    window::CursorMoved,
+    app::MainScheduleOrder, asset::AssetMetaCheck, ecs::schedule::ScheduleLabel,
+    platform::collections::HashMap, prelude::*, sprite::Anchor, window::CursorMoved,
 };
 
 use bevy_common_assets::ron::RonAssetPlugin;
@@ -507,7 +503,7 @@ fn pixie_button_system(
     q_interaction: Query<&Interaction, (Changed<Interaction>, With<Button>, With<PixieButton>)>,
     q_emitters: Query<Entity, With<PixieEmitter>>,
     q_pixies: Query<Entity, With<Pixie>>,
-    mut q_indicator: Query<(&mut Visibility, &Parent), With<TerminusIssueIndicator>>,
+    mut q_indicator: Query<(&mut Visibility, &ChildOf), With<TerminusIssueIndicator>>,
 ) {
     // do nothing while score dialog is shown
     if *sim_state == SimulationState::Finished {
@@ -527,8 +523,8 @@ fn pixie_button_system(
             *sim_state = SimulationState::NotStarted;
         } else {
             if !pathfinding.valid {
-                for (mut visibility, parent) in q_indicator.iter_mut() {
-                    *visibility = if pathfinding.invalid_nodes.contains(&parent.get()) {
+                for (mut visibility, child_of) in q_indicator.iter_mut() {
+                    *visibility = if pathfinding.invalid_nodes.contains(&child_of.parent()) {
                         Visibility::Visible
                     } else {
                         Visibility::Hidden
@@ -545,12 +541,12 @@ fn pixie_button_system(
             let duration = 0.4;
             let total_pixies = 50;
 
-            let mut counts = HashMap::default();
+            let mut counts = HashMap::new();
             for (_, start_entity, _) in pathfinding.paths.iter() {
                 *counts.entry(start_entity).or_insert(0) += 1;
             }
 
-            let mut is = HashMap::default();
+            let mut is = HashMap::new();
 
             for (flavor, start_entity, world_path) in pathfinding.paths.iter() {
                 let i = is.entry(start_entity).or_insert(0);
@@ -607,7 +603,7 @@ fn reset_button_system(
             .chain(q_pixies.iter())
             .chain(q_emitters.iter())
         {
-            commands.entity(chunk).despawn_recursive();
+            commands.entity(chunk).despawn();
         }
 
         for mut visibility in q_indicator.iter_mut() {
@@ -680,12 +676,8 @@ fn draw_mouse_system(
             bevy::color::palettes::css::RED
         };
         commands.spawn((
-            ShapeBundle {
-                path: GeometryBuilder::build_as(&shape),
-                transform: Transform::from_translation(mouse_snapped.0.extend(layer::CURSOR)),
-                ..default()
-            },
-            Stroke::new(color, 2.0),
+            ShapeBuilder::with(&shape).stroke((color, 2.0)).build(),
+            Transform::from_translation(mouse_snapped.0.extend(layer::CURSOR)),
             Cursor,
         ));
     }
@@ -707,12 +699,10 @@ fn draw_mouse_system(
 
         for (a, b) in line_drawing.segments.iter() {
             commands.spawn((
-                ShapeBundle {
-                    path: GeometryBuilder::build_as(&shapes::Line(*a, *b)),
-                    transform: Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
-                    ..default()
-                },
-                Stroke::new(color, 2.0),
+                ShapeBuilder::with(&shapes::Line(*a, *b))
+                    .stroke((color, 2.0))
+                    .build(),
+                Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
                 DrawingLine,
             ));
         }
@@ -800,7 +790,7 @@ fn keyboard_system(
             selected_tool.0 = Tool::NetRipping;
         }
 
-        if let Ok(ent) = q_net_ripping_button.get_single() {
+        if let Ok(ent) = q_net_ripping_button.single() {
             if let Ok(mut radio) = q_radio_button.get_mut(ent) {
                 radio.selected = true;
             }
@@ -814,7 +804,9 @@ fn mouse_movement_system(
     mut mouse_snapped: ResMut<MouseSnappedPos>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
 ) {
-    let (camera, camera_transform) = q_camera.single();
+    let Ok((camera, camera_transform)) = q_camera.single() else {
+        return;
+    };
 
     for event in cursor_moved_events.read() {
         if let Ok(pos) = camera.viewport_to_world_2d(camera_transform, event.position) {
@@ -839,7 +831,9 @@ fn update_pixie_count_text_system(
         return;
     }
 
-    let mut text = query.single_mut();
+    let Ok(mut text) = query.single_mut() else {
+        return;
+    };
 
     text.0 = format!("₽{}", pixie_count.0);
 }
@@ -852,12 +846,10 @@ fn spawn_road_segment(
     let color = theme::FINISHED_ROAD[segment.layer as usize - 1];
     let ent = commands
         .spawn((
-            ShapeBundle {
-                path: GeometryBuilder::build_as(&shapes::Line(segment.points.0, segment.points.1)),
-                transform: Transform::from_xyz(0.0, 0.0, layer::ROAD - segment.layer as f32),
-                ..default()
-            },
-            Stroke::new(color, 2.0),
+            ShapeBuilder::with(&shapes::Line(segment.points.0, segment.points.1))
+                .stroke((color, 2.0))
+                .build(),
+            Transform::from_xyz(0.0, 0.0, layer::ROAD - segment.layer as f32),
             segment.clone(),
         ))
         .with_children(|parent| {
@@ -891,15 +883,13 @@ fn spawn_obstacle(commands: &mut Commands, obstacle: &Obstacle) {
 
             commands
                 .spawn((
-                    ShapeBundle {
-                        path: GeometryBuilder::build_as(&shapes::Rectangle {
-                            extents: Vec2::new(diff.x.abs(), diff.y.abs()),
-                            ..default()
-                        }),
-                        transform: Transform::from_translation(origin.extend(layer::OBSTACLE)),
+                    ShapeBuilder::with(&shapes::Rectangle {
+                        extents: Vec2::new(diff.x.abs(), diff.y.abs()),
                         ..default()
-                    },
-                    Fill::color(theme::OBSTACLE),
+                    })
+                    .fill(theme::OBSTACLE)
+                    .build(),
+                    Transform::from_translation(origin.extend(layer::OBSTACLE)),
                 ))
                 .with_children(|parent| {
                     parent.spawn((
@@ -966,16 +956,14 @@ fn spawn_terminus(
 
     let ent = commands
         .spawn((
-            ShapeBundle {
-                path: GeometryBuilder::build_as(&shapes::Circle {
-                    radius: 5.5,
-                    ..default()
-                }),
-                transform: Transform::from_translation(terminus.point.extend(layer::TERMINUS)),
+            ShapeBuilder::with(&shapes::Circle {
+                radius: 5.5,
                 ..default()
-            },
-            Fill::color(theme::BACKGROUND),
-            Stroke::new(theme::FINISHED_ROAD[0], 2.0),
+            })
+            .fill(theme::BACKGROUND)
+            .stroke((theme::FINISHED_ROAD[0], 2.0))
+            .build(),
+            Transform::from_translation(terminus.point.extend(layer::TERMINUS)),
             terminus.clone(),
         ))
         .with_children(|parent| {
@@ -1037,16 +1025,14 @@ fn spawn_terminus(
             // assumes a single emitter.
 
             parent.spawn((
-                ShapeBundle {
-                    path: GeometryBuilder::build_as(&shapes::Circle {
-                        radius: 5.5,
-                        ..default()
-                    }),
-                    transform: Transform::from_xyz(-30.0, -1.0 * label_offset, layer::TERMINUS),
-                    visibility: Visibility::Hidden,
+                ShapeBuilder::with(&shapes::Circle {
+                    radius: 5.5,
                     ..default()
-                },
-                Fill::color(bevy::color::palettes::css::RED),
+                })
+                .fill(bevy::color::palettes::css::RED)
+                .build(),
+                Transform::from_xyz(-30.0, -1.0 * label_offset, layer::TERMINUS),
+                Visibility::Hidden,
                 TerminusIssueIndicator,
             ));
         })
@@ -1242,15 +1228,13 @@ fn spawn_level(
     for x in ((-25 * (GRID_SIZE as i32))..=25 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
         for y in (-15 * (GRID_SIZE as i32)..=15 * (GRID_SIZE as i32)).step_by(GRID_SIZE as usize) {
             commands.spawn((
-                ShapeBundle {
-                    path: GeometryBuilder::build_as(&shapes::Circle {
-                        radius: 2.5,
-                        ..default()
-                    }),
-                    transform: Transform::from_xyz(x as f32, y as f32, layer::GRID),
+                ShapeBuilder::with(&shapes::Circle {
+                    radius: 2.5,
                     ..default()
-                },
-                Fill::color(theme::GRID),
+                })
+                .fill(theme::GRID)
+                .build(),
+                Transform::from_xyz(x as f32, y as f32, layer::GRID),
                 GridPoint,
             ));
         }

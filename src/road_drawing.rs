@@ -1,4 +1,4 @@
-use bevy::{prelude::*, utils::HashSet};
+use bevy::{platform::collections::HashSet, prelude::*};
 
 use crate::{
     collision::{point_segment_collision, segment_collision, PointCollision, SegmentCollision},
@@ -90,7 +90,7 @@ fn drawing_mouse_click_system(
     q_road_segments: Query<&RoadSegment>,
     q_window: Query<&Window>,
 ) {
-    let Ok(window) = q_window.get_single() else {
+    let Ok(window) = q_window.single() else {
         return;
     };
 
@@ -239,7 +239,7 @@ fn drawing_mouse_click_system(
                                     );
                                 }
 
-                                commands.entity(*entity).despawn_recursive();
+                                commands.entity(*entity).despawn();
                                 graph.graph.remove_node(t_nodes.0);
                                 graph.graph.remove_node(t_nodes.1);
                             } else {
@@ -271,7 +271,7 @@ fn drawing_mouse_click_system(
                         let end_neighbors = graph.graph.neighbors(s_nodes.1).collect::<Vec<_>>();
 
                         // despawn split line
-                        commands.entity(*entity).despawn_recursive();
+                        commands.entity(*entity).despawn();
 
                         // create a new segment on (entity start, this_point)
                         let (_, start_node_a, end_node_a) = spawn_road_segment(
@@ -338,7 +338,7 @@ fn not_drawing_mouse_movement_system(
     mut road_state: ResMut<RoadDrawingState>,
     selected_tool: Res<SelectedTool>,
     mouse_snapped: Res<MouseSnappedPos>,
-    q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
+    q_colliders: Query<(&ChildOf, &Collider, &ColliderLayer)>,
 ) {
     if !matches!(selected_tool.0, Tool::LineDrawing) {
         return;
@@ -375,7 +375,7 @@ fn drawing_mouse_movement_system(
     mut road_state: ResMut<RoadDrawingState>,
     sim_state: Res<SimulationState>,
     mouse_snapped: Res<MouseSnappedPos>,
-    q_colliders: Query<(&Parent, &Collider, &ColliderLayer)>,
+    q_colliders: Query<(&ChildOf, &Collider, &ColliderLayer)>,
 ) {
     if !road_state.drawing {
         return;
@@ -437,7 +437,7 @@ fn drawing_mouse_movement_system(
                 connections.0.push(SegmentConnection::Previous);
             }
 
-            for (parent, collider, layer) in q_colliders.iter() {
+            for (child_of, collider, layer) in q_colliders.iter() {
                 match collider {
                     Collider::Segment(s) => {
                         let collision = segment_collision(s.0, s.1, *a, *b);
@@ -493,11 +493,15 @@ fn drawing_mouse_movement_system(
                                 }
 
                                 if start_touching {
-                                    connections.0.push(SegmentConnection::Split(parent.get()));
+                                    connections
+                                        .0
+                                        .push(SegmentConnection::Split(child_of.parent()));
                                     split_layers.0.insert(layer.0);
                                 }
                                 if end_touching {
-                                    connections.1.push(SegmentConnection::Split(parent.get()));
+                                    connections
+                                        .1
+                                        .push(SegmentConnection::Split(child_of.parent()));
                                     split_layers.1.insert(layer.0);
                                 }
                             }
@@ -527,9 +531,11 @@ fn drawing_mouse_movement_system(
                                     {
                                         connections
                                             .0
-                                            .push(SegmentConnection::TryExtend(parent.get()));
+                                            .push(SegmentConnection::TryExtend(child_of.parent()));
                                     } else {
-                                        connections.0.push(SegmentConnection::Add(parent.get()));
+                                        connections
+                                            .0
+                                            .push(SegmentConnection::Add(child_of.parent()));
                                     }
                                 }
                                 if (road_state.start == *b && start_touching)
@@ -540,9 +546,11 @@ fn drawing_mouse_movement_system(
                                     {
                                         connections
                                             .1
-                                            .push(SegmentConnection::TryExtend(parent.get()));
+                                            .push(SegmentConnection::TryExtend(child_of.parent()));
                                     } else {
-                                        connections.1.push(SegmentConnection::Add(parent.get()));
+                                        connections
+                                            .1
+                                            .push(SegmentConnection::Add(child_of.parent()));
                                     }
                                 }
                             }
@@ -567,10 +575,14 @@ fn drawing_mouse_movement_system(
                             }
 
                             if *a == *p {
-                                connections.0.push(SegmentConnection::Add(parent.get()));
+                                connections
+                                    .0
+                                    .push(SegmentConnection::Add(child_of.parent()));
                             }
                             if *b == *p {
-                                connections.1.push(SegmentConnection::Add(parent.get()));
+                                connections
+                                    .1
+                                    .push(SegmentConnection::Add(child_of.parent()));
                             }
                         }
                         PointCollision::None => {}

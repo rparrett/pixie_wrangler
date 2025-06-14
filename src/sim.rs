@@ -35,9 +35,13 @@ impl Plugin for SimulationPlugin {
         // TODO this must run after buffers from pixie_button_system are applied
         // so that emitters are created on time. It might be nice to move sim entity
         // initialization into the sim schedule.
+        //
+        // TODO this `ApplyDeferred` may not be necessary. Bevy does some automatic
+        // command flushing these days. We can probably get away with
+        // `run_simulation.after(pixie_button_system)`.
         app.add_systems(
             Update,
-            (apply_deferred.after(pixie_button_system), run_simulation).chain(),
+            (ApplyDeferred.after(pixie_button_system), run_simulation).chain(),
         );
     }
 }
