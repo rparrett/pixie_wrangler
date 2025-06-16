@@ -18,8 +18,7 @@ impl Plugin for LevelSelectPlugin {
 
         app.add_systems(
             Update,
-            (level_select_update, level_select_button_system)
-                .run_if(in_state(GameState::LevelSelect)),
+            (level_select_button_system).run_if(in_state(GameState::LevelSelect)),
         );
 
         app.add_systems(OnExit(GameState::LevelSelect), level_select_exit);
@@ -70,8 +69,7 @@ fn level_select_enter(mut commands: Commands, best_scores: Res<BestScores>, hand
         ))
         .id();
 
-    // TODO pretty sure this should be a bottom bar, and smaller
-    let top_bar = commands
+    let bottom_bar = commands
         .spawn((
             Node {
                 width: Val::Percent(100.),
@@ -98,7 +96,7 @@ fn level_select_enter(mut commands: Commands, best_scores: Res<BestScores>, hand
                 Text::new("₽IXIE WRANGLER"),
                 TextFont {
                     font: handles.fonts[0].clone(),
-                    font_size: 40.0,
+                    font_size: 25.0,
                     ..default()
                 },
                 TextColor(theme::PIXIE[1].into()),
@@ -125,7 +123,8 @@ fn level_select_enter(mut commands: Commands, best_scores: Res<BestScores>, hand
                         },
                         TextColor(theme::FINISHED_ROAD[1].into()),
                     ));
-                    // TODO clock for flavor
+                    // TODO add total star count
+                    // TODO clock for flavor?
                 });
         })
         .id();
@@ -168,11 +167,11 @@ fn level_select_enter(mut commands: Commands, best_scores: Res<BestScores>, hand
 
     commands
         .entity(main_content)
-        .add_child(levels_panel)
-        .add_child(settings_panel);
+        .add_children(&[levels_panel, settings_panel]);
 
-    commands.entity(root).add_child(top_bar);
-    commands.entity(root).add_child(main_content);
+    commands
+        .entity(root)
+        .add_children(&[main_content, bottom_bar]);
 }
 
 fn panel<M: Component>(
@@ -307,15 +306,12 @@ fn level_item(
     )
 }
 
-fn level_select_update() {}
-
 fn level_select_exit(
     mut commands: Commands,
     query: Query<Entity, With<LevelSelectScreen>>,
     mut mouse: ResMut<ButtonInput<MouseButton>>,
 ) {
     for entity in query.iter() {
-        info!("level_select_exit despawning: {entity}");
         commands.entity(entity).despawn();
     }
 
@@ -329,15 +325,7 @@ fn populate_settings_panel_body(
     handles: Res<Handles>,
 ) {
     commands.entity(trigger.target()).with_child((
-        Text::new("TODO"),
-        TextFont::from_font(handles.fonts[0].clone()),
-    ));
-    commands.entity(trigger.target()).with_child((
-        Text::new("Music: 30"),
-        TextFont::from_font(handles.fonts[0].clone()),
-    ));
-    commands.entity(trigger.target()).with_child((
-        Text::new("SFX: 30"),
+        Text::new("There aren't any settings yet! Soon!"),
         TextFont::from_font(handles.fonts[0].clone()),
     ));
 }
@@ -349,7 +337,6 @@ fn populate_levels_panel_body(
     best_scores: Res<BestScores>,
     levels: Res<Assets<Level>>,
 ) {
-    info!("populate_levels_panel_body: {}", trigger.target());
     for level_index in 1..=NUM_LEVELS {
         let Some(handle) = handles.levels.get(level_index as usize - 1) else {
             warn!("No level handle for level {level_index}");
