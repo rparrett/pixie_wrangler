@@ -1,4 +1,5 @@
 use crate::{level::Level, loading::NUM_LEVELS, save::BestScores, theme, GameState, Handles};
+
 use bevy::prelude::*;
 
 pub struct LevelSelectPlugin;
@@ -6,6 +7,10 @@ pub struct LevelSelectPlugin;
 pub struct LevelSelectScreen;
 #[derive(Component)]
 pub struct LevelSelectButton(u32);
+#[derive(Component)]
+struct SettingsPanelBody;
+#[derive(Component)]
+struct LevelsPanelBody;
 
 impl Plugin for LevelSelectPlugin {
     fn build(&self, app: &mut App) {
@@ -13,13 +18,18 @@ impl Plugin for LevelSelectPlugin {
 
         app.add_systems(
             Update,
-            (level_select_update, level_select_button_system)
-                .run_if(in_state(GameState::LevelSelect)),
+            (level_select_button_system).run_if(in_state(GameState::LevelSelect)),
         );
 
         app.add_systems(OnExit(GameState::LevelSelect), level_select_exit);
+
+        // TODO these are not firing when re-entering GameState::LevelSelect??
+        app.add_observer(populate_settings_panel_body);
+        app.add_observer(populate_levels_panel_body);
     }
 }
+
+// TODO add "diagonal scrolling grid" background
 
 fn level_select_button_system(
     query: Query<(&Interaction, &LevelSelectButton), Changed<Interaction>>,
@@ -43,46 +53,63 @@ fn level_select_button_system(
     }
 }
 
-fn level_select_enter(
-    mut commands: Commands,
-    best_scores: Res<BestScores>,
-    handles: Res<Handles>,
-    levels: Res<Assets<Level>>,
-) {
+fn level_select_enter(mut commands: Commands, best_scores: Res<BestScores>, handles: Res<Handles>) {
     let total_score: u32 = best_scores.0.iter().map(|(_, v)| v).sum();
 
-    commands
+    let root = commands
         .spawn((
             Node {
-                width: Val::Percent(100.),
-                height: Val::Percent(100.),
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
                 flex_direction: FlexDirection::Column,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::SpaceEvenly,
+                overflow: Overflow::clip(),
                 ..default()
             },
             LevelSelectScreen,
         ))
+        .id();
+
+    let bottom_bar = commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.),
+                flex_shrink: 0.0,
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::SpaceBetween,
+                padding: UiRect {
+                    left: Val::Px(20.),
+                    right: Val::Px(20.),
+                    top: Val::Px(10.),
+                    bottom: Val::Px(10.),
+                },
+                ..default()
+            },
+            BackgroundColor(theme::UI_PANEL_BACKGROUND.into()),
+        ))
         .with_children(|parent| {
+            parent.spawn((
+                Node {
+                    align_self: AlignSelf::Center,
+                    ..default()
+                },
+                Text::new("₽IXIE WRANGLER"),
+                TextFont {
+                    font: handles.fonts[0].clone(),
+                    font_size: 25.0,
+                    ..default()
+                },
+                TextColor(theme::PIXIE[1].into()),
+            ));
+            // Right side of top bar
             parent
                 .spawn(Node {
-                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::FlexStart,
+                    justify_content: JustifyContent::Center,
+                    column_gap: Val::Px(10.),
                     ..default()
                 })
                 .with_children(|parent| {
-                    parent.spawn((
-                        Node {
-                            align_self: AlignSelf::Center,
-                            ..default()
-                        },
-                        Text::new("₽IXIE WRANGLER"),
-                        TextFont {
-                            font: handles.fonts[0].clone(),
-                            font_size: 50.0,
-                            ..default()
-                        },
-                        TextColor(theme::PIXIE[1].into()),
-                    ));
                     parent.spawn((
                         Node {
                             align_self: AlignSelf::Center,
@@ -96,121 +123,190 @@ fn level_select_enter(
                         },
                         TextColor(theme::FINISHED_ROAD[1].into()),
                     ));
+                    // TODO add total star count
+                    // TODO clock for flavor?
                 });
+        })
+        .id();
 
-            let cols = (NUM_LEVELS as f32 / 3.).ceil() as u16;
+    let main_content = commands
+        .spawn((Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            padding: UiRect::all(Val::Px(20.)),
+            column_gap: Val::Px(20.),
+            display: Display::Grid,
+            grid_template_columns: vec![GridTrack::flex(0.75), GridTrack::flex(0.25)],
+            ..default()
+        },))
+        .id();
 
-            parent
-                .spawn(Node {
-                    display: Display::Grid,
-                    grid_template_rows: RepeatedGridTrack::auto(3),
-                    grid_template_columns: RepeatedGridTrack::auto(cols),
-                    row_gap: Val::Px(10.),
-                    column_gap: Val::Px(10.),
-                    ..default()
-                })
-                .with_children(|parent| {
-                    for i in 1..=NUM_LEVELS {
-                        parent
-                            .spawn((
-                                Button,
-                                Node {
-                                    width: Val::Px(150.),
-                                    height: Val::Px(150.),
-                                    flex_direction: FlexDirection::Column,
-                                    justify_content: JustifyContent::Center,
-                                    align_items: AlignItems::Center,
-                                    ..default()
-                                },
-                                BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
-                                LevelSelectButton(i),
-                            ))
-                            .with_children(|parent| {
-                                let level = handles
-                                    .levels
-                                    .get(i as usize - 1)
-                                    .and_then(|h| levels.get(h));
+    let settings_panel = commands
+        .spawn(panel(
+            "\u{01a9} SETTINGS",
+            &handles,
+            Node::default(),
+            SettingsPanelBody,
+        ))
+        .id();
 
-                                let level_color = match level {
-                                    Some(_) => theme::UI_LABEL,
-                                    None => theme::UI_LABEL_BAD,
-                                };
+    let levels_panel = commands
+        .spawn(panel(
+            "\u{0393} /user/levels",
+            &handles,
+            Node {
+                column_gap: Val::Px(10.),
+                row_gap: Val::Px(10.),
+                flex_wrap: FlexWrap::Wrap,
+                align_content: AlignContent::FlexStart,
+                ..default()
+            },
+            LevelsPanelBody,
+        ))
+        .id();
 
-                                let (score_text, star_text_one, star_text_two) =
-                                    if let (Some(score), Some(level)) =
-                                        (best_scores.0.get(&i), level)
-                                    {
-                                        let stars = level
-                                            .star_thresholds
-                                            .iter()
-                                            .filter(|t| **t <= *score)
-                                            .count();
+    commands
+        .entity(main_content)
+        .add_children(&[levels_panel, settings_panel]);
 
-                                        (
-                                            format!("Æ{score}"),
-                                            "★".repeat(stars),
-                                            "★".repeat(3 - stars),
-                                        )
-                                    } else {
-                                        ("".to_string(), "".to_string(), "".to_string())
-                                    };
-
-                                parent
-                                    .spawn((
-                                        Text::default(),
-                                        // See Bevy#16521
-                                        TextFont {
-                                            font: handles.fonts[0].clone(),
-                                            ..default()
-                                        },
-                                    ))
-                                    .with_children(|parent| {
-                                        parent.spawn((
-                                            TextSpan::new(star_text_one),
-                                            TextFont {
-                                                font: handles.fonts[0].clone(),
-                                                font_size: 25.0,
-                                                ..default()
-                                            },
-                                            TextColor(theme::UI_LABEL.into()),
-                                        ));
-                                        parent.spawn((
-                                            TextSpan::new(star_text_two),
-                                            TextFont {
-                                                font: handles.fonts[0].clone(),
-                                                font_size: 25.0,
-                                                ..default()
-                                            },
-                                            TextColor(theme::UI_LABEL_MUTED.into()),
-                                        ));
-                                    });
-
-                                parent.spawn((
-                                    Text::new(format!("{i}")),
-                                    TextFont {
-                                        font: handles.fonts[0].clone(),
-                                        font_size: 50.0,
-                                        ..default()
-                                    },
-                                    TextColor(level_color.into()),
-                                ));
-
-                                parent.spawn((
-                                    Text::new(score_text),
-                                    TextFont {
-                                        font: handles.fonts[0].clone(),
-                                        font_size: 25.0,
-                                        ..default()
-                                    },
-                                    TextColor(theme::FINISHED_ROAD[1].into()),
-                                ));
-                            });
-                    }
-                });
-        });
+    commands
+        .entity(root)
+        .add_children(&[main_content, bottom_bar]);
 }
 
-fn level_select_update() {}
+fn panel<M: Component>(
+    title: impl Into<String>,
+    handles: &Handles,
+    body_node: Node,
+    body_marker: M,
+) -> impl Bundle {
+    (
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            flex_direction: FlexDirection::Column,
+            overflow: Overflow::hidden(),
+            ..default()
+        },
+        Name::new("Panel"),
+        Children::spawn((
+            Spawn((
+                Name::new("PanelTitle"),
+                Node {
+                    padding: UiRect {
+                        left: Val::Px(20.),
+                        right: Val::Px(20.),
+                        top: Val::Px(10.),
+                        bottom: Val::Px(10.),
+                    },
+                    align_self: AlignSelf::FlexStart,
+                    ..default()
+                },
+                BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
+                Children::spawn(Spawn((
+                    Text::new(title),
+                    TextFont {
+                        font: handles.fonts[0].clone(),
+                        font_size: 25.0,
+                        ..default()
+                    },
+                    TextColor(theme::UI_LABEL.into()),
+                ))),
+            )),
+            Spawn((
+                Name::new("PanelBody"),
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    padding: UiRect::all(Val::Px(10.)),
+                    overflow: Overflow::scroll_y(),
+                    ..body_node
+                },
+                BackgroundColor(theme::UI_PANEL_BACKGROUND.into()),
+                body_marker,
+            )),
+        )),
+    )
+}
+
+fn level_item(
+    level: &Level,
+    level_index: u32,
+    best_scores: &BestScores,
+    font_handle: &Handle<Font>,
+) -> impl Bundle {
+    let (score_text, star_text_one, star_text_two) =
+        if let Some(score) = best_scores.0.get(&level_index) {
+            let stars = level
+                .star_thresholds
+                .iter()
+                .filter(|t| **t <= *score)
+                .count();
+
+            (
+                format!("Æ{score}"),
+                "★".repeat(stars),
+                "★".repeat(3 - stars),
+            )
+        } else {
+            ("".to_string(), "".to_string(), "".to_string())
+        };
+
+    // TODO display level name
+
+    (
+        Button,
+        Name::new("LevelItem"),
+        Node {
+            width: Val::Px(150.),
+            height: Val::Px(150.),
+            flex_direction: FlexDirection::Column,
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            ..default()
+        },
+        BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
+        LevelSelectButton(level_index),
+        Children::spawn((
+            Spawn((
+                Text::new(star_text_one),
+                TextFont {
+                    font: font_handle.clone(),
+                    font_size: 25.0,
+                    ..default()
+                },
+                TextColor(theme::UI_LABEL.into()),
+                Children::spawn(Spawn((
+                    TextSpan::new(star_text_two),
+                    TextFont {
+                        font: font_handle.clone(),
+                        font_size: 25.0,
+                        ..default()
+                    },
+                    TextColor(theme::UI_LABEL_MUTED.into()),
+                ))),
+            )),
+            Spawn((
+                Text::new(format!("{level_index}")),
+                TextFont {
+                    font: font_handle.clone(),
+                    font_size: 50.0,
+                    ..default()
+                },
+                TextColor(theme::UI_LABEL.into()),
+            )),
+            Spawn((
+                Text::new(score_text),
+                TextFont {
+                    font: font_handle.clone(),
+                    font_size: 25.0,
+                    ..default()
+                },
+                TextColor(theme::FINISHED_ROAD[1].into()),
+            )),
+        )),
+    )
+}
 
 fn level_select_exit(
     mut commands: Commands,
@@ -223,4 +319,41 @@ fn level_select_exit(
 
     mouse.reset(MouseButton::Left);
     mouse.clear();
+}
+
+fn populate_settings_panel_body(
+    trigger: Trigger<OnAdd, SettingsPanelBody>,
+    mut commands: Commands,
+    handles: Res<Handles>,
+) {
+    commands.entity(trigger.target()).with_child((
+        Text::new("There aren't any settings yet! Soon!"),
+        TextFont::from_font(handles.fonts[0].clone()),
+    ));
+}
+
+fn populate_levels_panel_body(
+    trigger: Trigger<OnAdd, LevelsPanelBody>,
+    mut commands: Commands,
+    handles: Res<Handles>,
+    best_scores: Res<BestScores>,
+    levels: Res<Assets<Level>>,
+) {
+    for level_index in 1..=NUM_LEVELS {
+        let Some(handle) = handles.levels.get(level_index as usize - 1) else {
+            warn!("No level handle for level {level_index}");
+            continue;
+        };
+        let Some(level) = levels.get(handle) else {
+            warn!("No level asset for level {level_index}");
+            continue;
+        };
+
+        commands.entity(trigger.target()).with_child(level_item(
+            level,
+            level_index,
+            &best_scores,
+            &handles.fonts[0],
+        ));
+    }
 }

@@ -11,8 +11,8 @@ use crate::{
     collision::{point_segment_collision, PointCollision},
     layer,
     sim::SimulationState,
-    Collider, ColliderLayer, DrawingInteraction, DrawingMouseMovement, MouseSnappedPos, RoadGraph,
-    RoadSegment, SegmentGraphNodes, SelectedTool, Tool,
+    Collider, ColliderLayer, DrawingInteraction, DrawingMouseMovement, GameState, MouseSnappedPos,
+    RoadGraph, RoadSegment, SegmentGraphNodes, SelectedTool, Tool,
 };
 
 pub struct NetRippingPlugin;
@@ -159,6 +159,7 @@ fn draw_net_ripping_system(
                 .build(),
             Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
             RippingLine,
+            StateScoped(GameState::Playing),
         ));
     }
 }
