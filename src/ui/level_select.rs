@@ -23,7 +23,6 @@ impl Plugin for LevelSelectPlugin {
 
         app.add_systems(OnExit(GameState::LevelSelect), level_select_exit);
 
-        // TODO these are not firing when re-entering GameState::LevelSelect??
         app.add_observer(populate_settings_panel_body);
         app.add_observer(populate_levels_panel_body);
     }
