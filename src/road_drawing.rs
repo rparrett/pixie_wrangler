@@ -1,17 +1,18 @@
 use bevy::{platform::collections::HashSet, prelude::*};
-
-use crate::{
-    collision::{point_segment_collision, segment_collision, PointCollision, SegmentCollision},
-    lines::{possible_lines, Axis},
-    sim::SimulationState,
-    spawn_road_segment, Collider, ColliderLayer, DrawingInteraction, DrawingMouseMovement,
-    MousePos, MouseSnappedPos, PointGraphNode, RoadGraph, RoadSegment, SegmentGraphNodes,
-    SelectedTool, Tool, BOTTOM_BAR_HEIGHT,
-};
-
+use bevy_prototype_lyon::prelude::*;
 use petgraph::{
     dot::{Config, Dot},
     stable_graph::NodeIndex,
+};
+
+use crate::{
+    collision::{point_segment_collision, segment_collision, PointCollision, SegmentCollision},
+    layer,
+    lines::{possible_lines, Axis},
+    sim::SimulationState,
+    spawn_road_segment, theme, Collider, ColliderLayer, DrawingInteraction, DrawingMouseMovement,
+    GameState, MousePos, MouseSnappedPos, PointGraphNode, RoadGraph, RoadSegment,
+    SegmentGraphNodes, SelectedTool, Tool, BOTTOM_BAR_HEIGHT,
 };
 
 pub struct RoadDrawingPlugin;
@@ -28,7 +29,9 @@ impl Plugin for RoadDrawingPlugin {
         );
         app.add_systems(
             Update,
-            (drawing_mouse_click_system).in_set(DrawingInteraction),
+            (drawing_mouse_click_system, draw_drawing_system)
+                .chain()
+                .in_set(DrawingInteraction),
         );
     }
 }
@@ -62,6 +65,8 @@ impl Default for RoadDrawingState {
         }
     }
 }
+#[derive(Component)]
+struct DrawingLine;
 
 #[derive(Clone, Debug)]
 struct AddSegment {
@@ -620,5 +625,38 @@ fn drawing_mouse_movement_system(
         road_state.segments = vec![];
         road_state.adds = vec![];
         road_state.valid = false;
+    }
+}
+
+fn draw_drawing_system(
+    mut commands: Commands,
+    road_drawing: Res<RoadDrawingState>,
+    lines: Query<Entity, With<DrawingLine>>,
+) {
+    if !road_drawing.is_changed() {
+        return;
+    }
+
+    for entity in lines.iter() {
+        commands.entity(entity).despawn();
+    }
+
+    if road_drawing.drawing {
+        let color = if road_drawing.valid {
+            theme::DRAWING_ROAD[road_drawing.layer as usize - 1]
+        } else {
+            bevy::color::palettes::css::RED
+        };
+
+        for (a, b) in road_drawing.segments.iter() {
+            commands.spawn((
+                ShapeBuilder::with(&shapes::Line(*a, *b))
+                    .stroke((color, 2.0))
+                    .build(),
+                Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
+                DrawingLine,
+                StateScoped(GameState::Playing),
+            ));
+        }
     }
 }

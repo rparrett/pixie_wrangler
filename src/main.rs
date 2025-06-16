@@ -139,7 +139,7 @@ fn main() {
             .after(DrawingMouseMovement)
             .run_if(in_state(GameState::Playing)),
     );
-    app.add_systems(Update, draw_mouse_system.in_set(DrawingInteraction));
+    app.add_systems(Update, draw_cursor_system.in_set(DrawingInteraction));
 
     // whenever
     app.add_systems(
@@ -240,8 +240,6 @@ struct Handles {
 struct MainCamera;
 #[derive(Component)]
 struct Cursor;
-#[derive(Component)]
-struct DrawingLine;
 #[derive(Component)]
 struct GridPoint;
 #[derive(Component)]
@@ -656,12 +654,11 @@ fn snap_to_grid(position: Vec2, grid_size: f32) -> Vec2 {
     (position / grid_size).round() * grid_size
 }
 
-fn draw_mouse_system(
+fn draw_cursor_system(
     mut commands: Commands,
     line_drawing: Res<RoadDrawingState>,
     mouse_snapped: Res<MouseSnappedPos>,
     q_cursor: Query<Entity, With<Cursor>>,
-    q_drawing: Query<Entity, With<DrawingLine>>,
 ) {
     if mouse_snapped.is_changed() || line_drawing.is_changed() {
         for entity in q_cursor.iter() {
@@ -684,34 +681,6 @@ fn draw_mouse_system(
             Cursor,
             StateScoped(GameState::Playing),
         ));
-    }
-
-    // TODO move this bit to a separate system in road_drawing.rs
-    if !line_drawing.is_changed() {
-        return;
-    }
-
-    for entity in q_drawing.iter() {
-        commands.entity(entity).despawn();
-    }
-
-    if line_drawing.drawing {
-        let color = if line_drawing.valid {
-            theme::DRAWING_ROAD[line_drawing.layer as usize - 1]
-        } else {
-            bevy::color::palettes::css::RED
-        };
-
-        for (a, b) in line_drawing.segments.iter() {
-            commands.spawn((
-                ShapeBuilder::with(&shapes::Line(*a, *b))
-                    .stroke((color, 2.0))
-                    .build(),
-                Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
-                DrawingLine,
-                StateScoped(GameState::Playing),
-            ));
-        }
     }
 }
 
