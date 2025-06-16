@@ -96,12 +96,12 @@ fn main() {
     ));
 
     app.init_state::<GameState>();
+    app.enable_state_scoped_entities::<GameState>();
 
     app.add_systems(
         OnEnter(GameState::Playing),
         (reset_game, spawn_level, spawn_game_ui).chain(),
     );
-    app.add_systems(OnExit(GameState::Playing), playing_exit_system);
 
     app.configure_sets(Update, DrawingInput.run_if(in_state(GameState::Playing)));
     app.add_systems(
@@ -562,12 +562,15 @@ fn pixie_button_system(
                 let mut timer = Timer::from_seconds(duration * *count as f32, TimerMode::Repeating);
                 timer.set_elapsed(Duration::from_secs_f32((*i + 1) as f32 * duration));
 
-                commands.spawn(PixieEmitter {
-                    flavor: *flavor,
-                    path: world_path.clone(),
-                    remaining: pixies,
-                    timer,
-                });
+                commands.spawn((
+                    PixieEmitter {
+                        flavor: *flavor,
+                        path: world_path.clone(),
+                        remaining: pixies,
+                        timer,
+                    },
+                    StateScoped(GameState::Playing),
+                ));
 
                 *i += 1;
             }
@@ -679,9 +682,11 @@ fn draw_mouse_system(
             ShapeBuilder::with(&shape).stroke((color, 2.0)).build(),
             Transform::from_translation(mouse_snapped.0.extend(layer::CURSOR)),
             Cursor,
+            StateScoped(GameState::Playing),
         ));
     }
 
+    // TODO move this bit to a separate system in road_drawing.rs
     if !line_drawing.is_changed() {
         return;
     }
@@ -704,6 +709,7 @@ fn draw_mouse_system(
                     .build(),
                 Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
                 DrawingLine,
+                StateScoped(GameState::Playing),
             ));
         }
     }
@@ -851,6 +857,7 @@ fn spawn_road_segment(
                 .build(),
             Transform::from_xyz(0.0, 0.0, layer::ROAD - segment.layer as f32),
             segment.clone(),
+            StateScoped(GameState::Playing),
         ))
         .with_children(|parent| {
             parent.spawn((
@@ -890,6 +897,7 @@ fn spawn_obstacle(commands: &mut Commands, obstacle: &Obstacle) {
                     .fill(theme::OBSTACLE)
                     .build(),
                     Transform::from_translation(origin.extend(layer::OBSTACLE)),
+                    StateScoped(GameState::Playing),
                 ))
                 .with_children(|parent| {
                     parent.spawn((
@@ -942,6 +950,7 @@ fn spawn_name(
         TextColor(theme::LEVEL_NAME.into()),
         Anchor::TopLeft,
         Transform::from_translation((name_position + Vec2::new(8., -8.)).extend(layer::GRID)),
+        StateScoped(GameState::Playing),
     ));
 }
 
@@ -965,6 +974,7 @@ fn spawn_terminus(
             .build(),
             Transform::from_translation(terminus.point.extend(layer::TERMINUS)),
             terminus.clone(),
+            StateScoped(GameState::Playing),
         ))
         .with_children(|parent| {
             parent.spawn((Collider::Point(terminus.point), ColliderLayer(1)));
@@ -1176,16 +1186,6 @@ fn update_elapsed_text_system(
     }
 }
 
-fn playing_exit_system(
-    mut commands: Commands,
-    query: Query<Entity, (Without<MainCamera>, Without<Window>)>,
-) {
-    // TODO RIP, we are despawning important observers
-    for entity in query.iter() {
-        commands.entity(entity).despawn();
-    }
-}
-
 fn save_solution_system(
     query: Query<&RoadSegment>,
     graph: Res<RoadGraph>,
@@ -1237,6 +1237,7 @@ fn spawn_level(
                 .build(),
                 Transform::from_xyz(x as f32, y as f32, layer::GRID),
                 GridPoint,
+                StateScoped(GameState::Playing),
             ));
         }
     }
@@ -1309,14 +1310,18 @@ fn spawn_game_ui(
     let mut tool_button_ids = vec![];
 
     commands
-        .spawn(Node {
-            width: Val::Percent(100.),
-            height: Val::Percent(100.),
-            flex_direction: FlexDirection::ColumnReverse,
-            justify_content: JustifyContent::FlexStart,
-            align_items: AlignItems::Center,
-            ..default()
-        })
+        .spawn((
+            Name::new("GameUiRoot"),
+            Node {
+                width: Val::Percent(100.),
+                height: Val::Percent(100.),
+                flex_direction: FlexDirection::ColumnReverse,
+                justify_content: JustifyContent::FlexStart,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            StateScoped(GameState::Playing),
+        ))
         .with_children(|parent| {
             // bottom bar
             parent

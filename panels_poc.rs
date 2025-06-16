@@ -16,9 +16,6 @@ struct ItemPanel;
 struct PanelContent;
 
 fn setup(mut commands: Commands) {
-    // ui camera
-    commands.spawn(Camera2d);
-
     commands.spawn((
         Node {
             width: Val::Percent(100.0),
