@@ -199,7 +199,7 @@ fn panel<M: Component>(
                         top: Val::Px(10.),
                         bottom: Val::Px(10.),
                     },
-                    width: Val::Auto,
+                    align_self: AlignSelf::FlexStart,
                     ..default()
                 },
                 BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
