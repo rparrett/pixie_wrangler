@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 999.99998 1000.0001"
+   width="1000"
+   height="1000"
+   version="1.1"
+   id="svg40"
+   sodipodi:docname="gear.svg"
+   inkscape:export-filename="hexy_gear.svg"
+   inkscape:export-xdpi="85.519997"
+   inkscape:export-ydpi="85.519997"
+   inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview40"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="false"
+     inkscape:zoom="0.483"
+     inkscape:cx="109.73085"
+     inkscape:cy="356.10766"
+     inkscape:window-width="1872"
+     inkscape:window-height="1027"
+     inkscape:window-x="2020"
+     inkscape:window-y="25"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="g40" />
+  <desc
+     id="desc1">Sketch1_adj.dxf - scale = 1.000000, origin = (0.000000, 0.000000), method = manual</desc>
+  <defs
+     id="defs4" />
+  <g
+     inkscape:groupmode="layer"
+     inkscape:label="0"
+     id="g40">
+    <path
+       id="path38"
+       d="m 289.32304,617.68072 -37.01692,101.33266 46.27373,80.98658 93.27313,-0.42634 68.82199,-82.77805 78.6422,8.9e-4 68.82985,82.77716 93.27313,0.42634 46.27373,-80.98658 -37.03355,-101.31196 39.04001,-67.7059 106.14146,-18.3047 46.99851,-80.56023 -46.99851,-80.56025 -106.26062,-18.60736 -38.83726,-67.29844 36.94996,-101.41853 -46.27373,-81.46231 -93.27313,0.89496 -69.25763,82.72255 -78.58205,0.12043 -68.45436,-82.84302 -93.27313,-0.41834 -46.27373,80.98573 37.51701,100.70586 -39.54548,68.36878 -106.11945,18.24969 -46.998509,80.56024 46.998509,80.56024 105.9708,17.86948 z"
+       sodipodi:nodetypes="ccccccccccccccccccccccccccccccc"
+       inkscape:label="path38"
+       style="fill:#000000;fill-opacity:1" />
+    <path
+       d="m 338.86413,451.13145 80.56794,139.54778 161.13589,-10e-6 80.56793,-139.54775 -80.56794,-139.54777 -161.13588,-1e-5 z"
+       id="path39"
+       sodipodi:nodetypes="ccccccc"
+       style="fill:#953f3f;fill-opacity:1" />
+  </g>
+</svg>

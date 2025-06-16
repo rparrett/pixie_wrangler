@@ -1180,6 +1180,7 @@ fn playing_exit_system(
     mut commands: Commands,
     query: Query<Entity, (Without<MainCamera>, Without<Window>)>,
 ) {
+    // TODO RIP, we are despawning important observers
     for entity in query.iter() {
         commands.entity(entity).despawn();
     }
