@@ -2,7 +2,9 @@ use crate::{
     level::Level,
     loading::NUM_LEVELS,
     save::{BestScores, MusicVolume},
-    theme, GameState, Handles, BOTTOM_BAR_HEIGHT,
+    theme,
+    ui::button,
+    GameState, Handles, BOTTOM_BAR_HEIGHT,
 };
 
 use bevy::prelude::*;
@@ -342,27 +344,6 @@ fn level_select_exit(
 
     mouse.reset(MouseButton::Left);
     mouse.clear();
-}
-
-fn button(text_value: impl Into<String>, font_handle: Handle<Font>) -> impl Bundle {
-    (
-        Button,
-        Node {
-            width: Val::Px(50.0),
-            padding: UiRect::all(Val::Px(10.0)),
-            align_items: AlignItems::Center,
-            justify_content: JustifyContent::Center,
-            ..default()
-        },
-        Children::spawn(Spawn((
-            Text::new(text_value),
-            TextFont {
-                font_size: 25.0,
-                font: font_handle.clone(),
-                ..default()
-            },
-        ))),
-    )
 }
 
 fn populate_settings_panel_body(
