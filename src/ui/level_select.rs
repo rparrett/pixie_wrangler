@@ -436,7 +436,7 @@ fn music_volume_text_system(
     texts: Query<&mut Text, With<MusicVolumeLabel>>,
 ) {
     for mut text in texts {
-        text.0 = format!("{}%", volume.0)
+        text.0 = format!("{}%", volume.0);
     }
 }
 

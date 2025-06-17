@@ -14,19 +14,20 @@ pub struct BestScores(pub HashMap<u32, u32>);
 #[derive(Resource, Clone, Debug, Default, Reflect)]
 pub struct Solutions(pub HashMap<u32, Solution>);
 
-#[derive(Resource, Reflect, Clone, Eq, PartialEq, Debug)]
+#[derive(Resource, Reflect, Clone, Copy, Eq, PartialEq, Debug)]
 pub struct MusicVolume(pub u8);
 impl Default for MusicVolume {
     fn default() -> Self {
         Self(50)
     }
 }
-impl Into<Volume> for MusicVolume {
-    fn into(self) -> Volume {
+impl From<MusicVolume> for Volume {
+    fn from(val: MusicVolume) -> Self {
         // TODO give this a perceptual curve
-        Volume::Linear(self.0 as f32 / 100.0)
+        Volume::Linear(val.0 as f32 / 100.0)
     }
 }
+
 impl MusicVolume {
     pub fn is_muted(&self) -> bool {
         self.0 == 0

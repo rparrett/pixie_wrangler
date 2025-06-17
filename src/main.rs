@@ -1281,7 +1281,7 @@ fn spawn_music(mut commands: Commands, handles: Res<Handles>, volume: Res<MusicV
 
     commands.spawn((
         AudioPlayer::new(handles.music.clone()),
-        PlaybackSettings::LOOP.with_volume((*volume).clone().into()),
+        PlaybackSettings::LOOP.with_volume((*volume).into()),
         GameMusic,
     ));
 }
@@ -1645,7 +1645,7 @@ fn set_music_volume_system(
         (false, true) => {
             commands.spawn((
                 AudioPlayer::new(handles.music.clone()),
-                PlaybackSettings::LOOP.with_volume((*volume).clone().into()),
+                PlaybackSettings::LOOP.with_volume((*volume).into()),
                 GameMusic,
             ));
         }
@@ -1656,7 +1656,7 @@ fn set_music_volume_system(
         }
         (false, false) => {
             for (mut sink, _) in sinks {
-                sink.set_volume((*volume).clone().into());
+                sink.set_volume((*volume).into());
             }
         }
         (true, true) => {}
