@@ -23,8 +23,12 @@ impl Default for MusicVolume {
 }
 impl From<MusicVolume> for Volume {
     fn from(val: MusicVolume) -> Self {
-        // TODO give this a perceptual curve
-        Volume::Linear(val.0 as f32 / 100.0)
+        if val.0 == 0 {
+            Volume::Linear(0.0)
+        } else {
+            let db = -30.0 * (1.0 - val.0 as f32 / 100.0);
+            Volume::Decibels(db)
+        }
     }
 }
 
