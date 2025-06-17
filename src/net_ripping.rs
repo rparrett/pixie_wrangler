@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{ecs::entity::EntityHashSet, prelude::*};
 
 use bevy_prototype_lyon::prelude::*;
 
@@ -32,9 +32,17 @@ impl Plugin for NetRippingPlugin {
 
 #[derive(Resource, Default)]
 pub struct NetRippingState {
-    pub entities: Vec<Entity>,
+    pub entities: EntityHashSet,
     pub nodes: Vec<NodeIndex>,
     pub segments: Vec<(Vec2, Vec2)>,
+}
+
+impl NetRippingState {
+    pub fn reset(&mut self) {
+        self.entities.clear();
+        self.nodes.clear();
+        self.segments.clear();
+    }
 }
 
 #[derive(Component)]
@@ -62,9 +70,7 @@ fn net_ripping_mouse_movement_system(
         return;
     }
 
-    ripping_state.entities = vec![];
-    ripping_state.nodes = vec![];
-    ripping_state.segments = vec![];
+    ripping_state.reset();
 
     let mut collisions: Vec<_> = q_colliders
         .iter()
@@ -101,12 +107,15 @@ fn net_ripping_mouse_movement_system(
     };
 
     let dfs = DfsPostOrder::new(&graph.graph, node.0);
+
     for index in dfs.iter(&graph.graph) {
         if let Some(net_entity) = graph.graph.node_weight(index) {
             if let Ok(seg) = q_road_segments.get(*net_entity) {
-                ripping_state.entities.push(*net_entity);
+                if ripping_state.entities.insert(*net_entity) {
+                    ripping_state.segments.push(seg.points);
+                }
+
                 ripping_state.nodes.push(index);
-                ripping_state.segments.push(seg.points);
             }
         }
     }
@@ -136,9 +145,7 @@ fn net_ripping_mouse_click_system(
             graph.graph.remove_node(*node);
         }
 
-        ripping_state.entities = vec![];
-        ripping_state.nodes = vec![];
-        ripping_state.segments = vec![];
+        ripping_state.reset();
     }
 }
 

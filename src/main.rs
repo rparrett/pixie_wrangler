@@ -695,9 +695,7 @@ fn drawing_mode_change_system(
 
     match selected_tool.0 {
         Tool::LineDrawing => {
-            ripping_state.entities = vec![];
-            ripping_state.nodes = vec![];
-            ripping_state.segments = vec![];
+            ripping_state.reset();
         }
         Tool::NetRipping => {
             road_state.drawing = false;
