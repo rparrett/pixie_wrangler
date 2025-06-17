@@ -66,7 +66,7 @@ fn net_ripping_mouse_movement_system(
         return;
     }
 
-    if !mouse_snapped.is_changed() && !selected_tool.is_changed() {
+    if !mouse_snapped.is_changed() && !selected_tool.is_changed() && !ripping_state.is_changed() {
         return;
     }
 
