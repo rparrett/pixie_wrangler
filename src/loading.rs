@@ -55,7 +55,17 @@ fn loading_setup(
         .fonts
         .push(asset_server.load("fonts/ChakraPetch-Regular-PixieWrangler.ttf"));
 
-    commands.spawn((Text::new("Loading..."), StateScoped(GameState::Loading)));
+    commands.spawn((
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            ..default()
+        },
+        Children::spawn(Spawn(Text::new("Loading..."))),
+        StateScoped(GameState::Loading),
+    ));
 
     handles.music = asset_server.load("music/galactic_odyssey_by_alkakrab.ogg");
 }
