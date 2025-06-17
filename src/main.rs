@@ -102,6 +102,7 @@ fn main() {
         OnEnter(GameState::Playing),
         (reset_game, spawn_level, spawn_game_ui).chain(),
     );
+    app.add_systems(OnExit(GameState::Loading), spawn_music);
 
     app.configure_sets(Update, DrawingInput.run_if(in_state(GameState::Playing)));
     app.add_systems(
@@ -235,6 +236,7 @@ enum GameState {
 struct Handles {
     levels: Vec<Handle<Level>>,
     fonts: Vec<Handle<Font>>,
+    music: Handle<AudioSource>,
 }
 #[derive(Component)]
 struct MainCamera;
@@ -326,6 +328,8 @@ enum Collider {
 }
 #[derive(Component)]
 struct ColliderLayer(u32);
+#[derive(Component)]
+struct GameMusic;
 
 const GRID_SIZE: f32 = 48.0;
 pub const BOTTOM_BAR_HEIGHT: f32 = 70.0;
@@ -1261,6 +1265,14 @@ fn spawn_level(
     }
 
     // Build UI
+}
+
+fn spawn_music(mut commands: Commands, handles: Res<Handles>) {
+    commands.spawn((
+        AudioPlayer::new(handles.music.clone()),
+        PlaybackSettings::LOOP,
+        GameMusic,
+    ));
 }
 
 fn spawn_game_ui(
