@@ -148,7 +148,11 @@ fn level_select_enter(mut commands: Commands, best_scores: Res<BestScores>, hand
         .spawn(panel(
             "\u{01a9} SETTINGS",
             &handles,
-            Node::default(),
+            Node {
+                row_gap: Val::Px(10.),
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
             SettingsPanelBody,
         ))
         .id();
@@ -330,8 +334,75 @@ fn populate_settings_panel_body(
     handles: Res<Handles>,
 ) {
     commands.entity(trigger.target()).with_child((
-        Text::new("There aren't any settings yet! Soon!"),
-        TextFont::from_font(handles.fonts[0].clone()),
+        Text::new("Music"),
+        TextFont {
+            font: handles.fonts[0].clone(),
+            font_size: 25.0,
+            ..default()
+        },
+    ));
+
+    commands.entity(trigger.target()).with_child((
+        Node {
+            flex_direction: FlexDirection::Row,
+            align_items: AlignItems::Center,
+            ..default()
+        },
+        Children::spawn((
+            Spawn((
+                Button,
+                Node {
+                    width: Val::Px(50.),
+                    padding: UiRect::all(Val::Px(10.)),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
+                Children::spawn(Spawn((
+                    Text::new("<"),
+                    TextFont {
+                        font: handles.fonts[0].clone(),
+                        font_size: 25.0,
+                        ..default()
+                    },
+                ))),
+            )),
+            Spawn((
+                Node {
+                    flex_grow: 1.0,
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                Children::spawn(Spawn((
+                    Text::new("50%"),
+                    TextFont {
+                        font: handles.fonts[0].clone(),
+                        font_size: 25.0,
+                        ..default()
+                    },
+                ))),
+            )),
+            Spawn((
+                Button,
+                Node {
+                    width: Val::Px(50.),
+                    padding: UiRect::all(Val::Px(10.)),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
+                Children::spawn(Spawn((
+                    Text::new(">"),
+                    TextFont {
+                        font: handles.fonts[0].clone(),
+                        font_size: 25.0,
+                        ..default()
+                    },
+                ))),
+            )),
+        )),
     ));
 }
 
