@@ -18,7 +18,7 @@ impl Plugin for LevelSelectPlugin {
 
         app.add_systems(
             Update,
-            (level_select_button_system).run_if(in_state(GameState::LevelSelect)),
+            level_select_button_system.run_if(in_state(GameState::LevelSelect)),
         );
 
         app.add_systems(OnExit(GameState::LevelSelect), level_select_exit);

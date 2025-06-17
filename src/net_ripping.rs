@@ -21,7 +21,7 @@ impl Plugin for NetRippingPlugin {
         app.init_resource::<NetRippingState>();
         app.add_systems(
             Update,
-            (net_ripping_mouse_movement_system,).in_set(DrawingMouseMovement),
+            net_ripping_mouse_movement_system.in_set(DrawingMouseMovement),
         );
         app.add_systems(
             Update,
