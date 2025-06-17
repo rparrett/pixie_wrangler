@@ -89,21 +89,24 @@ fn net_ripping_mouse_movement_system(
         return;
     }
 
-    // if there are multiple collisions, choose one on the top-most layer
+    // if there are multiple collisions, choose one on the top-most (lower value) layer
 
     collisions.sort_by(|a, b| a.1.cmp(&b.1));
 
-    if let Some((entity, _layer)) = collisions.first() {
-        if let Ok(node) = q_segment_nodes.get(*entity) {
-            let dfs = DfsPostOrder::new(&graph.graph, node.0);
-            for index in dfs.iter(&graph.graph) {
-                if let Some(net_entity) = graph.graph.node_weight(index) {
-                    if let Ok(seg) = q_road_segments.get(*net_entity) {
-                        ripping_state.entities.push(*net_entity);
-                        ripping_state.nodes.push(index);
-                        ripping_state.segments.push(seg.points);
-                    }
-                }
+    let (entity, _layer) = collisions.first().unwrap();
+
+    let Ok(node) = q_segment_nodes.get(*entity) else {
+        warn!("Failed to look up SegmentNodes for {entity}");
+        return;
+    };
+
+    let dfs = DfsPostOrder::new(&graph.graph, node.0);
+    for index in dfs.iter(&graph.graph) {
+        if let Some(net_entity) = graph.graph.node_weight(index) {
+            if let Ok(seg) = q_road_segments.get(*net_entity) {
+                ripping_state.entities.push(*net_entity);
+                ripping_state.nodes.push(index);
+                ripping_state.segments.push(seg.points);
             }
         }
     }
