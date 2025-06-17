@@ -12,6 +12,7 @@ debugdump = ["bevy_mod_debugdump"]
 [dependencies]
 bevy = { version = "0.16", default-features = false, features = [
     "bevy_asset",
+    "bevy_audio",
     "bevy_core_pipeline",
     "bevy_render",
     "bevy_sprite",
@@ -20,7 +21,9 @@ bevy = { version = "0.16", default-features = false, features = [
     "bevy_ui",
     "bevy_winit",
     "bevy_window",
+    "default_font",
     "multi_threaded",
+    "vorbis",
     "webgl2",
     "x11",
 ] }
@@ -42,6 +45,7 @@ log = { version = "0.4", features = [
     "max_level_debug",
     "release_max_level_warn",
 ] }
+bevy_pipelines_ready = "0.6.0"
 
 [dev-dependencies]
 approx = "0.5.1"

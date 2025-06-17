@@ -31,3 +31,23 @@ fn button_system(
         }
     }
 }
+
+pub fn button(text_value: impl Into<String>, font_handle: Handle<Font>, width: f32) -> impl Bundle {
+    (
+        Button,
+        Node {
+            width: Val::Px(width),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            ..default()
+        },
+        Children::spawn(Spawn((
+            Text::new(text_value),
+            TextFont {
+                font_size: 25.0,
+                font: font_handle.clone(),
+                ..default()
+            },
+        ))),
+    )
+}

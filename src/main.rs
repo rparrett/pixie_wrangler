@@ -11,9 +11,10 @@ use crate::{
     net_ripping::NetRippingPlugin,
     pixie::{Pixie, PixieEmitter, PixieFlavor, PixiePlugin},
     road_drawing::{RoadDrawingPlugin, RoadDrawingState},
-    save::{BestScores, SavePlugin, Solution, Solutions},
+    save::{BestScores, MusicVolume, SavePlugin, Solution, Solutions},
     sim::{SimulationPlugin, SimulationSettings, SimulationState, SimulationSteps},
     ui::{
+        button,
         radio_button::{RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonSet},
         UiPlugin,
     },
@@ -102,6 +103,7 @@ fn main() {
         OnEnter(GameState::Playing),
         (reset_game, spawn_level, spawn_game_ui).chain(),
     );
+    app.add_systems(OnExit(GameState::Loading), spawn_music);
 
     app.configure_sets(Update, DrawingInput.run_if(in_state(GameState::Playing)));
     app.add_systems(
@@ -141,7 +143,7 @@ fn main() {
     );
     app.add_systems(Update, draw_cursor_system.in_set(DrawingInteraction));
 
-    // whenever
+    // whenever, when playing
     app.add_systems(
         Update,
         (
@@ -151,6 +153,13 @@ fn main() {
             back_button_system,
         )
             .run_if(in_state(GameState::Playing)),
+    );
+    // whenever
+    app.add_systems(
+        Update,
+        set_music_volume_system
+            .run_if(resource_changed::<MusicVolume>)
+            .run_if(in_state(GameState::LevelSelect)),
     );
 
     app.configure_sets(AfterUpdate, ScoreCalc.run_if(in_state(GameState::Playing)));
@@ -235,6 +244,7 @@ enum GameState {
 struct Handles {
     levels: Vec<Handle<Level>>,
     fonts: Vec<Handle<Font>>,
+    music: Handle<AudioSource>,
 }
 #[derive(Component)]
 struct MainCamera;
@@ -326,6 +336,8 @@ enum Collider {
 }
 #[derive(Component)]
 struct ColliderLayer(u32);
+#[derive(Component)]
+struct GameMusic;
 
 const GRID_SIZE: f32 = 48.0;
 pub const BOTTOM_BAR_HEIGHT: f32 = 70.0;
@@ -1263,6 +1275,18 @@ fn spawn_level(
     // Build UI
 }
 
+fn spawn_music(mut commands: Commands, handles: Res<Handles>, volume: Res<MusicVolume>) {
+    if volume.is_muted() {
+        return;
+    }
+
+    commands.spawn((
+        AudioPlayer::new(handles.music.clone()),
+        PlaybackSettings::LOOP.with_volume((*volume).into()),
+        GameMusic,
+    ));
+}
+
 fn spawn_game_ui(
     mut commands: Commands,
     simulation_settings: Res<SimulationSettings>,
@@ -1315,96 +1339,42 @@ fn spawn_game_ui(
                         })
                         .with_children(|parent| {
                             // Back button
-                            parent
-                                .spawn((
-                                    Button,
-                                    Node {
-                                        width: Val::Px(50.),
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-                                        // extra padding to separate the back button from
-                                        // the tools
-                                        margin: UiRect {
-                                            right: Val::Px(10.0),
-                                            ..default()
-                                        },
-                                        ..default()
-                                    },
-                                    BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
+                            parent.spawn((
+                                Node {
+                                    // extra padding to separate the back button from
+                                    // the tools
+                                    margin: UiRect::right(Val::Px(10.0)),
+                                    ..default()
+                                },
+                                Children::spawn(Spawn((
+                                    button("←", handles.fonts[0].clone(), 50.0),
                                     BackButton,
-                                ))
-                                .with_children(|parent| {
-                                    parent.spawn((
-                                        Text::new("←"),
-                                        TextFont {
-                                            font: handles.fonts[0].clone(),
-                                            font_size: 25.0,
-                                            ..default()
-                                        },
-                                        TextColor(theme::UI_BUTTON_TEXT.into()),
-                                    ));
-                                });
+                                ))),
+                            ));
 
                             // Tool Buttons
 
                             for layer in 1..=level.layers {
                                 let id = parent
                                     .spawn((
-                                        Button,
-                                        Node {
-                                            width: Val::Px(50.),
-                                            justify_content: JustifyContent::Center,
-                                            align_items: AlignItems::Center,
-                                            ..default()
-                                        },
-                                        BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
+                                        button(format!("{layer}"), handles.fonts[0].clone(), 50.0),
                                         LayerButton(layer),
                                         ToolButton,
                                         RadioButton {
                                             selected: layer == 1,
                                         },
                                     ))
-                                    .with_children(|parent| {
-                                        parent.spawn((
-                                            Text::new(format!("{layer}")),
-                                            TextFont {
-                                                font: handles.fonts[0].clone(),
-                                                font_size: 25.0,
-                                                ..default()
-                                            },
-                                            TextColor(theme::UI_BUTTON_TEXT.into()),
-                                        ));
-                                    })
                                     .id();
-
                                 tool_button_ids.push(id);
                             }
 
                             let net_ripping_id = parent
                                 .spawn((
-                                    Button,
-                                    Node {
-                                        width: Val::Px(50.),
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-                                        ..default()
-                                    },
-                                    BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
+                                    button("R", handles.fonts[0].clone(), 50.0),
                                     NetRippingButton,
                                     ToolButton,
                                     RadioButton { selected: false },
                                 ))
-                                .with_children(|parent| {
-                                    parent.spawn((
-                                        Text::new("R"),
-                                        TextFont {
-                                            font: handles.fonts[0].clone(),
-                                            font_size: 25.0,
-                                            ..default()
-                                        },
-                                        TextColor(theme::UI_BUTTON_TEXT.into()),
-                                    ));
-                                })
                                 .id();
 
                             tool_button_ids.push(net_ripping_id);
@@ -1536,52 +1506,20 @@ fn spawn_game_ui(
                                         TextColor(theme::UI_BUTTON_TEXT.into()),
                                     ));
                                 });
-                            parent
-                                .spawn((
-                                    Button,
-                                    Node {
-                                        width: Val::Px(50.),
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-                                        ..default()
-                                    },
-                                    BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
-                                    SpeedButton,
-                                ))
-                                .with_children(|parent| {
-                                    parent.spawn((
-                                        Text::new(simulation_settings.speed.label()),
-                                        TextFont {
-                                            font: handles.fonts[0].clone(),
-                                            font_size: 25.0,
-                                            ..default()
-                                        },
-                                        TextColor(theme::UI_BUTTON_TEXT.into()),
-                                    ));
-                                });
-                            parent
-                                .spawn((
-                                    Button,
-                                    Node {
-                                        width: Val::Px(250.),
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-                                        ..default()
-                                    },
-                                    BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
-                                    PixieButton,
-                                ))
-                                .with_children(|parent| {
-                                    parent.spawn((
-                                        Text::new("RELEASE THE PIXIES"),
-                                        TextFont {
-                                            font: handles.fonts[0].clone(),
-                                            font_size: 25.0,
-                                            ..default()
-                                        },
-                                        TextColor(theme::UI_BUTTON_TEXT.into()),
-                                    ));
-                                });
+
+                            parent.spawn((
+                                button(
+                                    simulation_settings.speed.label(),
+                                    handles.fonts[0].clone(),
+                                    50.0,
+                                ),
+                                SpeedButton,
+                            ));
+
+                            parent.spawn((
+                                button("RELEASE THE PIXIES", handles.fonts[0].clone(), 250.0),
+                                PixieButton,
+                            ));
                         });
                 });
 
@@ -1609,5 +1547,33 @@ fn spawn_game_ui(
         commands
             .entity(*id)
             .insert(RadioButtonGroupRelation(tool_group_id));
+    }
+}
+
+fn set_music_volume_system(
+    volume: Res<MusicVolume>,
+    sinks: Query<(&mut AudioSink, Entity), With<GameMusic>>,
+    handles: Res<Handles>,
+    mut commands: Commands,
+) {
+    match (volume.is_muted(), sinks.is_empty()) {
+        (false, true) => {
+            commands.spawn((
+                AudioPlayer::new(handles.music.clone()),
+                PlaybackSettings::LOOP.with_volume((*volume).into()),
+                GameMusic,
+            ));
+        }
+        (true, false) => {
+            for (_, entity) in sinks {
+                commands.entity(entity).despawn();
+            }
+        }
+        (false, false) => {
+            for (mut sink, _) in sinks {
+                sink.set_volume((*volume).into());
+            }
+        }
+        (true, true) => {}
     }
 }

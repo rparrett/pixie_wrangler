@@ -1,6 +1,10 @@
 use crate::{
-    level::Level, loading::NUM_LEVELS, save::BestScores, theme, GameState, Handles,
-    BOTTOM_BAR_HEIGHT,
+    level::Level,
+    loading::NUM_LEVELS,
+    save::{BestScores, MusicVolume},
+    theme,
+    ui::button,
+    GameState, Handles, BOTTOM_BAR_HEIGHT,
 };
 
 use bevy::prelude::*;
@@ -14,6 +18,12 @@ pub struct LevelSelectButton(u32);
 struct SettingsPanelBody;
 #[derive(Component)]
 struct LevelsPanelBody;
+#[derive(Component)]
+struct MusicVolumeDown;
+#[derive(Component)]
+struct MusicVolumeUp;
+#[derive(Component)]
+struct MusicVolumeLabel;
 
 impl Plugin for LevelSelectPlugin {
     fn build(&self, app: &mut App) {
@@ -21,7 +31,15 @@ impl Plugin for LevelSelectPlugin {
 
         app.add_systems(
             Update,
-            level_select_button_system.run_if(in_state(GameState::LevelSelect)),
+            (
+                level_select_button_system,
+                (
+                    music_volume_button_system,
+                    music_volume_text_system.run_if(resource_changed::<MusicVolume>),
+                )
+                    .chain(),
+            )
+                .run_if(in_state(GameState::LevelSelect)),
         );
 
         app.add_systems(OnExit(GameState::LevelSelect), level_select_exit);
@@ -148,7 +166,11 @@ fn level_select_enter(mut commands: Commands, best_scores: Res<BestScores>, hand
         .spawn(panel(
             "\u{01a9} SETTINGS",
             &handles,
-            Node::default(),
+            Node {
+                row_gap: Val::Px(10.),
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
             SettingsPanelBody,
         ))
         .id();
@@ -328,10 +350,45 @@ fn populate_settings_panel_body(
     trigger: Trigger<OnAdd, SettingsPanelBody>,
     mut commands: Commands,
     handles: Res<Handles>,
+    music_volume: Res<MusicVolume>,
 ) {
     commands.entity(trigger.target()).with_child((
-        Text::new("There aren't any settings yet! Soon!"),
-        TextFont::from_font(handles.fonts[0].clone()),
+        Text::new("Music"),
+        TextFont {
+            font: handles.fonts[0].clone(),
+            font_size: 25.0,
+            ..default()
+        },
+    ));
+
+    commands.entity(trigger.target()).with_child((
+        Node {
+            flex_direction: FlexDirection::Row,
+            align_items: AlignItems::Stretch,
+            height: Val::Px(50.0),
+            ..default()
+        },
+        Children::spawn((
+            Spawn((MusicVolumeDown, button("<", handles.fonts[0].clone(), 50.0))),
+            Spawn((
+                Node {
+                    flex_grow: 1.0,
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                Children::spawn(Spawn((
+                    MusicVolumeLabel,
+                    Text::new(format!("{}%", music_volume.0)),
+                    TextFont {
+                        font: handles.fonts[0].clone(),
+                        font_size: 25.0,
+                        ..default()
+                    },
+                ))),
+            )),
+            Spawn((MusicVolumeUp, button(">", handles.fonts[0].clone(), 50.0))),
+        )),
     ));
 }
 
@@ -358,5 +415,31 @@ fn populate_levels_panel_body(
             &best_scores,
             &handles.fonts[0],
         ));
+    }
+}
+
+fn music_volume_button_system(
+    up_buttons: Query<&Interaction, (Changed<Interaction>, With<MusicVolumeUp>)>,
+    down_buttons: Query<&Interaction, (Changed<Interaction>, With<MusicVolumeDown>)>,
+    mut volume: ResMut<MusicVolume>,
+) {
+    let current = volume.bypass_change_detection().0;
+
+    for _ in up_buttons.iter().filter(|i| **i == Interaction::Pressed) {
+        let new = (current + 10).min(100);
+        volume.set_if_neq(MusicVolume(new));
+    }
+    for _ in down_buttons.iter().filter(|i| **i == Interaction::Pressed) {
+        let new = current.saturating_sub(10);
+        volume.set_if_neq(MusicVolume(new));
+    }
+}
+
+fn music_volume_text_system(
+    volume: Res<MusicVolume>,
+    texts: Query<&mut Text, With<MusicVolumeLabel>>,
+) {
+    for mut text in texts {
+        text.0 = format!("{}%", volume.0);
     }
 }
