@@ -344,6 +344,27 @@ fn level_select_exit(
     mouse.clear();
 }
 
+fn button(text_value: impl Into<String>, font_handle: Handle<Font>) -> impl Bundle {
+    (
+        Button,
+        Node {
+            width: Val::Px(50.0),
+            padding: UiRect::all(Val::Px(10.0)),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            ..default()
+        },
+        Children::spawn(Spawn((
+            Text::new(text_value),
+            TextFont {
+                font_size: 25.0,
+                font: font_handle.clone(),
+                ..default()
+            },
+        ))),
+    )
+}
+
 fn populate_settings_panel_body(
     trigger: Trigger<OnAdd, SettingsPanelBody>,
     mut commands: Commands,
@@ -438,25 +459,4 @@ fn music_volume_text_system(
     for mut text in texts {
         text.0 = format!("{}%", volume.0);
     }
-}
-
-fn button(text_value: impl Into<String>, font_handle: Handle<Font>) -> impl Bundle {
-    (
-        Button,
-        Node {
-            width: Val::Px(50.0),
-            padding: UiRect::all(Val::Px(10.0)),
-            align_items: AlignItems::Center,
-            justify_content: JustifyContent::Center,
-            ..default()
-        },
-        Children::spawn(Spawn((
-            Text::new(text_value),
-            TextFont {
-                font_size: 25.0,
-                font: font_handle.clone(),
-                ..default()
-            },
-        ))),
-    )
 }
