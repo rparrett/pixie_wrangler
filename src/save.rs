@@ -23,11 +23,12 @@ impl Default for MusicVolume {
 }
 impl Into<Volume> for MusicVolume {
     fn into(self) -> Volume {
+        // TODO give this a perceptual curve
         Volume::Linear(self.0 as f32 / 100.0)
     }
 }
 impl MusicVolume {
-    fn is_muted(&self) -> bool {
+    pub fn is_muted(&self) -> bool {
         self.0 == 0
     }
 }

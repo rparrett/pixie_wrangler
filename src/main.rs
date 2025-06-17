@@ -11,7 +11,7 @@ use crate::{
     net_ripping::NetRippingPlugin,
     pixie::{Pixie, PixieEmitter, PixieFlavor, PixiePlugin},
     road_drawing::{RoadDrawingPlugin, RoadDrawingState},
-    save::{BestScores, SavePlugin, Solution, Solutions},
+    save::{BestScores, MusicVolume, SavePlugin, Solution, Solutions},
     sim::{SimulationPlugin, SimulationSettings, SimulationState, SimulationSteps},
     ui::{
         radio_button::{RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonSet},
@@ -142,7 +142,7 @@ fn main() {
     );
     app.add_systems(Update, draw_cursor_system.in_set(DrawingInteraction));
 
-    // whenever
+    // whenever, when playing
     app.add_systems(
         Update,
         (
@@ -152,6 +152,13 @@ fn main() {
             back_button_system,
         )
             .run_if(in_state(GameState::Playing)),
+    );
+    // whenever
+    app.add_systems(
+        Update,
+        set_music_volume_system
+            .run_if(resource_changed::<MusicVolume>)
+            .run_if(in_state(GameState::LevelSelect)),
     );
 
     app.configure_sets(AfterUpdate, ScoreCalc.run_if(in_state(GameState::Playing)));
@@ -1267,10 +1274,14 @@ fn spawn_level(
     // Build UI
 }
 
-fn spawn_music(mut commands: Commands, handles: Res<Handles>) {
+fn spawn_music(mut commands: Commands, handles: Res<Handles>, volume: Res<MusicVolume>) {
+    if volume.is_muted() {
+        return;
+    }
+
     commands.spawn((
         AudioPlayer::new(handles.music.clone()),
-        PlaybackSettings::LOOP,
+        PlaybackSettings::LOOP.with_volume((*volume).clone().into()),
         GameMusic,
     ));
 }
@@ -1621,5 +1632,33 @@ fn spawn_game_ui(
         commands
             .entity(*id)
             .insert(RadioButtonGroupRelation(tool_group_id));
+    }
+}
+
+fn set_music_volume_system(
+    volume: Res<MusicVolume>,
+    sinks: Query<(&mut AudioSink, Entity), With<GameMusic>>,
+    handles: Res<Handles>,
+    mut commands: Commands,
+) {
+    match (volume.is_muted(), sinks.is_empty()) {
+        (false, true) => {
+            commands.spawn((
+                AudioPlayer::new(handles.music.clone()),
+                PlaybackSettings::LOOP.with_volume((*volume).clone().into()),
+                GameMusic,
+            ));
+        }
+        (true, false) => {
+            for (_, entity) in sinks {
+                commands.entity(entity).despawn();
+            }
+        }
+        (false, false) => {
+            for (mut sink, _) in sinks {
+                sink.set_volume((*volume).clone().into());
+            }
+        }
+        (true, true) => {}
     }
 }
