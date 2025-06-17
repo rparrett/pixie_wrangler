@@ -328,7 +328,7 @@ enum Collider {
 struct ColliderLayer(u32);
 
 const GRID_SIZE: f32 = 48.0;
-const BOTTOM_BAR_HEIGHT: f32 = 70.0;
+pub const BOTTOM_BAR_HEIGHT: f32 = 70.0;
 const LAYER_TWO_MULTIPLIER: f32 = 2.0;
 const LAYER_THREE_MULTIPLIER: f32 = 4.0;
 

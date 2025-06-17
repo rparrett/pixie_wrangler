@@ -1,4 +1,7 @@
-use crate::{level::Level, loading::NUM_LEVELS, save::BestScores, theme, GameState, Handles};
+use crate::{
+    level::Level, loading::NUM_LEVELS, save::BestScores, theme, GameState, Handles,
+    BOTTOM_BAR_HEIGHT,
+};
 
 use bevy::prelude::*;
 
@@ -72,6 +75,7 @@ fn level_select_enter(mut commands: Commands, best_scores: Res<BestScores>, hand
         .spawn((
             Node {
                 width: Val::Percent(100.),
+                height: Val::Px(BOTTOM_BAR_HEIGHT),
                 flex_shrink: 0.0,
                 flex_direction: FlexDirection::Row,
                 align_items: AlignItems::Center,
