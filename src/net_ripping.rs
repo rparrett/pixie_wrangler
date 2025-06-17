@@ -72,7 +72,8 @@ fn net_ripping_mouse_movement_system(
 
     ripping_state.reset();
 
-    let mut collisions: Vec<_> = q_colliders
+    // Find collision on the top-most (lowest layer value) layer
+    let Some((entity, _layer)) = q_colliders
         .iter()
         .filter_map(|(child_of, collider, layer)| match collider {
             Collider::Segment(segment) => {
@@ -89,19 +90,12 @@ fn net_ripping_mouse_movement_system(
             }
             _ => None,
         })
-        .collect();
-
-    if collisions.is_empty() {
+        .min_by_key(|(_, layer)| *layer)
+    else {
         return;
-    }
+    };
 
-    // if there are multiple collisions, choose one on the top-most (lower value) layer
-
-    collisions.sort_by(|a, b| a.1.cmp(&b.1));
-
-    let (entity, _layer) = collisions.first().unwrap();
-
-    let Ok(node) = q_segment_nodes.get(*entity) else {
+    let Ok(node) = q_segment_nodes.get(entity) else {
         warn!("Failed to look up SegmentNodes for {entity}");
         return;
     };
