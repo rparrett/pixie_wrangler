@@ -364,15 +364,17 @@ fn populate_settings_panel_body(
     commands.entity(trigger.target()).with_child((
         Node {
             flex_direction: FlexDirection::Row,
-            align_items: AlignItems::Center,
+            align_items: AlignItems::Stretch,
+            height: Val::Px(50.0),
             ..default()
         },
         Children::spawn((
-            Spawn((MusicVolumeDown, button("<", handles.fonts[0].clone()))),
+            Spawn((MusicVolumeDown, button("<", handles.fonts[0].clone(), 50.0))),
             Spawn((
                 Node {
                     flex_grow: 1.0,
                     justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
                     ..default()
                 },
                 Children::spawn(Spawn((
@@ -385,7 +387,7 @@ fn populate_settings_panel_body(
                     },
                 ))),
             )),
-            Spawn((MusicVolumeUp, button(">", handles.fonts[0].clone()))),
+            Spawn((MusicVolumeUp, button(">", handles.fonts[0].clone(), 50.0))),
         )),
     ));
 }

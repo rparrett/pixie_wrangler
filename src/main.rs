@@ -14,6 +14,7 @@ use crate::{
     save::{BestScores, MusicVolume, SavePlugin, Solution, Solutions},
     sim::{SimulationPlugin, SimulationSettings, SimulationState, SimulationSteps},
     ui::{
+        button,
         radio_button::{RadioButton, RadioButtonGroup, RadioButtonGroupRelation, RadioButtonSet},
         UiPlugin,
     },
@@ -1338,96 +1339,42 @@ fn spawn_game_ui(
                         })
                         .with_children(|parent| {
                             // Back button
-                            parent
-                                .spawn((
-                                    Button,
-                                    Node {
-                                        width: Val::Px(50.),
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-                                        // extra padding to separate the back button from
-                                        // the tools
-                                        margin: UiRect {
-                                            right: Val::Px(10.0),
-                                            ..default()
-                                        },
-                                        ..default()
-                                    },
-                                    BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
+                            parent.spawn((
+                                Node {
+                                    // extra padding to separate the back button from
+                                    // the tools
+                                    margin: UiRect::right(Val::Px(10.0)),
+                                    ..default()
+                                },
+                                Children::spawn(Spawn((
+                                    button("←", handles.fonts[0].clone(), 50.0),
                                     BackButton,
-                                ))
-                                .with_children(|parent| {
-                                    parent.spawn((
-                                        Text::new("←"),
-                                        TextFont {
-                                            font: handles.fonts[0].clone(),
-                                            font_size: 25.0,
-                                            ..default()
-                                        },
-                                        TextColor(theme::UI_BUTTON_TEXT.into()),
-                                    ));
-                                });
+                                ))),
+                            ));
 
                             // Tool Buttons
 
                             for layer in 1..=level.layers {
                                 let id = parent
                                     .spawn((
-                                        Button,
-                                        Node {
-                                            width: Val::Px(50.),
-                                            justify_content: JustifyContent::Center,
-                                            align_items: AlignItems::Center,
-                                            ..default()
-                                        },
-                                        BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
+                                        button(format!("{layer}"), handles.fonts[0].clone(), 50.0),
                                         LayerButton(layer),
                                         ToolButton,
                                         RadioButton {
                                             selected: layer == 1,
                                         },
                                     ))
-                                    .with_children(|parent| {
-                                        parent.spawn((
-                                            Text::new(format!("{layer}")),
-                                            TextFont {
-                                                font: handles.fonts[0].clone(),
-                                                font_size: 25.0,
-                                                ..default()
-                                            },
-                                            TextColor(theme::UI_BUTTON_TEXT.into()),
-                                        ));
-                                    })
                                     .id();
-
                                 tool_button_ids.push(id);
                             }
 
                             let net_ripping_id = parent
                                 .spawn((
-                                    Button,
-                                    Node {
-                                        width: Val::Px(50.),
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-                                        ..default()
-                                    },
-                                    BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
+                                    button("R", handles.fonts[0].clone(), 50.0),
                                     NetRippingButton,
                                     ToolButton,
                                     RadioButton { selected: false },
                                 ))
-                                .with_children(|parent| {
-                                    parent.spawn((
-                                        Text::new("R"),
-                                        TextFont {
-                                            font: handles.fonts[0].clone(),
-                                            font_size: 25.0,
-                                            ..default()
-                                        },
-                                        TextColor(theme::UI_BUTTON_TEXT.into()),
-                                    ));
-                                })
                                 .id();
 
                             tool_button_ids.push(net_ripping_id);
@@ -1559,52 +1506,20 @@ fn spawn_game_ui(
                                         TextColor(theme::UI_BUTTON_TEXT.into()),
                                     ));
                                 });
-                            parent
-                                .spawn((
-                                    Button,
-                                    Node {
-                                        width: Val::Px(50.),
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-                                        ..default()
-                                    },
-                                    BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
-                                    SpeedButton,
-                                ))
-                                .with_children(|parent| {
-                                    parent.spawn((
-                                        Text::new(simulation_settings.speed.label()),
-                                        TextFont {
-                                            font: handles.fonts[0].clone(),
-                                            font_size: 25.0,
-                                            ..default()
-                                        },
-                                        TextColor(theme::UI_BUTTON_TEXT.into()),
-                                    ));
-                                });
-                            parent
-                                .spawn((
-                                    Button,
-                                    Node {
-                                        width: Val::Px(250.),
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-                                        ..default()
-                                    },
-                                    BackgroundColor(theme::UI_NORMAL_BUTTON.into()),
-                                    PixieButton,
-                                ))
-                                .with_children(|parent| {
-                                    parent.spawn((
-                                        Text::new("RELEASE THE PIXIES"),
-                                        TextFont {
-                                            font: handles.fonts[0].clone(),
-                                            font_size: 25.0,
-                                            ..default()
-                                        },
-                                        TextColor(theme::UI_BUTTON_TEXT.into()),
-                                    ));
-                                });
+
+                            parent.spawn((
+                                button(
+                                    simulation_settings.speed.label(),
+                                    handles.fonts[0].clone(),
+                                    50.0,
+                                ),
+                                SpeedButton,
+                            ));
+
+                            parent.spawn((
+                                button("RELEASE THE PIXIES", handles.fonts[0].clone(), 250.0),
+                                PixieButton,
+                            ));
                         });
                 });
 

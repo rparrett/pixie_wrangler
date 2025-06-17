@@ -32,12 +32,11 @@ fn button_system(
     }
 }
 
-pub fn button(text_value: impl Into<String>, font_handle: Handle<Font>) -> impl Bundle {
+pub fn button(text_value: impl Into<String>, font_handle: Handle<Font>, width: f32) -> impl Bundle {
     (
         Button,
         Node {
-            width: Val::Px(50.0),
-            padding: UiRect::all(Val::Px(10.0)),
+            width: Val::Px(width),
             align_items: AlignItems::Center,
             justify_content: JustifyContent::Center,
             ..default()
