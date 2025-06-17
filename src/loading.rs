@@ -6,7 +6,10 @@ use bevy_simple_prefs::PrefsStatus;
 
 pub struct LoadingPlugin;
 
+#[cfg(not(target_arch = "wasm32"))]
 const EXPECTED_PIPELINES: usize = 10;
+#[cfg(target_arch = "wasm32")]
+const EXPECTED_PIPELINES: usize = 6;
 
 pub const NUM_LEVELS: u32 = 12;
 
@@ -63,7 +66,12 @@ fn loading_update(
     mut next_state: ResMut<NextState<GameState>>,
     prefs: Res<PrefsStatus<SaveFile>>,
     ready: Res<PipelinesReady>,
+    mut frames_since_pipelines_ready: Local<u32>,
 ) {
+    if ready.get() >= EXPECTED_PIPELINES {
+        *frames_since_pipelines_ready += 1;
+    }
+
     if handles
         .fonts
         .iter()
@@ -87,7 +95,9 @@ fn loading_update(
         return;
     }
 
-    if ready.get() < EXPECTED_PIPELINES {
+    // Firefox's FPS seems to take a few frames to recover after pipelines are
+    // compiled, resulting in weird audio artifacts.
+    if *frames_since_pipelines_ready < 10 {
         return;
     }
 
