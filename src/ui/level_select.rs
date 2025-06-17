@@ -1,6 +1,8 @@
 use crate::{
-    level::Level, loading::NUM_LEVELS, save::BestScores, theme, GameState, Handles,
-    BOTTOM_BAR_HEIGHT,
+    level::Level,
+    loading::NUM_LEVELS,
+    save::{BestScores, MusicVolume},
+    theme, GameState, Handles, BOTTOM_BAR_HEIGHT,
 };
 
 use bevy::prelude::*;
@@ -332,6 +334,7 @@ fn populate_settings_panel_body(
     trigger: Trigger<OnAdd, SettingsPanelBody>,
     mut commands: Commands,
     handles: Res<Handles>,
+    music_volume: Res<MusicVolume>,
 ) {
     commands.entity(trigger.target()).with_child((
         Text::new("Music"),
@@ -375,7 +378,7 @@ fn populate_settings_panel_body(
                     ..default()
                 },
                 Children::spawn(Spawn((
-                    Text::new("50%"),
+                    Text::new(format!("{}%", music_volume.0)),
                     TextFont {
                         font: handles.fonts[0].clone(),
                         font_size: 25.0,
