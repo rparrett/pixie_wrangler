@@ -46,15 +46,18 @@ Do it! Throw some code at me! Here are some ideas:
 
 ## TODO
 
-- [ ] Audio
+- [ ] Sound Effects
 - [ ] Darken pixies when traveling on lower layers
-- [ ] Automatically stop line drawing at intersections
-- [ ] Randomizer mode?
+- [ ] Automatically exit active line drawing mode at intersections
+- [ ] Randomizer mode / procgen levels
 - [ ] Add something to segment corners to indicate that they will block lines
 - [ ] Add "reset all data" button to level select screen
 - [ ] Add "export data" button for web users
 - [ ] Optimize pixie collision detection
 - [ ] More Levels
+- [ ] Level editor
 - [ ] Pixie-combiners
 - [ ] Completely rethink scoring
 - [ ] Obstacles that only affect particular layers
+- [ ] Nicer color theme
+- [ ] VFX, bloom etc
