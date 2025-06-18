@@ -73,8 +73,14 @@ fn level_select_button_system(
     }
 }
 
-fn level_select_enter(mut commands: Commands, best_scores: Res<BestScores>, handles: Res<Handles>) {
+fn level_select_enter(
+    mut commands: Commands,
+    best_scores: Res<BestScores>,
+    handles: Res<Handles>,
+    levels: Res<Assets<Level>>,
+) {
     let total_score: u32 = best_scores.0.iter().map(|(_, v)| v).sum();
+    let num_stars = num_stars(&best_scores, &handles, &levels);
 
     let root = commands
         .spawn((
@@ -136,6 +142,43 @@ fn level_select_enter(mut commands: Commands, best_scores: Res<BestScores>, hand
                             align_self: AlignSelf::Center,
                             ..default()
                         },
+                        Text::new("★"),
+                        TextFont {
+                            font: handles.fonts[0].clone(),
+                            font_size: 25.0,
+                            ..default()
+                        },
+                        TextColor(theme::UI_LABEL.into()),
+                        Children::spawn((
+                            Spawn((
+                                TextSpan::new(format!("{}/", num_stars.0)),
+                                TextFont {
+                                    font: handles.fonts[0].clone(),
+                                    font_size: 25.0,
+                                    ..default()
+                                },
+                                TextColor(if num_stars.0 == num_stars.1 {
+                                    theme::UI_LABEL.into()
+                                } else {
+                                    theme::UI_LABEL_MUTED.into()
+                                }),
+                            )),
+                            Spawn((
+                                TextSpan::new(format!("{}", num_stars.1)),
+                                TextFont {
+                                    font: handles.fonts[0].clone(),
+                                    font_size: 25.0,
+                                    ..default()
+                                },
+                                TextColor(theme::UI_LABEL.into()),
+                            )),
+                        )),
+                    ));
+                    parent.spawn((
+                        Node {
+                            align_self: AlignSelf::Center,
+                            ..default()
+                        },
                         Text::new(format!("Æ{total_score}")),
                         TextFont {
                             font: handles.fonts[0].clone(),
@@ -144,7 +187,6 @@ fn level_select_enter(mut commands: Commands, best_scores: Res<BestScores>, hand
                         },
                         TextColor(theme::FINISHED_ROAD[1].into()),
                     ));
-                    // TODO add total star count
                     // TODO clock for flavor?
                 });
         })
@@ -442,4 +484,30 @@ fn music_volume_text_system(
     for mut text in texts {
         text.0 = format!("{}%", volume.0);
     }
+}
+
+/// Returns a tuple containing the number of stars the player has
+/// earned and the total number of stars available to earn.
+fn num_stars(
+    best_scores: &BestScores,
+    handles: &Handles,
+    levels: &Assets<Level>,
+) -> (usize, usize) {
+    (1..=NUM_LEVELS)
+        .flat_map(|i| {
+            let handle = handles.levels.get(i as usize - 1)?;
+            let level = levels.get(handle)?;
+            let score = best_scores.0.get(&i)?;
+
+            let stars = level
+                .star_thresholds
+                .iter()
+                .filter(|t| **t <= *score)
+                .count();
+
+            let total = level.star_thresholds.len();
+
+            Some((stars, total))
+        })
+        .fold((0, 0), |acc, e| (acc.0 + e.0, acc.1 + e.1))
 }
