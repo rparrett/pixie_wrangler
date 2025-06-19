@@ -72,23 +72,26 @@ fn net_ripping_mouse_movement_system(
 
     ripping_state.reset();
 
-    // Find collision on the top-most (lowest layer value) layer
+    // Find the top-most (lowest layer value) collision with a road segment
     let Some((entity, _layer)) = q_colliders
         .iter()
-        .filter_map(|(child_of, collider, layer)| match collider {
-            Collider::Segment(segment) => {
-                match point_segment_collision(mouse_snapped.0, segment.0, segment.1) {
-                    PointCollision::None => None,
-                    _ => {
-                        if layer.0 == 0 {
-                            None
-                        } else {
-                            Some((child_of.parent(), layer.0))
-                        }
-                    }
-                }
+        .filter_map(|(child_of, collider, layer)| {
+            let Collider::Segment(segment_points) = collider else {
+                return None;
+            };
+
+            if q_road_segments.get(child_of.parent()).is_err() {
+                return None;
             }
-            _ => None,
+
+            if matches!(
+                point_segment_collision(mouse_snapped.0, segment_points.0, segment_points.1),
+                PointCollision::None
+            ) {
+                return None;
+            };
+
+            Some((child_of.parent(), layer.0))
         })
         .min_by_key(|(_, layer)| *layer)
     else {
