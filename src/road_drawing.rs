@@ -363,6 +363,7 @@ fn not_drawing_mouse_movement_system(
             Collider::Segment(segment) => {
                 match point_segment_collision(mouse_snapped.0, segment.0, segment.1) {
                     PointCollision::None => false,
+                    // TODO (I think) this is a hack to check if the collider is an obstacle
                     _ => layer.0 == 0,
                 }
             }
@@ -462,6 +463,7 @@ fn drawing_mouse_movement_system(
                                 // "Touching" collisions are allowed only if they are the
                                 // start or end of the line we are currently drawing.
 
+                                // TODO (I think) this is a hack to check if the collider is an obstacle
                                 if layer.0 == 0 {
                                     ok = false;
                                     break;
@@ -515,6 +517,7 @@ fn drawing_mouse_movement_system(
                                 // "Connecting" collisions are allowed only if they are the
                                 // start or end of the line we are currently drawing.
 
+                                // TODO (I think) this is a hack to check if the collider is an obstacle
                                 if layer.0 == 0 {
                                     ok = false;
                                     break;
