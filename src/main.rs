@@ -877,6 +877,7 @@ fn spawn_obstacle(commands: &mut Commands, obstacle: &Obstacle) {
                     .build(),
                     Transform::from_translation(origin.extend(layer::OBSTACLE)),
                     StateScoped(GameState::Playing),
+                    obstacle.clone(),
                 ))
                 .with_children(|parent| {
                     parent.spawn((

@@ -8,6 +8,7 @@ use petgraph::{
 use crate::{
     collision::{point_segment_collision, segment_collision, PointCollision, SegmentCollision},
     layer,
+    level::Obstacle,
     lines::{possible_lines, Axis},
     sim::SimulationState,
     spawn_road_segment, theme, Collider, ColliderLayer, DrawingInteraction, DrawingMouseMovement,
@@ -344,6 +345,7 @@ fn not_drawing_mouse_movement_system(
     selected_tool: Res<SelectedTool>,
     mouse_snapped: Res<MouseSnappedPos>,
     q_colliders: Query<(&ChildOf, &Collider, &ColliderLayer)>,
+    q_obstacles: Query<(), With<Obstacle>>,
 ) {
     if !matches!(selected_tool.0, Tool::LineDrawing) {
         return;
@@ -359,12 +361,11 @@ fn not_drawing_mouse_movement_system(
 
     let bad = q_colliders
         .iter()
-        .any(|(_parent, collider, layer)| match collider {
+        .any(|(child_of, collider, _layer)| match collider {
             Collider::Segment(segment) => {
                 match point_segment_collision(mouse_snapped.0, segment.0, segment.1) {
                     PointCollision::None => false,
-                    // TODO (I think) this is a hack to check if the collider is an obstacle
-                    _ => layer.0 == 0,
+                    _ => q_obstacles.get(child_of.parent()).is_ok(),
                 }
             }
             _ => false,
@@ -382,6 +383,7 @@ fn drawing_mouse_movement_system(
     sim_state: Res<SimulationState>,
     mouse_snapped: Res<MouseSnappedPos>,
     q_colliders: Query<(&ChildOf, &Collider, &ColliderLayer)>,
+    q_obstacles: Query<(), With<Obstacle>>,
 ) {
     if !road_state.drawing {
         return;
@@ -448,27 +450,37 @@ fn drawing_mouse_movement_system(
                     Collider::Segment(s) => {
                         let collision = segment_collision(s.0, s.1, *a, *b);
 
+                        // If there's no collision, there's no problem.
+                        if matches!(collision, SegmentCollision::None) {
+                            continue;
+                        };
+
+                        let parent = child_of.parent();
+                        let is_obstacle = q_obstacles.get(parent).is_ok();
+                        if is_obstacle {
+                            ok = false;
+                            break;
+                        }
+
                         match collision {
+                            // This variant is covered above.
+                            SegmentCollision::None => {}
+                            // We are allowed to cross over road segments on other layers,
+                            // but not obstacles.
                             SegmentCollision::Intersecting => {
-                                if layer.0 == road_state.layer || layer.0 == 0 {
+                                if layer.0 == road_state.layer {
                                     ok = false;
                                     break;
                                 }
                             }
+                            // Overlapping a road segment is never okay.
                             SegmentCollision::Overlapping => {
                                 ok = false;
                                 break;
                             }
+                            // "Touching" collisions are allowed only if they are the
+                            // start or end of the line we are currently drawing.
                             SegmentCollision::Touching(intersection_point) => {
-                                // "Touching" collisions are allowed only if they are the
-                                // start or end of the line we are currently drawing.
-
-                                // TODO (I think) this is a hack to check if the collider is an obstacle
-                                if layer.0 == 0 {
-                                    ok = false;
-                                    break;
-                                }
-
                                 let start_touching = intersection_point == road_state.start;
                                 let end_touching = intersection_point == road_state.end;
 
@@ -500,29 +512,18 @@ fn drawing_mouse_movement_system(
                                 }
 
                                 if start_touching {
-                                    connections
-                                        .0
-                                        .push(SegmentConnection::Split(child_of.parent()));
+                                    connections.0.push(SegmentConnection::Split(parent));
                                     split_layers.0.insert(layer.0);
                                 }
                                 if end_touching {
-                                    connections
-                                        .1
-                                        .push(SegmentConnection::Split(child_of.parent()));
+                                    connections.1.push(SegmentConnection::Split(parent));
                                     split_layers.1.insert(layer.0);
                                 }
                             }
+                            // "Connecting" collisions are allowed only if they are the
+                            // start or end of the line we are currently drawing.
                             SegmentCollision::Connecting(intersection_point)
                             | SegmentCollision::ConnectingParallel(intersection_point) => {
-                                // "Connecting" collisions are allowed only if they are the
-                                // start or end of the line we are currently drawing.
-
-                                // TODO (I think) this is a hack to check if the collider is an obstacle
-                                if layer.0 == 0 {
-                                    ok = false;
-                                    break;
-                                }
-
                                 let start_touching = intersection_point == road_state.start;
                                 let end_touching = intersection_point == road_state.end;
 
@@ -537,13 +538,9 @@ fn drawing_mouse_movement_system(
                                     if matches!(collision, SegmentCollision::ConnectingParallel(_))
                                         && layer.0 == road_state.layer
                                     {
-                                        connections
-                                            .0
-                                            .push(SegmentConnection::TryExtend(child_of.parent()));
+                                        connections.0.push(SegmentConnection::TryExtend(parent));
                                     } else {
-                                        connections
-                                            .0
-                                            .push(SegmentConnection::Add(child_of.parent()));
+                                        connections.0.push(SegmentConnection::Add(parent));
                                     }
                                 }
                                 if (road_state.start == *b && start_touching)
@@ -552,23 +549,18 @@ fn drawing_mouse_movement_system(
                                     if matches!(collision, SegmentCollision::ConnectingParallel(_))
                                         && layer.0 == road_state.layer
                                     {
-                                        connections
-                                            .1
-                                            .push(SegmentConnection::TryExtend(child_of.parent()));
+                                        connections.1.push(SegmentConnection::TryExtend(parent));
                                     } else {
-                                        connections
-                                            .1
-                                            .push(SegmentConnection::Add(child_of.parent()));
+                                        connections.1.push(SegmentConnection::Add(parent));
                                     }
                                 }
                             }
-                            SegmentCollision::None => {}
                         }
                     }
+                    // The only point colliders that exist right now are for termini
                     Collider::Point(p) => match point_segment_collision(*p, *a, *b) {
+                        // Don't allow the midpoint of the line to connect to a terminus.
                         PointCollision::Middle => {
-                            // don't allow the midpoint of the line to connect to a
-                            // terminus
                             ok = false;
                             break;
                         }
@@ -578,19 +570,19 @@ fn drawing_mouse_movement_system(
                                 break;
                             }
 
+                            // Exit drawing mode if the player is connecting a road to a
+                            // terminus.
                             if *p == road_state.end {
                                 stop = true;
                             }
 
+                            let parent = child_of.parent();
+
                             if *a == *p {
-                                connections
-                                    .0
-                                    .push(SegmentConnection::Add(child_of.parent()));
+                                connections.0.push(SegmentConnection::Add(parent));
                             }
                             if *b == *p {
-                                connections
-                                    .1
-                                    .push(SegmentConnection::Add(child_of.parent()));
+                                connections.1.push(SegmentConnection::Add(parent));
                             }
                         }
                         PointCollision::None => {}

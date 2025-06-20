@@ -12,7 +12,7 @@ pub struct Level {
     pub star_thresholds: Vec<u32>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone, Component)]
 pub enum Obstacle {
     Rect(Vec2, Vec2),
 }
