@@ -359,7 +359,7 @@ fn not_drawing_mouse_movement_system(
         return;
     }
 
-    let bad = q_colliders
+    let valid = !q_colliders
         .iter()
         .any(|(child_of, collider, _layer)| match collider {
             Collider::Segment(segment) => {
@@ -371,10 +371,8 @@ fn not_drawing_mouse_movement_system(
             _ => false,
         });
 
-    if bad && road_state.valid {
-        road_state.valid = false;
-    } else if !bad && !road_state.valid {
-        road_state.valid = true;
+    if road_state.valid != valid {
+        road_state.valid = valid;
     }
 }
 
