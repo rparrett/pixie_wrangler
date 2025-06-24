@@ -19,15 +19,26 @@ jobs:
     steps:
       - uses: little-core-labs/get-git-tag@v3.0.1
         id: get_version
+
       - uses: actions/checkout@v4
+
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           target: wasm32-unknown-unknown
           override: true
+
+      # bevy_cli installs an older version of wasm-opt via https://crates.io/crates/wasm-opt which is
+      # incompatible with the wasm produced by rust 1.87
+      - uses: sigoden/install-binary@v1
+        with:
+          repo: WebAssembly/binaryen
+          name: wasm-opt
+
       - name: install bevy_cli
         run: |
-          cargo install --git https://github.com/TheBevyFlock/bevy_cli bevy_cli --features wasm-opt
+          cargo install --git https://github.com/TheBevyFlock/bevy_cli --tag cli-v0.1.0-alpha.1 --locked bevy_cli
+
       - name: bundle
         run: |
           bevy build --yes --release --profile web-dist web --bundle
