@@ -497,12 +497,12 @@ fn num_stars(
         .flat_map(|i| {
             let handle = handles.levels.get(i as usize - 1)?;
             let level = levels.get(handle)?;
-            let score = best_scores.0.get(&i)?;
+            let maybe_score = best_scores.0.get(&i);
 
             let stars = level
                 .star_thresholds
                 .iter()
-                .filter(|t| **t <= *score)
+                .filter(|t| maybe_score.is_some_and(|score| **t <= *score))
                 .count();
 
             let total = level.star_thresholds.len();
