@@ -34,10 +34,10 @@ cargo run --profile dist
 ### Web
 
 ```bash
-cargo install --git https://github.com/TheBevyFlock/bevy_cli bevy_cli --features wasm-opt
+cargo install --git https://github.com/TheBevyFlock/bevy_cli --tag cli-v0.1.0-alpha.1 --locked bevy_cli
 bevy run web
 bevy run --release web
-bevy run --release --profile web-dist web --bundle
+bevy build --yes --release --profile web-dist web --bundle
 ```
 
 ## Contributing
