@@ -143,7 +143,7 @@ pub fn move_fragments_system(
 }
 
 pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixie, &Transform)>) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let shape = shapes::RegularPolygon {
         sides: 3,
@@ -159,7 +159,7 @@ pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixi
         // every pixie again
 
         for _ in 0..2 {
-            let (sin, cos) = rng.gen_range(0.0..std::f32::consts::TAU).sin_cos();
+            let (sin, cos) = rng.random_range(0.0..std::f32::consts::TAU).sin_cos();
 
             commands.spawn((
                 ShapeBuilder::with(&shape)
@@ -491,7 +491,7 @@ pub fn emit_pixies_system(mut q_emitters: Query<&mut PixieEmitter>, mut commands
             .timer
             .tick(Duration::from_secs_f32(SIMULATION_TIMESTEP));
 
-        if !emitter.timer.finished() {
+        if !emitter.timer.is_finished() {
             continue;
         }
 

@@ -97,7 +97,6 @@ fn main() {
     ));
 
     app.init_state::<GameState>();
-    app.enable_state_scoped_entities::<GameState>();
 
     app.add_systems(
         OnEnter(GameState::Playing),
@@ -784,7 +783,7 @@ fn keyboard_system(
 }
 
 fn mouse_movement_system(
-    mut cursor_moved_events: EventReader<CursorMoved>,
+    mut cursor_moved_events: MessageReader<CursorMoved>,
     mut mouse: ResMut<MousePos>,
     mut mouse_snapped: ResMut<MouseSnappedPos>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
