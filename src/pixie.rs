@@ -417,7 +417,7 @@ pub fn move_pixies_system(
 
         let speed_diff = speed_limit - pixie.current_speed;
 
-        if speed_diff < -1.0 * f32::EPSILON {
+        if speed_diff < -f32::EPSILON {
             pixie.current_speed -= pixie.deceleration * delta;
             pixie.current_speed = pixie.current_speed.max(speed_limit);
             pixie.driving_state = DrivingState::Braking;

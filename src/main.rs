@@ -962,7 +962,7 @@ fn spawn_terminus(
 
             for flavor in terminus.emits.iter() {
                 let label_pos =
-                    Vec2::new(0.0, -1.0 * label_offset + -1.0 * i as f32 * label_spacing);
+                    Vec2::new(0.0, -label_offset + -(i as f32) * label_spacing);
 
                 let label = if flavor.net > 0 {
                     format!("OUT.{}", flavor.net + 1)
@@ -987,7 +987,7 @@ fn spawn_terminus(
 
             for flavor in terminus.collects.iter() {
                 let label_pos =
-                    Vec2::new(0.0, -1.0 * label_offset + -1.0 * i as f32 * label_spacing);
+                    Vec2::new(0.0, -label_offset + -(i as f32) * label_spacing);
 
                 let label = if flavor.net > 0 {
                     format!("IN.{}", flavor.net + 1)
@@ -1020,7 +1020,7 @@ fn spawn_terminus(
                 })
                 .fill(bevy::color::palettes::css::RED)
                 .build(),
-                Transform::from_xyz(-30.0, -1.0 * label_offset, layer::TERMINUS),
+                Transform::from_xyz(-30.0, -label_offset, layer::TERMINUS),
                 Visibility::Hidden,
                 TerminusIssueIndicator,
             ));
