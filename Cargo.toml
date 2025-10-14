@@ -37,8 +37,8 @@ bevy_simple_prefs = "0.7"
 bevy_pipelines_ready = "0.7"
 
 rand = "0.9"
-petgraph = "0.6"
-itertools = "0.13"
+petgraph = "0.8"
+itertools = "0.14"
 serde = { version = "1", features = ["derive"] }
 rstar = "0.12"
 
