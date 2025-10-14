@@ -961,8 +961,7 @@ fn spawn_terminus(
             let mut i = 0;
 
             for flavor in terminus.emits.iter() {
-                let label_pos =
-                    Vec2::new(0.0, -label_offset + -(i as f32) * label_spacing);
+                let label_pos = Vec2::new(0.0, -label_offset + -(i as f32) * label_spacing);
 
                 let label = if flavor.net > 0 {
                     format!("OUT.{}", flavor.net + 1)
@@ -986,8 +985,7 @@ fn spawn_terminus(
             }
 
             for flavor in terminus.collects.iter() {
-                let label_pos =
-                    Vec2::new(0.0, -label_offset + -(i as f32) * label_spacing);
+                let label_pos = Vec2::new(0.0, -label_offset + -(i as f32) * label_spacing);
 
                 let label = if flavor.net > 0 {
                     format!("IN.{}", flavor.net + 1)
