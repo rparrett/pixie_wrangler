@@ -170,7 +170,7 @@ pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixi
                     direction: Vec2::new(cos, sin),
                     ..default()
                 },
-                StateScoped(GameState::Playing),
+                DespawnOnExit(GameState::Playing),
             ));
         }
     }
@@ -519,7 +519,7 @@ pub fn emit_pixies_system(mut q_emitters: Query<&mut PixieEmitter>, mut commands
                 path_index: 0,
                 ..default()
             },
-            StateScoped(GameState::Playing),
+            DespawnOnExit(GameState::Playing),
         ));
 
         emitter.remaining -= 1;
