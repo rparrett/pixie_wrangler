@@ -95,7 +95,7 @@ fn show_score_dialog_system(
             ),
             BackgroundColor(theme::UI_PANEL_BACKGROUND.into()),
             ScoreDialog,
-            StateScoped(GameState::Playing),
+            DespawnOnExit(GameState::Playing),
         ))
         .with_children(|parent| {
             parent.spawn(Text::default()).with_children(|parent| {

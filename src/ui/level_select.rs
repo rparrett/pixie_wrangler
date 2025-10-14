@@ -389,12 +389,12 @@ fn level_select_exit(
 }
 
 fn populate_settings_panel_body(
-    trigger: Trigger<OnAdd, SettingsPanelBody>,
+    trigger: On<Add, SettingsPanelBody>,
     mut commands: Commands,
     handles: Res<Handles>,
     music_volume: Res<MusicVolume>,
 ) {
-    commands.entity(trigger.target()).with_child((
+    commands.entity(trigger.event().entity).with_child((
         Text::new("Music"),
         TextFont {
             font: handles.fonts[0].clone(),
@@ -403,7 +403,7 @@ fn populate_settings_panel_body(
         },
     ));
 
-    commands.entity(trigger.target()).with_child((
+    commands.entity(trigger.event().entity).with_child((
         Node {
             flex_direction: FlexDirection::Row,
             align_items: AlignItems::Stretch,
@@ -435,7 +435,7 @@ fn populate_settings_panel_body(
 }
 
 fn populate_levels_panel_body(
-    trigger: Trigger<OnAdd, LevelsPanelBody>,
+    trigger: On<Add, LevelsPanelBody>,
     mut commands: Commands,
     handles: Res<Handles>,
     best_scores: Res<BestScores>,
@@ -451,12 +451,14 @@ fn populate_levels_panel_body(
             continue;
         };
 
-        commands.entity(trigger.target()).with_child(level_item(
-            level,
-            level_index,
-            &best_scores,
-            &handles.fonts[0],
-        ));
+        commands
+            .entity(trigger.event().entity)
+            .with_child(level_item(
+                level,
+                level_index,
+                &best_scores,
+                &handles.fonts[0],
+            ));
     }
 }
 

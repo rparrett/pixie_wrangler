@@ -97,7 +97,6 @@ fn main() {
     ));
 
     app.init_state::<GameState>();
-    app.enable_state_scoped_entities::<GameState>();
 
     app.add_systems(
         OnEnter(GameState::Playing),
@@ -579,7 +578,7 @@ fn pixie_button_system(
                         remaining: pixies,
                         timer,
                     },
-                    StateScoped(GameState::Playing),
+                    DespawnOnExit(GameState::Playing),
                 ));
 
                 *i += 1;
@@ -691,7 +690,7 @@ fn draw_cursor_system(
             ShapeBuilder::with(&shape).stroke((color, 2.0)).build(),
             Transform::from_translation(mouse_snapped.0.extend(layer::CURSOR)),
             Cursor,
-            StateScoped(GameState::Playing),
+            DespawnOnExit(GameState::Playing),
         ));
     }
 }
@@ -784,7 +783,7 @@ fn keyboard_system(
 }
 
 fn mouse_movement_system(
-    mut cursor_moved_events: EventReader<CursorMoved>,
+    mut cursor_moved_events: MessageReader<CursorMoved>,
     mut mouse: ResMut<MousePos>,
     mut mouse_snapped: ResMut<MouseSnappedPos>,
     q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
@@ -836,7 +835,7 @@ fn spawn_road_segment(
                 .build(),
             Transform::from_xyz(0.0, 0.0, layer::ROAD - segment.layer as f32),
             segment.clone(),
-            StateScoped(GameState::Playing),
+            DespawnOnExit(GameState::Playing),
         ))
         .with_children(|parent| {
             parent.spawn((
@@ -876,7 +875,7 @@ fn spawn_obstacle(commands: &mut Commands, obstacle: &Obstacle) {
                     .fill(theme::OBSTACLE)
                     .build(),
                     Transform::from_translation(origin.extend(layer::OBSTACLE)),
-                    StateScoped(GameState::Playing),
+                    DespawnOnExit(GameState::Playing),
                     obstacle.clone(),
                 ))
                 .with_children(|parent| {
@@ -928,9 +927,9 @@ fn spawn_name(
             ..default()
         },
         TextColor(theme::LEVEL_NAME.into()),
-        Anchor::TopLeft,
+        Anchor::TOP_LEFT,
         Transform::from_translation((name_position + Vec2::new(8., -8.)).extend(layer::GRID)),
-        StateScoped(GameState::Playing),
+        DespawnOnExit(GameState::Playing),
     ));
 }
 
@@ -954,7 +953,7 @@ fn spawn_terminus(
             .build(),
             Transform::from_translation(terminus.point.extend(layer::TERMINUS)),
             terminus.clone(),
-            StateScoped(GameState::Playing),
+            DespawnOnExit(GameState::Playing),
         ))
         .with_children(|parent| {
             parent.spawn((Collider::Point(terminus.point), ColliderLayer(1)));
@@ -962,8 +961,7 @@ fn spawn_terminus(
             let mut i = 0;
 
             for flavor in terminus.emits.iter() {
-                let label_pos =
-                    Vec2::new(0.0, -1.0 * label_offset + -1.0 * i as f32 * label_spacing);
+                let label_pos = Vec2::new(0.0, -label_offset + -(i as f32) * label_spacing);
 
                 let label = if flavor.net > 0 {
                     format!("OUT.{}", flavor.net + 1)
@@ -979,7 +977,7 @@ fn spawn_terminus(
                         ..default()
                     },
                     TextColor(theme::PIXIE[flavor.color as usize].into()),
-                    TextLayout::new_with_justify(JustifyText::Center),
+                    TextLayout::new_with_justify(Justify::Center),
                     Transform::from_translation(label_pos.extend(layer::TERMINUS)),
                 ));
 
@@ -987,8 +985,7 @@ fn spawn_terminus(
             }
 
             for flavor in terminus.collects.iter() {
-                let label_pos =
-                    Vec2::new(0.0, -1.0 * label_offset + -1.0 * i as f32 * label_spacing);
+                let label_pos = Vec2::new(0.0, -label_offset + -(i as f32) * label_spacing);
 
                 let label = if flavor.net > 0 {
                     format!("IN.{}", flavor.net + 1)
@@ -1004,7 +1001,7 @@ fn spawn_terminus(
                         ..default()
                     },
                     TextColor(theme::PIXIE[flavor.color as usize].into()),
-                    TextLayout::new_with_justify(JustifyText::Center),
+                    TextLayout::new_with_justify(Justify::Center),
                     Transform::from_translation(label_pos.extend(layer::TERMINUS)),
                 ));
 
@@ -1021,7 +1018,7 @@ fn spawn_terminus(
                 })
                 .fill(bevy::color::palettes::css::RED)
                 .build(),
-                Transform::from_xyz(-30.0, -1.0 * label_offset, layer::TERMINUS),
+                Transform::from_xyz(-30.0, -label_offset, layer::TERMINUS),
                 Visibility::Hidden,
                 TerminusIssueIndicator,
             ));
@@ -1217,7 +1214,7 @@ fn spawn_level(
                 .build(),
                 Transform::from_xyz(x as f32, y as f32, layer::GRID),
                 GridPoint,
-                StateScoped(GameState::Playing),
+                DespawnOnExit(GameState::Playing),
             ));
         }
     }
@@ -1312,7 +1309,7 @@ fn spawn_game_ui(
                 align_items: AlignItems::Center,
                 ..default()
             },
-            StateScoped(GameState::Playing),
+            DespawnOnExit(GameState::Playing),
         ))
         .with_children(|parent| {
             // bottom bar

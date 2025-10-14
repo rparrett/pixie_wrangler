@@ -166,7 +166,7 @@ fn draw_net_ripping_system(
                 .build(),
             Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
             RippingLine,
-            StateScoped(GameState::Playing),
+            DespawnOnExit(GameState::Playing),
         ));
     }
 }

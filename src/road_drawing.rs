@@ -648,7 +648,7 @@ fn draw_drawing_system(
                     .build(),
                 Transform::from_xyz(0.0, 0.0, layer::ROAD_OVERLAY),
                 DrawingLine,
-                StateScoped(GameState::Playing),
+                DespawnOnExit(GameState::Playing),
             ));
         }
     }

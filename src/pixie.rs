@@ -143,7 +143,7 @@ pub fn move_fragments_system(
 }
 
 pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixie, &Transform)>) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let shape = shapes::RegularPolygon {
         sides: 3,
@@ -159,7 +159,7 @@ pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixi
         // every pixie again
 
         for _ in 0..2 {
-            let (sin, cos) = rng.gen_range(0.0..std::f32::consts::TAU).sin_cos();
+            let (sin, cos) = rng.random_range(0.0..std::f32::consts::TAU).sin_cos();
 
             commands.spawn((
                 ShapeBuilder::with(&shape)
@@ -170,7 +170,7 @@ pub fn explode_pixies_system(mut commands: Commands, query: Query<(Entity, &Pixi
                     direction: Vec2::new(cos, sin),
                     ..default()
                 },
-                StateScoped(GameState::Playing),
+                DespawnOnExit(GameState::Playing),
             ));
         }
     }
@@ -417,7 +417,7 @@ pub fn move_pixies_system(
 
         let speed_diff = speed_limit - pixie.current_speed;
 
-        if speed_diff < -1.0 * f32::EPSILON {
+        if speed_diff < -f32::EPSILON {
             pixie.current_speed -= pixie.deceleration * delta;
             pixie.current_speed = pixie.current_speed.max(speed_limit);
             pixie.driving_state = DrivingState::Braking;
@@ -491,7 +491,7 @@ pub fn emit_pixies_system(mut q_emitters: Query<&mut PixieEmitter>, mut commands
             .timer
             .tick(Duration::from_secs_f32(SIMULATION_TIMESTEP));
 
-        if !emitter.timer.finished() {
+        if !emitter.timer.is_finished() {
             continue;
         }
 
@@ -519,7 +519,7 @@ pub fn emit_pixies_system(mut q_emitters: Query<&mut PixieEmitter>, mut commands
                 path_index: 0,
                 ..default()
             },
-            StateScoped(GameState::Playing),
+            DespawnOnExit(GameState::Playing),
         ));
 
         emitter.remaining -= 1;

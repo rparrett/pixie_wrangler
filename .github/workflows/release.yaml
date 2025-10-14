@@ -28,16 +28,9 @@ jobs:
           target: wasm32-unknown-unknown
           override: true
 
-      # bevy_cli installs an older version of wasm-opt via https://crates.io/crates/wasm-opt which is
-      # incompatible with the wasm produced by rust 1.87
-      - uses: sigoden/install-binary@v1
-        with:
-          repo: WebAssembly/binaryen
-          name: wasm-opt
-
       - name: install bevy_cli
         run: |
-          cargo install --git https://github.com/TheBevyFlock/bevy_cli --tag cli-v0.1.0-alpha.1 --locked bevy_cli
+          cargo install --git https://github.com/TheBevyFlock/bevy_cli --tag cli-v0.1.0-alpha.2 --locked bevy_cli
 
       - name: bundle
         run: |
@@ -79,7 +72,7 @@ jobs:
           override: true
       - name: install dependencies
         run: |
-          sudo apt-get update; sudo apt-get install pkg-config libx11-dev libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+          sudo apt-get update; sudo apt-get install pkg-config libx11-dev libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libwayland-dev
 
       - name: Build
         run: |

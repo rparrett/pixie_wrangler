@@ -42,7 +42,7 @@ fn loading_setup(
         ShapeBuilder::with(&shapes::RegularPolygon::default())
             .fill(Color::BLACK)
             .build(),
-        StateScoped(GameState::Loading),
+        DespawnOnExit(GameState::Loading),
     ));
 
     for i in 1..=NUM_LEVELS {
@@ -64,7 +64,7 @@ fn loading_setup(
             ..default()
         },
         Children::spawn(Spawn(Text::new("Loading..."))),
-        StateScoped(GameState::Loading),
+        DespawnOnExit(GameState::Loading),
     ));
 
     handles.music = asset_server.load("music/galactic_odyssey_by_alkakrab.ogg");
